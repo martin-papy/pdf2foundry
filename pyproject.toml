@@ -9,7 +9,7 @@ description = "Convert born-digital PDFs into Foundry VTT v12+ module compendia.
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-  { name = "Martin Papy", email = "martin.papy@gmail.tech" }
+  { name = "Martin Papy", email = "martin.papy@gmail.com" }
 ]
 dependencies = [
   "typer>=0.12.0",
