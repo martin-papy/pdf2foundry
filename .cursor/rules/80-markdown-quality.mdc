@@ -1,0 +1,24 @@
+---
+description: Markdown quality gate (lint, format, spellcheck)
+---
+# Markdown Quality Gate
+
+## Goals
+- All `*.md` files must pass formatting, linting, and spellcheck.
+- Enforced via pre-commit and CI.
+
+## Tools
+- **Formatter**: mdformat (+ GFM/frontmatter plugins)
+- **Linter**: PyMarkdown (pymarkdown) — scan mode
+- **Spellcheck**: codespell (project dictionary)
+
+## Policies
+- Prefer semantic headings and consistent lists; avoid trailing spaces.
+- Allow long URLs and code blocks to exceed line length; do not hard-wrap prose.
+- Ignore generated directories: `dist/`, `node_modules/`, `.venv/`, `packs/`.
+
+## Config files
+- `pymarkdown.yaml` — rules (disable long-line; allow HTML snippets when needed)
+- `.codespellrc` — skip paths and project-specific words
+
+Run order: mdformat (fix), pymarkdown (lint), codespell.

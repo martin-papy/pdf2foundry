@@ -1,0 +1,18 @@
+plugins:
+  - pymarkdown.general
+  - pymarkdown.extensions.front-matter
+
+log_level: warning
+
+extensions.front-matter.enabled: true
+
+plugins.customization.md013.enabled: false
+plugins.customization.md033.enabled: true
+
+path-filter:
+  - include: "**/*.md"
+  - exclude: "dist/**"
+  - exclude: "node_modules/**"
+  - exclude: "packs/**"
+  - exclude: ".venv/**"
+

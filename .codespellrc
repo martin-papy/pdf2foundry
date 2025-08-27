@@ -1,0 +1,4 @@
+[codespell]
+skip = ./.venv,./node_modules,./dist,./packs
+ignore-words-list = modid,compendia,Compendia,UUID,uuid,VTT,Foundry,FoundryVTT,Typer,CLI,LevelDB,linkable,Figcaption
+

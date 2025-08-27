@@ -1,13 +1,13 @@
 # Templates
 
 1. a **sample `module.json`** (v12+ manifest with a Journal compendium, CSS, and a required dependency on Compendium Folders), and
-2. a **sample Journal Entry source JSON** (one “Chapter” with two HTML pages, deterministic IDs, images, and an example `@UUID[...]` link).
+1. a **sample Journal Entry source JSON** (one “Chapter” with two HTML pages, deterministic IDs, images, and an example `@UUID[...]` link).
 
 I’ve also added short notes (right after each block) that call out the few fields you’ll want to parameterize in the CLI.
 
----
+______________________________________________________________________
 
-# 1) Sample `module.json` (v12+)
+## 1) Sample `module.json` (v12+)
 
 ```json
 {
@@ -52,24 +52,24 @@ I’ve also added short notes (right after each block) that call out the few fie
 }
 ```
 
-**Notes for devs**
+### Notes for devs (module.json)
 
-* `compatibility` and `authors` follow the modern manifest rules (v10+). ([Foundry Virtual Tabletop][1])
-* `packs[].path` is a **folder** (LevelDB), not a `*.db` file (v11+ content format). ([Foundry Virtual Tabletop][2])
-* The “Module Manifest” rules (folder name must equal `id`, etc.) are described here. ([Foundry Virtual Tabletop][3])
-* The “Packaging Guide” explains the recommended content-packaging flow (and the Module Maker UI, if you build in-app). ([Foundry Virtual Tabletop][4])
+- `compatibility` and `authors` follow the modern manifest rules (v10+). ([Foundry Virtual Tabletop][1])
+- `packs[].path` is a **folder** (LevelDB), not a `*.db` file (v11+ content format). ([Foundry Virtual Tabletop][2])
+- The “Module Manifest” rules (folder name must equal `id`, etc.) are described here. ([Foundry Virtual Tabletop][3])
+- The “Packaging Guide” explains the recommended content-packaging flow (and the Module Maker UI, if you build in-app). ([Foundry Virtual Tabletop][4])
 
----
+______________________________________________________________________
 
-# 2) Sample **Journal Entry** source file (for `sources/journals/ch01.json`)
+## 2) Sample **Journal Entry** source file (for `sources/journals/ch01.json`)
 
 > This shows **one Journal Entry** (“Chapter 1 — Introduction”) with **two HTML pages**.
 >
-> * Uses **deterministic IDs** (`_id`) you’ll compute in the CLI.
-> * Uses **HTML** page format (v12 supports HTML and Markdown). ([Foundry Virtual Tabletop][5])
-> * Demonstrates a **Compendium Folders** inner-pack folder path via flags.
-> * Shows how an **image** in `/assets/` is referenced from HTML.
-> * Shows an example **`@UUID[...]` link** pointing to another page (replace IDs at build-time). (Docs on ids/uuids here.) ([Foundry VTT Wiki][6])
+> - Uses **deterministic IDs** (`_id`) you’ll compute in the CLI.
+> - Uses **HTML** page format (v12 supports HTML and Markdown). ([Foundry Virtual Tabletop][5])
+> - Demonstrates a **Compendium Folders** inner-pack folder path via flags.
+> - Shows how an **image** in `/assets/` is referenced from HTML.
+> - Shows an example **`@UUID[...]` link** pointing to another page (replace IDs at build-time). (Docs on ids/uuids here.) ([Foundry VTT Wiki][6])
 
 ```json
 {
@@ -110,26 +110,26 @@ I’ve also added short notes (right after each block) that call out the few fie
 }
 ```
 
-**Notes for devs**
+### Notes for devs (journal entry)
 
-* **Page format:** v12 exposes `JOURNAL_ENTRY_PAGE_FORMATS` (HTML/Markdown). The API docs label them as enum **numbers**; many exporters/packers represent **HTML as `1`**. If your pack compiler rejects string enums, set `"format": 1`. ([Foundry Virtual Tabletop][5])
-* **HTML content:** The article confirms journal pages can be **edited as raw HTML**; keeping our markup semantic and simple avoids editor surprises. ([Foundry Virtual Tabletop][7])
-* **IDs & UUIDs:** Foundry distinguishes `id` vs `uuid`. At runtime, the UUID will incorporate the compendium and document ID, enabling `@UUID[...]` links. We pre-generate stable `_id`s so cross-refs remain valid across rebuilds. ([Foundry VTT Wiki][6])
-* **Inner folders:** Core supports folders for compendia in the sidebar, but **folders inside a pack** rely on the Compendium Folders module; we store the folder path under its flag so the add-on can rebuild hierarchy. ([Foundry Virtual Tabletop][8])
+- **Page format:** v12 exposes `JOURNAL_ENTRY_PAGE_FORMATS` (HTML/Markdown). The API docs label them as enum **numbers**; many exporters/packers represent **HTML as `1`**. If your pack compiler rejects string enums, set `"format": 1`. ([Foundry Virtual Tabletop][5])
+- **HTML content:** The article confirms journal pages can be **edited as raw HTML**; keeping our markup semantic and simple avoids editor surprises. ([Foundry Virtual Tabletop][7])
+- **IDs & UUIDs:** Foundry distinguishes `id` vs `uuid`. At runtime, the UUID will incorporate the compendium and document ID, enabling `@UUID[...]` links. We pre-generate stable `_id`s so cross-refs remain valid across rebuilds. ([Foundry VTT Wiki][6])
+- **Inner folders:** Core supports folders for compendia in the sidebar, but **folders inside a pack** rely on the Compendium Folders module; we store the folder path under its flag so the add-on can rebuild hierarchy. ([Foundry Virtual Tabletop][8])
 
----
+______________________________________________________________________
 
 ## How to turn `sources/journals/*.json` into a **LevelDB pack**
 
 You have three practical options:
 
-* **Use Foundry’s built-in Module Maker UI (recommended by the docs)** to author/import and build your pack interactively (great for verifying fields). ([Foundry Virtual Tabletop][4])
-* **Use a packer that writes v11+/v12 LevelDB packs** from JSON (for headless/CLI builds). The community **Data Toolbox** module explicitly supports v12 and can generate compendia from structured data (including Journals). ([Foundry Virtual Tabletop][9])
-* Or build JSON → LevelDB with your own script—as long as the output matches the **v11+ LevelDB** pack layout (i.e., a **folder** at `packs/<name>/` rather than a `.db` file). ([Foundry Virtual Tabletop][2])
+- **Use Foundry’s built-in Module Maker UI (recommended by the docs)** to author/import and build your pack interactively (great for verifying fields). ([Foundry Virtual Tabletop][4])
+- **Use a packer that writes v11+/v12 LevelDB packs** from JSON (for headless/CLI builds). The community **Data Toolbox** module explicitly supports v12 and can generate compendia from structured data (including Journals). ([Foundry Virtual Tabletop][9])
+- Or build JSON → LevelDB with your own script—as long as the output matches the **v11+ LevelDB** pack layout (i.e., a **folder** at `packs/<name>/` rather than a `.db` file). ([Foundry Virtual Tabletop][2])
 
 > Regardless of the route, ensure your final module’s `packs[].path` points at the **folder** you produced (e.g., `packs/my-book-journals/`).
 
----
+______________________________________________________________________
 
 ## Tiny CSS scaffold (optional, safe & additive)
 
@@ -143,7 +143,7 @@ You have three practical options:
 
 This keeps layout tidy without fighting Foundry’s journal styles.
 
----
+______________________________________________________________________
 
 If you want, I can also generate a **TOC entry template** (with `@UUID` placeholders) and a **deterministic ID helper** (Python snippet) you can paste straight into the CLI.
 
