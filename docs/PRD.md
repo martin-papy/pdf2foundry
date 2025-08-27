@@ -201,3 +201,13 @@ ______________________________________________________________________
 - Configurable image compression.
 - Advanced cross-reference resolution.
 - GUI front-end (Electron/Tauri).
+
+______________________________________________________________________
+
+## 11. Related Documents
+
+- **Technical Feasibility**: [technical_feasibility.md](mdc:docs/technical_feasibility.md)
+- **Architecture & Flow (High-level design and pipeline)**: [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)
+- **Templates Overview**: [sample.md](mdc:docs/sample.md)
+- **Sample module manifest**: [sample.module.json](mdc:docs/sample.module.json)
+- **Sample Journal Entry source**: [sample.journal_entry.json](mdc:docs/sample.journal_entry.json)
