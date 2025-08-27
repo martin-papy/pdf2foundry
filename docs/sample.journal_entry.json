@@ -1,0 +1,36 @@
+{
+    "_id": "a1b2c3d4e5f6a7b8",
+    "name": "Chapter 1 — Introduction",
+    "folder": null,
+    "flags": {
+      "compendium-folders": {
+        "folderPath": ["My Book", "Chapter 1"]
+      }
+    },
+    "ownership": { "default": 0 },
+    "pages": [
+      {
+        "_id": "p111222333444555",
+        "name": "Overview",
+        "type": "text",
+        "title": { "show": true, "level": 1 },
+        "text": {
+          "format": 1,
+          "content": "<div class='pdf2foundry'><h2>Overview</h2><p>This chapter introduces the setting and goals.</p><figure><img src='modules/pdf2foundry-my-book/assets/fig-001.png' alt='Intro Figure'><figcaption>Figure 1: Setting overview</figcaption></figure><p>Jump to <a href='@UUID[JournalEntry.a1b2c3d4e5f6a7b8.JournalEntryPage.p666777888999000]{Key Concepts}</a>.</p></div>"
+        },
+        "sort": 1000
+      },
+      {
+        "_id": "p666777888999000",
+        "name": "Key Concepts",
+        "type": "text",
+        "title": { "show": true, "level": 2 },
+        "text": {
+          "format": 1,
+          "content": "<div class='pdf2foundry'><h3>Key Concepts</h3><ul><li>Concept A</li><li>Concept B</li></ul><p>Return to <a href='@UUID[JournalEntry.a1b2c3d4e5f6a7b8.JournalEntryPage.p111222333444555]{Overview}</a>.</p></div>"
+        },
+        "sort": 2000
+      }
+    ]
+  }
+  
