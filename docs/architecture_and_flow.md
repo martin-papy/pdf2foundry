@@ -51,6 +51,13 @@ ______________________________________________________________________
 
 ## Processing pipeline
 
+### Module size and boundaries
+
+- Keep each Python module focused; avoid files larger than ~500 lines.
+- If a file approaches the limit, split into cohesive submodules under the same package (e.g., `parser/outline.py`, `parser/content.py`, `parser/images.py`).
+- Prefer narrow, typed protocols and dataclasses at boundaries to keep modules decoupled.
+- Enforced by pre-commit hook `scripts/check_file_length.py` and CI.
+
 1. **Parse PDF → logical tree**
 
    - Library: **PyMuPDF (fitz)** for text blocks, images, link annotations, **bookmarks/outlines** (primary driver for chapters).

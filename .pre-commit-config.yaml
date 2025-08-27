@@ -6,6 +6,14 @@ repos:
         args: ["--fix"]
       - id: ruff-format
 
+  - repo: local
+    hooks:
+      - id: check-py-file-length
+        name: Check Python file length (<= 500 lines)
+        entry: python scripts/check_file_length.py --max-lines 500 --paths src tests
+        language: system
+        types: [python]
+
   - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:
@@ -26,6 +34,7 @@ repos:
         entry: pytest -q
         language: system
         pass_filenames: false
+
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.19
     hooks:
@@ -33,10 +42,12 @@ repos:
         additional_dependencies:
           - mdformat-gfm
           - mdformat-frontmatter
+
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.14.0
     hooks:
       - id: markdownlint-cli2
+      
   - repo: https://github.com/codespell-project/codespell
     rev: v2.3.0
     hooks:
