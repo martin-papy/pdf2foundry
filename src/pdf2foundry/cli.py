@@ -23,9 +23,31 @@ def main_callback() -> None:
 @app.command()
 def version() -> None:
     """Print version and exit."""
-    from . import __version__
+    import tomllib
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as pkg_version
 
-    typer.echo(__version__)
+    ver: str | None = None
+    # Prefer reading from pyproject.toml
+    try:
+        pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        with pyproject.open("rb") as f:
+            data = tomllib.load(f)
+        obj = data.get("project", {}).get("version")
+        ver = obj if isinstance(obj, str) else None
+    except Exception:
+        ver = None
+
+    # Fallback to installed package metadata, then to internal constant
+    if ver is None:
+        try:
+            ver = pkg_version("pdf2foundry")
+        except PackageNotFoundError:
+            from . import __version__ as fallback_version
+
+            ver = fallback_version
+
+    typer.echo(ver)
 
 
 @app.command()
