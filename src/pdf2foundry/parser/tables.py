@@ -3,8 +3,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
-from ..types import TableCandidate, TableRender
+from ..types import (
+    ParsedTable,
+    TableCandidate,
+    TableExtractionMetrics,
+    TableRender,
+)
 from .images import generate_deterministic_image_name
 
 logger = logging.getLogger(__name__)
@@ -44,7 +50,12 @@ def detect_table_regions_with_camelot(
                 and len(bbox) == 4
                 and all(isinstance(v, int | float) for v in bbox)
             ):
-                x1, y1, x2, y2 = (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+                x1, y1, x2, y2 = (
+                    float(bbox[0]),
+                    float(bbox[1]),
+                    float(bbox[2]),
+                    float(bbox[3]),
+                )
             else:
                 continue
 
@@ -53,6 +64,116 @@ def detect_table_regions_with_camelot(
         return []
 
     return candidates
+
+
+def extract_tables_with_camelot(
+    pdf_path: Path,
+    candidates: Iterable[TableCandidate],
+    *,
+    flavor: str = "lattice",
+    log: logging.Logger | None = None,
+) -> list[ParsedTable]:
+    """Attempt to extract structured table data for the given candidate regions using Camelot.
+
+    - Keeps Camelot as an optional dependency via local import.
+    - Uses candidate page index to scope parsing and passes the candidate bbox as table_areas.
+    - Captures basic parsing metrics (when available) via info-level logs.
+    - Returns one TableRender per candidate when HTML is produced; candidates that
+      yield no tables are skipped.
+    """
+    active_logger = log or logger
+
+    try:  # Local import to avoid hard dependency at runtime/tests
+        import camelot
+    except Exception:  # pragma: no cover - environment-dependent
+        active_logger.info(
+            "Camelot not installed; skipping table extraction and returning no tables."
+        )
+        return []
+
+    results: list[ParsedTable] = []
+    for cand in candidates:
+        pages = str(cand.page_index + 1)
+        # Camelot expects "x1,y1,x2,y2" in PDF coordinate space. We pass-through the
+        # candidate bbox; for most born-digital PDFs this matches expectations.
+        table_areas = [f"{cand.bbox[0]},{cand.bbox[1]},{cand.bbox[2]},{cand.bbox[3]}"]
+
+        try:
+            tables = camelot.read_pdf(
+                str(pdf_path), pages=pages, flavor=flavor, table_areas=table_areas
+            )
+        except Exception as exc:  # pragma: no cover - system libs dependent
+            active_logger.info(
+                "Camelot extraction failed on page=%s bbox=%s (%s)",
+                cand.page_index,
+                cand.bbox,
+                exc,
+            )
+            continue
+
+        if not tables:
+            continue
+
+        # Take the first detected table for this region
+        try:
+            t = tables[0]
+            df = getattr(t, "df", None)
+            # Log available parsing metrics when present
+            report = getattr(t, "parsing_report", None)
+            metrics: TableExtractionMetrics | None = None
+
+            def _to_float(value: Any) -> float | None:
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return None
+
+            if isinstance(report, dict):
+                acc = _to_float(report.get("accuracy"))
+                ws = _to_float(report.get("whitespace"))
+                order = _to_float(report.get("order"))
+                metrics = TableExtractionMetrics(accuracy=acc, whitespace=ws, order=order)
+
+            rows: list[list[str]] = []
+            nrows = 0
+            ncols = 0
+            if df is not None:
+                try:
+                    # Camelot uses pandas DataFrame; get values as strings
+                    nrows, ncols = int(df.shape[0]), int(df.shape[1])
+                    for r in range(nrows):
+                        row: list[str] = []
+                        for c in range(ncols):
+                            val = df.iat[r, c]
+                            row.append("" if val is None else str(val))
+                        rows.append(row)
+                except Exception:  # pragma: no cover - defensive
+                    rows = []
+                    nrows = 0
+                    ncols = 0
+
+            # Simple acceptance heuristic: at least 2x2 and decent accuracy when available
+            ok = (
+                nrows >= 2
+                and ncols >= 2
+                and (metrics is None or metrics.accuracy is None or metrics.accuracy >= 90.0)
+            )
+
+            results.append(
+                ParsedTable(
+                    page_index=cand.page_index,
+                    bbox=cand.bbox,
+                    rows=rows,
+                    nrows=nrows,
+                    ncols=ncols,
+                    metrics=metrics,
+                    ok=ok,
+                )
+            )
+        except Exception:  # pragma: no cover - defensive
+            continue
+
+    return results
 
 
 def table_to_html_or_image(

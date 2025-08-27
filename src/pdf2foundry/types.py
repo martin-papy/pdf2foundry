@@ -116,3 +116,21 @@ class TableRender:
     image_path: Path | None
     module_rel: str | None
     fallback: bool
+
+
+@dataclass(frozen=True)
+class TableExtractionMetrics:
+    accuracy: float | None
+    whitespace: float | None
+    order: float | None
+
+
+@dataclass(frozen=True)
+class ParsedTable:
+    page_index: int
+    bbox: tuple[float, float, float, float]
+    rows: list[list[str]]
+    nrows: int
+    ncols: int
+    metrics: TableExtractionMetrics | None
+    ok: bool

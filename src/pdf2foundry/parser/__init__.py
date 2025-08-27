@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 __all__ = [
-    # types
     "BlockDict",
     "ImageReference",
     "LinkAnnotation",
@@ -14,16 +13,16 @@ __all__ = [
     "PdfPagesLike",
     "RawLinkDict",
     "TableCandidate",
-    # functions
+    "detect_headings_heuristic",
+    "detect_table_regions_with_camelot",
     "extract_image_bytes",
     "extract_images",
-    "generate_deterministic_image_name",
-    "save_images",
-    "detect_headings_heuristic",
     "extract_outline",
-    "detect_table_regions_with_camelot",
     "extract_page_content",
+    "extract_tables_with_camelot",
+    "generate_deterministic_image_name",
     "open_pdf",
+    "save_images",
 ]
 
 # Re-export types (explicit alias marks intent for linters)
@@ -80,6 +79,9 @@ from .outline import (
 from .pdf_io import open_pdf as _open_pdf
 from .tables import (
     detect_table_regions_with_camelot as detect_table_regions_with_camelot,
+)
+from .tables import (
+    extract_tables_with_camelot as extract_tables_with_camelot,
 )
 from .text_content import extract_page_content as extract_page_content
 
