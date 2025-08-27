@@ -5,12 +5,15 @@ from typing import Any
 from pdf2foundry.parser import (
     OutlineItem,
     detect_headings_heuristic,
+    detect_table_regions_with_camelot,
     extract_image_bytes,
     extract_images,
     extract_outline,
     extract_page_content,
     save_images,
 )
+from pdf2foundry.parser.tables import render_table_fragment, table_to_html_or_image
+from pdf2foundry.types import TableCandidate
 
 
 class DocWithToc:
@@ -174,3 +177,46 @@ def test_save_images_writes_files_and_paths(tmp_path: Any) -> None:
     _, dest, module_rel = results[0]
     assert dest.exists() and dest.read_bytes() == b"data"
     assert module_rel.startswith("modules/mod-x/assets/")
+
+
+def test_detect_table_regions_graceful_without_camelot(tmp_path: Any, caplog: Any) -> None:
+    # Camelot is an optional dependency; when not installed, detection should
+    # gracefully return an empty list and log an info message.
+    pdf_path = tmp_path / "sample.pdf"
+    pdf_path.write_bytes(b"")
+
+    with caplog.at_level("INFO"):
+        results = detect_table_regions_with_camelot(pdf_path)
+
+    assert isinstance(results, list)
+    assert results == []
+
+
+def test_table_to_html_or_image_rasterizes_when_html_unavailable(tmp_path: Any) -> None:
+    # Create an empty fake pdf; fitz will open it but pages won't exist.
+    # To avoid dependency on real PDFs, create a one-page blank doc via fitz directly.
+    import pytest
+
+    fitz = pytest.importorskip("fitz")
+
+    pdf_path = tmp_path / "one.pdf"
+    doc = fitz.open()
+    doc.new_page(width=200, height=200)
+    doc.save(str(pdf_path))
+    doc.close()
+
+    candidates = [TableCandidate(page_index=0, bbox=(10.0, 10.0, 100.0, 60.0))]
+    assets_dir = tmp_path / "assets"
+    renders = table_to_html_or_image(
+        pdf_path, "mod-x", assets_dir, candidates, camelot_enabled=False
+    )
+
+    assert len(renders) == 1
+    r = renders[0]
+    assert r.html is None
+    assert r.image_path is not None and r.image_path.exists()
+    assert r.module_rel is not None and r.module_rel.startswith("modules/mod-x/assets/")
+    assert r.fallback is True
+    # Fragment should be an <img> wrapper
+    frag = render_table_fragment(r)
+    assert "<img" in frag and r.module_rel in frag

@@ -9,12 +9,14 @@ description = "Convert born-digital PDFs into Foundry VTT v12+ module compendia.
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-  { name = "APAC Corp Services", email = "martin.papy@cbtw.tech" }
+  { name = "Martin Papy", email = "martin.papy@gmail.tech" }
 ]
 dependencies = [
   "typer>=0.12.0",
   "jinja2>=3.1.0",
   "pillow>=10.0.0",
+  "pymupdf>=1.24.0",
+  "camelot-py>=0.11.0",
 ]
 
 [project.optional-dependencies]
@@ -25,13 +27,9 @@ dev = [
   "pytest>=8.1.0",
   "pre-commit>=3.6.0",
 ]
-full = [
-  "pymupdf>=1.24.0",
-  "camelot-py>=0.11.0",
-]
 
 [project.urls]
-Homepage = "https://example.com/pdf2foundry"
+Homepage = "https://github.com/martin-papy/pdf2foundry"
 
 [project.scripts]
 pdf2foundry = "pdf2foundry.cli:app"
