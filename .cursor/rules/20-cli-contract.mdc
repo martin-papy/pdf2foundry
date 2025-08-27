@@ -1,0 +1,50 @@
+---
+description: CLI contract for pdf2foundry (Typer)
+---
+# CLI Contract (Typer)
+
+## Command
+- Console script: `pdf2foundry`
+- Package: `pdf2foundry`
+
+## Required options
+- `--pdf <path>`: Path to source PDF.
+- `--mod-id <string>`: Module ID.
+- `--mod-title <string>`: Module title.
+
+## Optional metadata
+- `--author <string>`
+- `--license <string>`
+- `--pack-name <string>` (default: `<mod-id>-journals`)
+
+## Behavior flags (defaults)
+- `--toc yes|no` (default: yes)
+- `--tables auto|image-only` (default: auto)
+- `--deterministic-ids yes|no` (default: yes)
+- `--depend-compendium-folders yes|no` (default: yes)
+- `--images-dir <path>` (default: `assets`)
+- `--out-dir <path>` (default: `dist`)
+
+## Behavior
+- Parse PDF → logical tree (bookmarks preferred; heuristic fallback).
+- Extract images to `<out-dir>/<mod-id>/assets/`.
+- Convert content to HTML; `text.format = 1`.
+- Deterministic IDs for entries/pages via SHA-1 strategy.
+- Generate optional TOC entry with `@UUID[...]` links.
+- Emit `sources/journals/*.json` and `styles/pdf2foundry.css`.
+- Package: run Foundry CLI to compile LevelDB pack in `packs/<pack-name>/`.
+
+## Output layout
+```
+<out-dir>/<mod-id>/
+  module.json
+  assets/
+  styles/pdf2foundry.css
+  sources/journals/*.json
+  packs/<pack-name>/
+```
+
+## Exit codes
+- `0` on success; non-zero with clear message on failure.
+
+See: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)

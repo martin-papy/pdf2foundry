@@ -1,0 +1,43 @@
+---
+description: Foundry v12 JSON schema and packaging conventions
+---
+# Foundry JSON & Packaging (v12)
+
+## Journal Entry JSON (per Chapter)
+- Fields:
+  - `_id` (deterministic, 16 hex chars)
+  - `name` (Chapter title)
+  - `pages` (array of JournalEntryPage)
+  - `ownership` (default 0)
+  - `folder` (null)
+  - `flags["compendium-folders"].folderPath` (optional nested folders)
+
+## Journal Page JSON (per Section)
+- Fields:
+  - `_id` (deterministic)
+  - `name`
+  - `type: "text"`
+  - `title: { show: true, level: <1..3> }`
+  - `text.format: 1` (HTML)
+  - `text.content: <div class="pdf2foundry">…</div>`
+  - `sort` (ascending order; leave gaps for inserts)
+
+## `module.json`
+- Must include:
+  - `id`, `title`, `version`, `compatibility.minimum >= 12`
+  - `authors[]`
+  - `packs[]` with `type: "JournalEntry"` and `path` as folder (LevelDB)
+  - `relationships.requires[]` include `compendium-folders` when requested
+  - `styles`: `styles/pdf2foundry.css`
+
+## Packaging flow
+1. Write sources under `sources/journals/*.json`.
+2. Copy assets into `assets/` without modification.
+3. Create `styles/pdf2foundry.css` (scoped selectors).
+4. Use the official Foundry CLI to compile sources → `packs/<pack-name>/` (LevelDB).
+
+## UUID Links
+- Build `@UUID[JournalEntry.<entryId>.JournalEntryPage.<pageId>]` for internal links and TOC.
+- Preserve IDs across runs to maintain link stability.
+
+See: [sample.module.json](mdc:docs/sample.module.json), [sample.journal_entry.json](mdc:docs/sample.journal_entry.json), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)

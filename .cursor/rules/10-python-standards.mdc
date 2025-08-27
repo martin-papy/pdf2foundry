@@ -1,0 +1,43 @@
+---
+globs: **/*.py
+description: Python standards for PDF2Foundry
+---
+# Python Standards (3.12)
+
+## Tooling
+- **Interpreter**: Python 3.12
+- **Packaging**: PEP 621 in `pyproject.toml` (pip)
+- **CLI framework**: Typer
+- **Format/Lint**: black + ruff (ruff drives isort)
+- **Type checking**: mypy `--strict`
+- **Tests**: pytest
+
+## Project layout
+- Use `src/` layout:
+  - `src/pdf2foundry/` (package root)
+  - `tests/` (pytest, mirrors package modules)
+
+## Code style
+- Prefer clear, descriptive names; avoid 1–2 char identifiers.
+- Use guard clauses and early returns; avoid deep nesting.
+- Write functions with explicit type hints; avoid `Any`.
+- Do not add comments for trivial code; explain "why" for complex logic.
+
+## Ruff
+- Enable common rules; treat warnings as errors in CI.
+- Organize imports (isort via ruff). No unused imports.
+
+## Black
+- Run after ruff fixes; do not fight line wrapping.
+
+## Mypy (strict)
+- Enforce `--strict` globally.
+- No implicit `Optional`; no dynamic `Any`.
+- Provide precise types for public APIs.
+
+## Pytest
+- Tests live in `tests/` and use `pytest` style.
+- Aim for unit tests on: deterministic ID generation, TOC link building, JSON schema shape.
+
+## Commit quality gate
+- Code must pass: ruff, black (check), mypy (strict), pytest before merge.

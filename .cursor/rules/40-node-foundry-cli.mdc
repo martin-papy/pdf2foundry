@@ -1,0 +1,28 @@
+---
+description: Node/Foundry CLI usage policy
+---
+# Node & Foundry CLI
+
+## Node toolchain
+- **Node.js**: 22 LTS
+- **Package manager**: npm
+- **@foundryvtt/foundryvtt-cli** installed as a local `devDependency`.
+- Invoke via `npx @foundryvtt/foundryvtt-cli` from Python subprocess (no global installs).
+
+## Compile step (JSON → LevelDB pack)
+- Input: `sources/journals/*.json`
+- Output: `packs/<pack-name>/` (LevelDB directory)
+- Ensure `packs[].path` in `module.json` points to the LevelDB folder.
+
+## Command shape (example)
+```
+npx --yes @foundryvtt/foundryvtt-cli compilePack \
+  --input sources/journals \
+  --output packs/<pack-name>
+```
+
+## Integration from Python
+- Run via `subprocess.run([...], check=True)`; surface stderr on failure.
+- Do not rely on global `node` or CLI location.
+
+See: [technical_feasibility.md](mdc:docs/technical_feasibility.md)

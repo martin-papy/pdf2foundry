@@ -1,0 +1,16 @@
+{
+  "name": "pdf2foundry-build",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Build tooling for pdf2foundry: FoundryVTT CLI as devDependency",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@foundryvtt/foundryvtt-cli": "^1.0.0"
+  },
+  "scripts": {
+    "compile:pack": "npx @foundryvtt/foundryvtt-cli compilePack --input dist/$npm_config_modid/sources/journals --output dist/$npm_config_modid/packs/$npm_config_packname"
+  }
+}
+

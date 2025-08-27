@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf2foundry"
+version = "0.1.0"
+description = "Convert born-digital PDFs into Foundry VTT v12+ module compendia."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+  { name = "APAC Corp Services", email = "martin.papy@cbtw.tech" }
+]
+dependencies = [
+  "typer>=0.12.0",
+  "jinja2>=3.1.0",
+  "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.4.0",
+  "black>=24.3.0",
+  "mypy>=1.8.0",
+  "pytest>=8.1.0",
+  "pre-commit>=3.6.0",
+]
+full = [
+  "pymupdf>=1.24.0",
+  "camelot-py>=0.11.0",
+]
+
+[project.urls]
+Homepage = "https://example.com/pdf2foundry"
+
+[project.scripts]
+pdf2foundry = "pdf2foundry.cli:app"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E","F","I","B","UP","ISC","C4","SIM","RUF"
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pdf2foundry"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+pretty = true
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+

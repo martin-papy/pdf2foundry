@@ -1,0 +1,52 @@
+---
+alwaysApply: true
+---
+# PDF2Foundry – Core Project Overview
+
+This project converts a born-digital PDF into a Foundry VTT v12+ module containing a Journal compendium with Entries (Chapters) and Pages (Sections). The CLI is `pdf2foundry` and follows the pipeline defined in the docs.
+
+## Scope & Goals
+- **Convert PDF → Foundry module** preserving logical structure (Book → Chapters → Sections).
+- **Content fidelity**: text, headings, lists, images, tables, links.
+- **Deterministic IDs** for stable UUID links across runs.
+- **Installable module** with proper `module.json`, assets, styles, sources, and compiled packs.
+
+## Directory conventions
+- Result layout (under `dist/<mod-id>/`):
+  - `module.json`
+  - `assets/` (original images)
+  - `styles/pdf2foundry.css`
+  - `sources/journals/*.json` (one file per Journal Entry/Chapter)
+  - `packs/<pack-name>/` (LevelDB directory after compile)
+
+## Document modeling
+- One Chapter ⇒ one `JournalEntry` source JSON.
+- One Section ⇒ one `JournalEntryPage` (`type: "text"`, `text.format: 1` for HTML).
+- Optional inner folders via `flags["compendium-folders"].folderPath`.
+- TOC Entry may link to pages using `@UUID[JournalEntry.<E>.JournalEntryPage.<P>]`.
+
+## IDs & UUIDs
+- `_id = sha1(<mod-id>|<chapter-path>|<section-path>)[:16]` for entries and pages.
+- Keep IDs stable across runs to avoid broken `@UUID` links.
+
+## Defaults (CLI)
+- `--toc yes`
+- `--tables auto` (Camelot when possible, else image)
+- `--deterministic-ids yes`
+- `--depend-compendium-folders yes`
+- `--images-dir assets`
+- `--out-dir dist`
+- `--pack-name <mod-id>-journals`
+
+## Error handling policy
+- No bookmarks: fallback to heading heuristic and log a warning.
+- Table parse fails: rasterize region and log info.
+- Broken cross-ref: leave plain text and log warning.
+- PDF parse error: exit gracefully with a clear error message.
+
+## Non-goals (v1)
+- OCR for scanned PDFs.
+- Exact layout reproduction beyond readable HTML.
+- Advanced table styling or image compression.
+
+Refer to: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md), [technical_feasibility.md](mdc:docs/technical_feasibility.md), [sample.module.json](mdc:docs/sample.module.json), [sample.journal_entry.json](mdc:docs/sample.journal_entry.json), [sample.md](mdc:docs/sample.md)
