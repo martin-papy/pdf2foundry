@@ -16,6 +16,7 @@ __all__ = [
     "build_tables_html",
     "choose_table_renders",
     "convert_parsed_table_to_html",
+    "create_environment",
     "detect_headings_heuristic",
     "detect_table_regions_with_camelot",
     "extract_image_bytes",
@@ -28,6 +29,7 @@ __all__ = [
     "parsed_tables_to_renders",
     "renders_to_html",
     "save_images",
+    "write_default_templates",
 ]
 
 # Re-export types (explicit alias marks intent for linters)
@@ -57,6 +59,8 @@ from .tables import detect_table_regions_with_camelot as detect_table_regions_wi
 from .tables import extract_tables_with_camelot as extract_tables_with_camelot
 from .tables import parsed_tables_to_renders as parsed_tables_to_renders
 from .tables import renders_to_html as renders_to_html
+from .templating import create_environment as create_environment
+from .templating import write_default_templates as write_default_templates
 from .text_content import extract_page_content as extract_page_content
 
 
