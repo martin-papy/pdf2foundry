@@ -8,6 +8,14 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 app = typer.Typer(add_completion=False, help="Convert a PDF into a Foundry VTT v12+ module.")
 
@@ -174,91 +182,153 @@ def run(
     sources_html_dir.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
 
-    # Ensure default templates exist and env is ready
-    write_default_templates(templates_dir)
-    templates = create_environment(templates_dir)
-
-    # Open PDF
-    try:
-        doc = open_pdf(pdf)
-    except Exception as exc:  # pragma: no cover - depends on system libs
-        typer.echo(f"Error: failed to open PDF: {exc}", err=True)
-        return 1
-
-    # Outline → structure map
-    outline = extract_outline(doc)
-    if not outline:
-        # Fallback heuristic when bookmarks are missing
-        # Cast to pages-like; our PdfDocumentLike supports __len__/__getitem__
-        outline = detect_headings_heuristic(doc)  # type: ignore[arg-type]
-        # Ensure the heuristic produced a usable outline before proceeding
-        if not outline:
-            typer.echo(
-                (
-                    "Error: No bookmarks and heading heuristic failed to detect any headings; "
-                    "cannot build structure."
-                ),
-                err=True,
-            )
-            return 1
-    chapters = build_structure_map(outline)
-
-    # Extract per-page content
-    contents = extract_page_content(doc)  # type: ignore[arg-type]
-
-    # Tables (optional) → per-page HTML fragments
-    candidates = detect_table_regions_with_camelot(pdf)
-    camelot_enabled = tables == TablesMode.AUTO
-    per_page_table_html: dict[int, list[str]] = {}
-    if candidates:
-        renders = choose_table_renders(
-            pdf, mod_id, assets_dir, candidates, parsed_tables=None, camelot_enabled=camelot_enabled
-        )
-        for r in renders:
-            lst = per_page_table_html.setdefault(r.page_index, [])
-            lst.append(render_table_fragment(r))
-    tables_html_by_page: dict[int, str] = {k: "\n".join(v) for k, v in per_page_table_html.items()}
-
-    # Assemble final HTML outputs
-    chapters_html, sections_html = assemble_html_outputs(
-        templates, chapters, contents, tables_html_by_page
+    # Progress bar for build steps
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+        transient=False,
     )
 
-    # Write to disk under sources/html preserving logical paths
-    def _write_html(rel_path: str, html: str) -> bool:
-        dest = sources_html_dir / f"{rel_path}.html"
-        tmp_path: Path | None = None
+    with progress:
+        # Prepare templates/env
+        t_setup = progress.add_task("Preparing templates and environment", total=2)
+        write_default_templates(templates_dir)
+        progress.update(t_setup, advance=1)
+        templates = create_environment(templates_dir)
+        progress.update(t_setup, advance=1)
+
+        # Open PDF
+        t_open = progress.add_task("Opening PDF", total=1)
         try:
-            # Ensure parent directories exist before attempting temp write
-            dest.parent.mkdir(parents=True, exist_ok=True)
-
-            # Atomic write: write to a temp file in the same directory, then replace
-            with tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf-8", dir=dest.parent, delete=False
-            ) as tmp:
-                tmp_path = Path(tmp.name)
-                tmp.write(html)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-
-            os.replace(tmp_path, dest)
-            return True
-        except OSError as exc:  # Includes IOError on modern Python
-            # Best-effort cleanup of temp file on failure
-            try:
-                if tmp_path is not None and tmp_path.exists():
-                    tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-            typer.echo(f"Error: failed to write HTML to {dest}: {exc}", err=True)
-            return False
-
-    for ch in chapters:
-        if not _write_html(ch.path, chapters_html[ch.path]):
+            doc = open_pdf(pdf)
+        except Exception as exc:  # pragma: no cover - depends on system libs
+            typer.echo(f"Error: failed to open PDF: {exc}", err=True)
             return 1
-        for sec in ch.sections:
-            if not _write_html(sec.path, sections_html[sec.path]):
+        progress.update(t_open, advance=1)
+
+        # Outline → structure map
+        t_outline = progress.add_task("Analyzing outline/headings", total=2)
+        outline = extract_outline(doc)
+        progress.update(t_outline, advance=1)
+        if not outline:
+            # Fallback heuristic when bookmarks are missing
+            # Cast to pages-like; our PdfDocumentLike supports __len__/__getitem__
+            outline = detect_headings_heuristic(doc)  # type: ignore[arg-type]
+            # Ensure the heuristic produced a usable outline before proceeding
+            if not outline:
+                typer.echo(
+                    (
+                        "Error: No bookmarks and heading heuristic failed to detect any headings; "
+                        "cannot build structure."
+                    ),
+                    err=True,
+                )
                 return 1
+        progress.update(t_outline, advance=1)
+        chapters = build_structure_map(outline)
+
+        # Extract per-page content
+        try:
+            total_pages = len(doc)  # type: ignore[arg-type]
+        except Exception:
+            total_pages = None
+        desc = (
+            f"Extracting page content ({total_pages} pages)"
+            if isinstance(total_pages, int)
+            else "Extracting page content"
+        )
+        t_content = progress.add_task(desc, total=total_pages or 1)
+
+        def _on_extract_progress(idx: int) -> None:
+            # idx is zero-based; advance by one per processed page
+            progress.update(t_content, completed=idx + 1)
+
+        contents = extract_page_content(doc, on_progress=_on_extract_progress)  # type: ignore[arg-type]
+        if total_pages is not None:
+            progress.update(t_content, completed=total_pages)
+
+        # Tables (optional) → per-page HTML fragments
+        total_pages_int = int(total_pages) if isinstance(total_pages, int) else None
+        t_tables_detect = progress.add_task("Detecting tables", total=total_pages_int or 1)
+
+        def _on_detect_progress(done: int) -> None:
+            progress.update(t_tables_detect, completed=done)
+
+        candidates = detect_table_regions_with_camelot(pdf, on_progress=_on_detect_progress)
+        if total_pages_int is not None:
+            progress.update(t_tables_detect, completed=total_pages_int)
+        camelot_enabled = tables == TablesMode.AUTO
+        per_page_table_html: dict[int, list[str]] = {}
+        if candidates:
+            renders = choose_table_renders(
+                pdf,
+                mod_id,
+                assets_dir,
+                candidates,
+                parsed_tables=None,
+                camelot_enabled=camelot_enabled,
+            )
+            t_tables_render = progress.add_task(
+                "Rendering table fragments", total=len(renders) or 1
+            )
+            for r in renders:
+                lst = per_page_table_html.setdefault(r.page_index, [])
+                lst.append(render_table_fragment(r))
+                progress.update(t_tables_render, advance=1)
+        tables_html_by_page: dict[int, str] = {
+            k: "\n".join(v) for k, v in per_page_table_html.items()
+        }
+
+        # Assemble final HTML outputs
+        t_assemble = progress.add_task("Assembling HTML", total=1)
+        chapters_html, sections_html = assemble_html_outputs(
+            templates, chapters, contents, tables_html_by_page
+        )
+        progress.update(t_assemble, advance=1)
+
+        # Write to disk under sources/html preserving logical paths
+        def _write_html(rel_path: str, html: str) -> bool:
+            dest = sources_html_dir / f"{rel_path}.html"
+            tmp_path: Path | None = None
+            try:
+                # Ensure parent directories exist before attempting temp write
+                dest.parent.mkdir(parents=True, exist_ok=True)
+
+                # Atomic write: write to a temp file in the same directory, then replace
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=dest.parent, delete=False
+                ) as tmp:
+                    tmp_path = Path(tmp.name)
+                    tmp.write(html)
+                    tmp.flush()
+                    os.fsync(tmp.fileno())
+
+                os.replace(tmp_path, dest)
+                return True
+            except OSError as exc:  # Includes IOError on modern Python
+                # Best-effort cleanup of temp file on failure
+                try:
+                    if tmp_path is not None and tmp_path.exists():
+                        tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                typer.echo(f"Error: failed to write HTML to {dest}: {exc}", err=True)
+                return False
+
+        total_outputs = len(chapters) + sum(len(ch.sections) for ch in chapters)
+        t_write = progress.add_task("Writing HTML files", total=total_outputs or 1)
+        for ch in chapters:
+            if not _write_html(ch.path, chapters_html[ch.path]):
+                return 1
+            progress.update(t_write, advance=1)
+            for sec in ch.sections:
+                if not _write_html(sec.path, sections_html[sec.path]):
+                    return 1
+                progress.update(t_write, advance=1)
 
     msg = (
         "Built "

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from html import escape
 from pathlib import Path
 from typing import Any, cast
@@ -23,6 +23,7 @@ def detect_table_regions_with_camelot(
     *,
     flavor: str = "lattice",
     log: logging.Logger | None = None,
+    on_progress: Callable[[int], None] | None = None,
 ) -> list[TableCandidate]:
     active_logger = log or logger
 
@@ -36,35 +37,86 @@ def detect_table_regions_with_camelot(
         )
         return []
 
+    def _tables_to_candidates(tables_obj: Any) -> list[TableCandidate]:
+        out: list[TableCandidate] = []
+        try:
+            for t in tables_obj:
+                page_raw = getattr(t, "page", None)
+                page_index = int(page_raw) - 1 if isinstance(page_raw, str | int) else 0
+                bbox = getattr(t, "_bbox", None)
+                if (
+                    isinstance(bbox, list | tuple)
+                    and len(bbox) == 4
+                    and all(isinstance(v, int | float) for v in bbox)
+                ):
+                    x1, y1, x2, y2 = (
+                        float(bbox[0]),
+                        float(bbox[1]),
+                        float(bbox[2]),
+                        float(bbox[3]),
+                    )
+                else:
+                    continue
+                out.append(TableCandidate(page_index=page_index, bbox=(x1, y1, x2, y2)))
+        except Exception:  # pragma: no cover - defensive
+            return []
+        return out
+
+    # Fast path when no progress tracking is needed
+    if on_progress is None and (pages is None or pages.strip().lower() == "all"):
+        try:
+            tables = camelot.read_pdf(str(pdf_path), pages="all", flavor=flavor)
+        except Exception as exc:  # pragma: no cover - depends on system libs
+            active_logger.info("Camelot detection failed (%s); returning no tables.", exc)
+            return []
+        return _tables_to_candidates(tables)
+
+    # Progress-aware path: iterate per page
     try:
-        tables = camelot.read_pdf(str(pdf_path), pages=pages or "all", flavor=flavor)
-    except Exception as exc:  # pragma: no cover - depends on system libs
-        active_logger.info("Camelot detection failed (%s); returning no tables.", exc)
-        return []
+        import fitz
+    except Exception:  # pragma: no cover - environment-dependent
+        try:
+            tables = camelot.read_pdf(str(pdf_path), pages=pages or "all", flavor=flavor)
+        except Exception as exc:  # pragma: no cover - depends on system libs
+            active_logger.info("Camelot detection failed (%s); returning no tables.", exc)
+            return []
+        return _tables_to_candidates(tables)
+
+    doc = fitz.open(str(pdf_path))
+    total_pages = doc.page_count
+    page_numbers = list(range(1, total_pages + 1))
 
     candidates: list[TableCandidate] = []
-    try:
-        for t in tables:
-            page_raw = getattr(t, "page", None)
-            page_index = int(page_raw) - 1 if isinstance(page_raw, str | int) else 0
-            bbox = getattr(t, "_bbox", None)
-            if (
-                isinstance(bbox, list | tuple)
-                and len(bbox) == 4
-                and all(isinstance(v, int | float) for v in bbox)
-            ):
-                x1, y1, x2, y2 = (
-                    float(bbox[0]),
-                    float(bbox[1]),
-                    float(bbox[2]),
-                    float(bbox[3]),
-                )
-            else:
-                continue
+    processed = 0
+    for page_no in page_numbers:
+        try:
+            try:
+                tables = camelot.read_pdf(str(pdf_path), pages=str(page_no), flavor=flavor)
+            except Exception:  # pragma: no cover - depends on system libs
+                tables = []
 
-            candidates.append(TableCandidate(page_index=page_index, bbox=(x1, y1, x2, y2)))
-    except Exception:  # pragma: no cover - defensive
-        return []
+            for t in tables:
+                page_raw = getattr(t, "page", None)
+                page_index = int(page_raw) - 1 if isinstance(page_raw, str | int) else (page_no - 1)
+                bbox = getattr(t, "_bbox", None)
+                if (
+                    isinstance(bbox, list | tuple)
+                    and len(bbox) == 4
+                    and all(isinstance(v, int | float) for v in bbox)
+                ):
+                    x1, y1, x2, y2 = (
+                        float(bbox[0]),
+                        float(bbox[1]),
+                        float(bbox[2]),
+                        float(bbox[3]),
+                    )
+                else:
+                    continue
+                candidates.append(TableCandidate(page_index=page_index, bbox=(x1, y1, x2, y2)))
+        finally:
+            processed += 1
+            if on_progress is not None:
+                on_progress(processed)
 
     return candidates
 

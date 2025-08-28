@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 
 from ..types import BlockDict, LinkAnnotation, PageContent, PdfPagesLike
@@ -9,7 +10,10 @@ def _normalize_span_text(text: str) -> str:
     return " ".join(text.split()).strip()
 
 
-def extract_page_content(document: PdfPagesLike) -> list[PageContent]:
+def extract_page_content(
+    document: PdfPagesLike,
+    on_progress: Callable[[int], None] | None = None,
+) -> list[PageContent]:
     results: list[PageContent] = []
     for page_index in range(len(document)):
         page = document[page_index]
@@ -62,5 +66,7 @@ def extract_page_content(document: PdfPagesLike) -> list[PageContent]:
             )
 
         results.append(PageContent(page_index=page_index, text_lines=text_lines, links=links))
+        if on_progress is not None:
+            on_progress(page_index)
 
     return results
