@@ -41,8 +41,9 @@ class SpanDict(TypedDict):
     size: float
 
 
-class LineDict(TypedDict):
+class LineDict(TypedDict, total=False):
     spans: list[SpanDict]
+    bbox: list[float]
 
 
 class BlockDict(TypedDict, total=False):
@@ -86,10 +87,39 @@ class LinkAnnotation:
 
 
 @dataclass(frozen=True)
+class SpanInfo:
+    """Geometry and font metrics for a single text span.
+
+    Some sources may omit certain metrics; in those cases values are None.
+    """
+
+    text: str
+    size: float | None
+
+
+@dataclass(frozen=True)
+class LineInfo:
+    """Geometry / metrics for a line of text along with merged content.
+
+    - text: merged and normalized text of the line
+    - bbox: (x0, y0, x1, y1) if available from the PDF extractor
+    - size: representative font size for the line (e.g., max span size)
+    - spans: detailed span breakdown when available
+    """
+
+    text: str
+    bbox: tuple[float, float, float, float] | None
+    size: float | None
+    spans: list[SpanInfo]
+
+
+@dataclass(frozen=True)
 class PageContent:
     page_index: int
     text_lines: list[str]
     links: list[LinkAnnotation]
+    # Optional rich line data used by normalization / layout heuristics
+    raw_lines: list[LineInfo] | None = None
 
 
 @dataclass(frozen=True)
