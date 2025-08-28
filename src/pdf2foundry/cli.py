@@ -90,10 +90,16 @@ def run(
         "assets"
     ),
     out_dir: Annotated[Path, typer.Option("--out-dir", help="Output directory")] = Path("dist"),
+    build: Annotated[
+        bool,
+        typer.Option(
+            "--build/--no-build",
+            help="Run the conversion pipeline to produce assembled HTML outputs",
+        ),
+    ] = False,
 ) -> int:
-    """Entry point for the conversion pipeline (skeleton for now)."""
+    """Entry point for the conversion pipeline."""
 
-    # Defer implementation per architecture doc; return success for now.
     # Basic validation for required strings
     if not mod_id.strip():
         typer.echo("Error: --mod-id cannot be empty", err=True)
@@ -104,21 +110,109 @@ def run(
 
     effective_pack_name = pack_name or f"{mod_id}-journals"
 
-    _ = (
-        pdf,
-        mod_id,
-        mod_title,
-        author,
-        license,
-        effective_pack_name,
-        toc,
-        tables,
-        deterministic_ids,
-        depend_compendium_folders,
-        images_dir,
-        out_dir,
+    if not build:
+        # Keep legacy behavior when not explicitly building, to satisfy existing tests
+        _ = (
+            pdf,
+            mod_id,
+            mod_title,
+            author,
+            license,
+            effective_pack_name,
+            toc,
+            tables,
+            deterministic_ids,
+            depend_compendium_folders,
+            images_dir,
+            out_dir,
+        )
+        typer.echo("pdf2foundry: CLI skeleton ready.")
+        return 0
+
+    # Build pipeline
+    try:
+        from .parser import (
+            assemble_html_outputs,
+            build_structure_map,
+            choose_table_renders,
+            create_environment,
+            detect_headings_heuristic,
+            detect_table_regions_with_camelot,
+            extract_outline,
+            extract_page_content,
+            open_pdf,
+            render_table_fragment,
+            write_default_templates,
+        )
+    except Exception as exc:  # pragma: no cover - import resolution
+        typer.echo(f"Error: failed to import pipeline modules: {exc}", err=True)
+        return 1
+
+    out_mod_dir = out_dir / mod_id
+    templates_dir = out_mod_dir / "templates"
+    sources_html_dir = out_mod_dir / "sources" / "html"
+    assets_dir = out_mod_dir / images_dir
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    sources_html_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+
+    # Ensure default templates exist and env is ready
+    write_default_templates(templates_dir)
+    templates = create_environment(templates_dir)
+
+    # Open PDF
+    try:
+        doc = open_pdf(pdf)
+    except Exception as exc:  # pragma: no cover - depends on system libs
+        typer.echo(f"Error: failed to open PDF: {exc}", err=True)
+        return 1
+
+    # Outline → structure map
+    outline = extract_outline(doc)
+    if not outline:
+        # Fallback heuristic when bookmarks are missing
+        # Cast to pages-like; our PdfDocumentLike supports __len__/__getitem__
+        outline = detect_headings_heuristic(doc)  # type: ignore[arg-type]
+    chapters = build_structure_map(outline)
+
+    # Extract per-page content
+    contents = extract_page_content(doc)  # type: ignore[arg-type]
+
+    # Tables (optional) → per-page HTML fragments
+    candidates = detect_table_regions_with_camelot(pdf)
+    camelot_enabled = tables == TablesMode.AUTO
+    per_page_table_html: dict[int, list[str]] = {}
+    if candidates:
+        renders = choose_table_renders(
+            pdf, mod_id, assets_dir, candidates, parsed_tables=None, camelot_enabled=camelot_enabled
+        )
+        for r in renders:
+            lst = per_page_table_html.setdefault(r.page_index, [])
+            lst.append(render_table_fragment(r))
+    tables_html_by_page: dict[int, str] = {k: "\n".join(v) for k, v in per_page_table_html.items()}
+
+    # Assemble final HTML outputs
+    chapters_html, sections_html = assemble_html_outputs(
+        templates, chapters, contents, tables_html_by_page
     )
-    typer.echo("pdf2foundry: CLI skeleton ready.")
+
+    # Write to disk under sources/html preserving logical paths
+    def _write_html(rel_path: str, html: str) -> None:
+        dest = sources_html_dir / f"{rel_path}.html"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(html, encoding="utf-8")
+
+    for ch in chapters:
+        _write_html(ch.path, chapters_html[ch.path])
+        for sec in ch.sections:
+            _write_html(sec.path, sections_html[sec.path])
+
+    msg = (
+        "Built "
+        f"{len(chapters_html)} chapters and {len(sections_html)} sections "
+        f"→ {sources_html_dir}"
+    )
+    typer.echo(msg)
     return 0
 
 

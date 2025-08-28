@@ -41,7 +41,7 @@ pnpm-debug.log*
 
 # Build artifacts / outputs
 dist/
-
+internal/
 
 # Logs
 logs
@@ -65,3 +65,4 @@ dev-debug.log
 # Task files
 tasks.json
 tasks/ 
+

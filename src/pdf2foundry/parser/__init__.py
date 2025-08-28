@@ -28,8 +28,13 @@ __all__ = [
     "open_pdf",
     "parsed_tables_to_renders",
     "renders_to_html",
+    "render_table_fragment",
     "save_images",
     "build_structure_map",
+    "assemble_html_outputs",
+    "validate_scoped_html",
+    "build_chapter_html",
+    "build_section_html",
     "write_default_templates",
 ]
 
@@ -44,6 +49,10 @@ from ..types import PdfDocumentWithImages as PdfDocumentWithImages
 from ..types import PdfPagesLike as PdfPagesLike
 from ..types import RawLinkDict as RawLinkDict
 from ..types import TableCandidate as TableCandidate
+from .assembly import assemble_html_outputs as assemble_html_outputs
+from .assembly import validate_scoped_html as validate_scoped_html
+from .html_convert import build_chapter_html as build_chapter_html
+from .html_convert import build_section_html as build_section_html
 
 # Re-export primary functions from modular submodules (explicit alias)
 from .images import extract_image_bytes as extract_image_bytes
@@ -60,6 +69,7 @@ from .tables import convert_parsed_table_to_html as convert_parsed_table_to_html
 from .tables import detect_table_regions_with_camelot as detect_table_regions_with_camelot
 from .tables import extract_tables_with_camelot as extract_tables_with_camelot
 from .tables import parsed_tables_to_renders as parsed_tables_to_renders
+from .tables import render_table_fragment as render_table_fragment
 from .tables import renders_to_html as renders_to_html
 from .templating import create_environment as create_environment
 from .templating import write_default_templates as write_default_templates
