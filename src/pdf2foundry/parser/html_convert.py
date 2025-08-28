@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 from collections.abc import Iterable
 
 from ..types import LinkAnnotation, PageContent
@@ -10,11 +11,15 @@ from .templating import Templates
 def slice_content_by_range(
     contents: list[PageContent], start: int, end: int | None
 ) -> list[PageContent]:
+    if start < 0:
+        raise ValueError("start must be non-negative")
+    if end is not None and end < start:
+        raise ValueError("end must be >= start")
     return [c for c in contents if c.page_index >= start and (end is None or c.page_index <= end)]
 
 
 def lines_to_html(lines: Iterable[str]) -> str:
-    return "\n".join(f"<p>{line}</p>" for line in lines)
+    return "\n".join(f"<p>{html.escape(line)}</p>" for line in lines)
 
 
 def annotate_internal_links(

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import sys
+import tempfile
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -54,10 +56,22 @@ def version() -> None:
 def run(
     pdf: Annotated[
         Path,
-        typer.Option("--pdf", exists=True, dir_okay=False, help="Path to source PDF"),
+        typer.Option(
+            "--pdf",
+            exists=True,
+            dir_okay=False,
+            help="Path to source PDF",
+            prompt=True,
+        ),
     ],
-    mod_id: Annotated[str, typer.Option("--mod-id", help="Module ID")],
-    mod_title: Annotated[str, typer.Option("--mod-title", help="Module title")],
+    mod_id: Annotated[
+        str,
+        typer.Option("--mod-id", help="Module ID", prompt=True),
+    ],
+    mod_title: Annotated[
+        str,
+        typer.Option("--mod-title", help="Module title", prompt=True),
+    ],
     author: Annotated[str | None, typer.Option("--author", help="Author name")] = None,
     license: Annotated[str | None, typer.Option("--license", help="License string")] = None,
     pack_name: Annotated[
@@ -144,8 +158,12 @@ def run(
             render_table_fragment,
             write_default_templates,
         )
-    except Exception as exc:  # pragma: no cover - import resolution
-        typer.echo(f"Error: failed to import pipeline modules: {exc}", err=True)
+    except ImportError as exc:  # pragma: no cover - import resolution
+        missing_module = getattr(exc, "name", None) or getattr(exc, "path", None) or "unknown"
+        typer.echo(
+            f"Error: failed to import pipeline modules (missing: {missing_module}): {exc}",
+            err=True,
+        )
         return 1
 
     out_mod_dir = out_dir / mod_id
@@ -173,6 +191,16 @@ def run(
         # Fallback heuristic when bookmarks are missing
         # Cast to pages-like; our PdfDocumentLike supports __len__/__getitem__
         outline = detect_headings_heuristic(doc)  # type: ignore[arg-type]
+        # Ensure the heuristic produced a usable outline before proceeding
+        if not outline:
+            typer.echo(
+                (
+                    "Error: No bookmarks and heading heuristic failed to detect any headings; "
+                    "cannot build structure."
+                ),
+                err=True,
+            )
+            return 1
     chapters = build_structure_map(outline)
 
     # Extract per-page content
@@ -197,15 +225,40 @@ def run(
     )
 
     # Write to disk under sources/html preserving logical paths
-    def _write_html(rel_path: str, html: str) -> None:
+    def _write_html(rel_path: str, html: str) -> bool:
         dest = sources_html_dir / f"{rel_path}.html"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(html, encoding="utf-8")
+        tmp_path: Path | None = None
+        try:
+            # Ensure parent directories exist before attempting temp write
+            dest.parent.mkdir(parents=True, exist_ok=True)
+
+            # Atomic write: write to a temp file in the same directory, then replace
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=dest.parent, delete=False
+            ) as tmp:
+                tmp_path = Path(tmp.name)
+                tmp.write(html)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+
+            os.replace(tmp_path, dest)
+            return True
+        except OSError as exc:  # Includes IOError on modern Python
+            # Best-effort cleanup of temp file on failure
+            try:
+                if tmp_path is not None and tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            typer.echo(f"Error: failed to write HTML to {dest}: {exc}", err=True)
+            return False
 
     for ch in chapters:
-        _write_html(ch.path, chapters_html[ch.path])
+        if not _write_html(ch.path, chapters_html[ch.path]):
+            return 1
         for sec in ch.sections:
-            _write_html(sec.path, sections_html[sec.path])
+            if not _write_html(sec.path, sections_html[sec.path]):
+                return 1
 
     msg = (
         "Built "
