@@ -29,6 +29,7 @@ __all__ = [
     "parsed_tables_to_renders",
     "renders_to_html",
     "save_images",
+    "build_structure_map",
     "write_default_templates",
 ]
 
@@ -52,6 +53,7 @@ from .images import save_images as save_images
 from .outline import detect_headings_heuristic as detect_headings_heuristic
 from .outline import extract_outline as extract_outline
 from .pdf_io import open_pdf as _open_pdf
+from .structure import build_structure_map as build_structure_map
 from .tables import build_tables_html as build_tables_html
 from .tables import choose_table_renders as choose_table_renders
 from .tables import convert_parsed_table_to_html as convert_parsed_table_to_html
