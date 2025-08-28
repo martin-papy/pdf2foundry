@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from html import escape
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ..types import (
     ParsedTable,
@@ -26,7 +27,9 @@ def detect_table_regions_with_camelot(
     active_logger = log or logger
 
     try:  # Local import to avoid hard dependency at runtime/tests
-        import camelot
+        import camelot as _camelot
+
+        camelot = cast(Any, _camelot)
     except Exception:  # pragma: no cover - environment-dependent
         active_logger.info(
             "Camelot not installed; skipping table detection and deferring to image fallback."
@@ -84,7 +87,9 @@ def extract_tables_with_camelot(
     active_logger = log or logger
 
     try:  # Local import to avoid hard dependency at runtime/tests
-        import camelot
+        import camelot as _camelot
+
+        camelot = cast(Any, _camelot)
     except Exception:  # pragma: no cover - environment-dependent
         active_logger.info(
             "Camelot not installed; skipping table extraction and returning no tables."
@@ -197,7 +202,9 @@ def table_to_html_or_image(
         html_str: str | None = None
         if camelot_enabled:
             try:
-                import camelot
+                import camelot as _camelot
+
+                camelot = cast(Any, _camelot)
 
                 tables = camelot.read_pdf(str(pdf_path), pages=str(cand.page_index + 1))
                 if len(tables) > 0:
@@ -249,3 +256,116 @@ def render_table_fragment(render: TableRender) -> str:
         return render.html
     assert render.module_rel is not None
     return f'<figure><img src="{render.module_rel}" alt="Table" /></figure>'
+
+
+def convert_parsed_table_to_html(parsed: ParsedTable) -> str:
+    """Convert a ParsedTable into an HTML <table> string.
+
+    Generates minimal semantic HTML suitable for Foundry VTT Journal pages.
+    """
+    rows_html: list[str] = []
+    for row in parsed.rows:
+        cells = "".join(f"<td>{escape(cell)}</td>" for cell in row)
+        rows_html.append(f"<tr>{cells}</tr>")
+    tbody = "".join(rows_html)
+    return f"<table><tbody>{tbody}</tbody></table>"
+
+
+def parsed_tables_to_renders(tables: Iterable[ParsedTable]) -> list[TableRender]:
+    """Convert ParsedTable objects into TableRender entries with HTML.
+
+    Image fields are left None and fallback=False because HTML was produced.
+    """
+    renders: list[TableRender] = []
+    for t in tables:
+        html_str = convert_parsed_table_to_html(t)
+        renders.append(
+            TableRender(
+                page_index=t.page_index,
+                bbox=t.bbox,
+                html=html_str,
+                image_path=None,
+                module_rel=None,
+                fallback=False,
+            )
+        )
+    return renders
+
+
+def renders_to_html(renders: Iterable[TableRender]) -> str:
+    """Join render fragments into a single HTML string."""
+    return "\n".join(render_table_fragment(r) for r in renders)
+
+
+def build_tables_html(
+    pdf_path: Path,
+    mod_id: str,
+    assets_dir: Path,
+    candidates: list[TableCandidate],
+    *,
+    parsed_tables: list[ParsedTable] | None = None,
+    camelot_enabled: bool = True,
+) -> str:
+    """High-level helper to produce final HTML for all table candidates.
+
+    Uses parsed tables when ok=True, otherwise falls back to Camelot/image.
+    """
+    renders = choose_table_renders(
+        pdf_path,
+        mod_id,
+        assets_dir,
+        candidates,
+        parsed_tables=parsed_tables,
+        camelot_enabled=camelot_enabled,
+    )
+    return renders_to_html(renders)
+
+
+def choose_table_renders(
+    pdf_path: Path,
+    mod_id: str,
+    assets_dir: Path,
+    candidates: list[TableCandidate],
+    *,
+    parsed_tables: list[ParsedTable] | None = None,
+    camelot_enabled: bool = True,
+) -> list[TableRender]:
+    """Prefer parsed tables with ok=True; otherwise fall back to Camelot/image.
+
+    Always returns exactly one TableRender per candidate, preserving input order.
+    """
+    # Index parsed tables by (page_index, bbox) for quick lookup
+    parsed_index: dict[tuple[int, tuple[float, float, float, float]], ParsedTable] = {}
+    if parsed_tables:
+        for p in parsed_tables:
+            parsed_index[(p.page_index, p.bbox)] = p
+
+    results: list[TableRender] = []
+    for cand in candidates:
+        parsed = parsed_index.get((cand.page_index, cand.bbox))
+        if parsed is not None and parsed.ok:
+            # Use pre-parsed structured HTML
+            html_render = parsed_tables_to_renders([parsed])[0]
+            results.append(html_render)
+            continue
+
+        # Fallback path: try Camelot HTML (if enabled) else rasterize
+        renders = table_to_html_or_image(
+            pdf_path,
+            mod_id,
+            assets_dir,
+            [cand],
+            camelot_enabled=camelot_enabled,
+        )
+        render = renders[0]
+        if render.fallback:
+            reason = "camelot_disabled" if not camelot_enabled else "no_html"
+            logger.info(
+                "tables.fallback image used | page=%s bbox=%s reason=%s",
+                cand.page_index,
+                cand.bbox,
+                reason,
+            )
+        results.append(render)
+
+    return results
