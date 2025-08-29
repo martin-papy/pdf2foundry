@@ -78,12 +78,12 @@ ______________________________________________________________________
 
 ### 4.2 PDF Parsing
 
-- Extract **outline/bookmarks** for chapters/sections when available.
-- Fallback: detect headings using font size/weight.
+- Use **Docling** to parse the PDF into structured, semantic HTML (headings, paragraphs, lists, tables, figures).
+- Extract **outline/bookmarks** and section headings for chapters/sections when available.
 - Flatten multi-column layouts to linear order.
-- Extract text, lists, headings, inline styles.
-- Extract images in original format/resolution.
-- Extract link annotations.
+- Extract text, lists, headings, and inline styles.
+- Extract images at original quality.
+- Extract links (internal and external).
 
 ### 4.3 Structure Mapping
 
@@ -144,9 +144,8 @@ ______________________________________________________________________
 
 - **Python libraries:**
 
-  - `PyMuPDF (fitz)` → text, layout, images, bookmarks.
-  - `Camelot` → table detection.
-  - `Pillow` → rasterization of vector art/tables.
+  - `Docling` and `docling-core` → PDF to structured HTML (per-page), images, tables.
+  - `Pillow` → rasterization fallback for vector art/tables when needed.
   - `Jinja2` → HTML templating.
 
 - **Node tooling:**
@@ -206,8 +205,8 @@ ______________________________________________________________________
 
 ## 11. Related Documents
 
-- **Technical Feasibility**: [technical_feasibility.md](mdc:docs/technical_feasibility.md)
-- **Architecture & Flow (High-level design and pipeline)**: [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)
-- **Templates Overview**: [sample.md](mdc:docs/sample.md)
-- **Sample module manifest**: [sample.module.json](mdc:docs/sample.module.json)
-- **Sample Journal Entry source**: [sample.journal_entry.json](mdc:docs/sample.journal_entry.json)
+- **Technical Feasibility**: [technical_feasibility.md](technical_feasibility.md)
+- **Architecture & Flow (High-level design and pipeline)**: [architecture_and_flow.md](architecture_and_flow.md)
+- **Templates Overview**: [sample.md](sample.md)
+- **Sample module manifest**: [sample.module.json](sample.module.json)
+- **Sample Journal Entry source**: [sample.journal_entry.json](sample.journal_entry.json)

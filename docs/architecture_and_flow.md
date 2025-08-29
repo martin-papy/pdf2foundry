@@ -60,15 +60,15 @@ ______________________________________________________________________
 
 1. **Parse PDF → logical tree**
 
-   - Library: **PyMuPDF (fitz)** for text blocks, images, link annotations, **bookmarks/outlines** (primary driver for chapters).
-   - Fallback structure: simple heading heuristic (font size/weight, spacing) to derive sections when bookmarks are absent.
+   - Library: **Docling** for extracting structured HTML, images, tables, links, and headings/bookmarks (primary driver for chapters).
+   - When bookmarks are absent, rely on Docling's heading detection to derive sections.
    - Multi-column pages: **flatten** into linear order (your preference).
    - Output: an in-memory tree: `Book → Chapters → Sections (with flow blocks, images, links, table candidates)`.
 
 1. **Tables**
 
-   - Try **Camelot** (`lattice`/`stream`) when geometric hints exist to produce real `<table>` HTML.
-   - If low confidence or no lines: rasterize that region to an image and embed.
+   - Use Docling's table recognition to produce real `<table>` HTML when available.
+   - If low confidence or absent: rasterize that region to an image and embed.
 
 1. **Images**
 
@@ -194,7 +194,7 @@ ______________________________________________________________________
 1. Minimal parser (bookmarks → chapters; sections by heading heuristic) + HTML generator + image export.
 1. JSON emit for Journal Entries/Pages + **deterministic IDs** + TOC.
 1. Packaging step (compile pack) and runtime verification in v12. ([Foundry Virtual Tabletop][4])
-1. Add table extraction (Camelot) + internal link mapping (annotations + regex).
+1. Refine table extraction (Docling options) + internal link mapping (annotations + regex).
 1. Optional polish: scoped CSS, edge-case heuristics, CLI ergonomics.
 
 ______________________________________________________________________

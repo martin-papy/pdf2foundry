@@ -32,7 +32,7 @@ ______________________________________________________________________
 
 1. **PDF ingest (born-digital only)**
 
-   - Libraries: **PyMuPDF (fitz)** for text, layout blocks, images, links, and **bookmarks/outlines**; optional **pdfminer.six**/**pdfplumber** for text flow; **Camelot** (lattice/stream) for table detection when vector lines are present.
+   - Library: **Docling** (and `docling-core`) to derive structured HTML (headings, paragraphs, lists), images, tables, and links from the PDF; use **Pillow** for rasterization fallback where needed.
 
    - Output: a **logical document tree** (Book → Chapters → Sections) with:
 
@@ -90,7 +90,7 @@ ______________________________________________________________________
 
 - **Tables**:
 
-  - Try **Camelot (lattice/stream)** to reconstruct real `<table>` → better UX, searchable.
+  - Use **Docling's** table recognition to reconstruct real `<table>` → better UX, searchable.
   - If detection fails or the table is really artwork: **rasterize** the table region and insert an `<img>`.
 
 - **Other vector graphics (diagrams, icons)**: rasterize to PNG at an appropriate DPI (configurable later).
@@ -177,13 +177,13 @@ ______________________________________________________________________
 
 **PoC-2 (edge cases):**
 
-- Add table parser (Camelot), auto-linker for “see Chapter …”, handle external links, validate with/without Compendium Folders enabled. ([Foundry Virtual Tabletop][12])
+- Refine Docling table recognition and settings, auto-linker for “see Chapter …”, handle external links, validate with/without Compendium Folders enabled. ([Foundry Virtual Tabletop][12])
 
 ______________________________________________________________________
 
 ## 11) Libraries & tooling (initial picks)
 
-- **Python**: PyMuPDF (fitz), pdfminer.six/pdfplumber (text flow), Camelot (tables), Pillow (image ops, if needed), Jinja2 (HTML templating).
+- **Python**: Docling, docling-core, Pillow (image ops, if needed), Jinja2 (HTML templating).
 - **Packing**: **@foundryvtt/foundryvtt-cli** (Node) invoked from Python (subprocess). ([npm][4])
 - **Foundry refs**: Journal docs & page formats, UUID links, compendium guides, LevelDB change notes. ([Foundry Virtual Tabletop][5])
 
