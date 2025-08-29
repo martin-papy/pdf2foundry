@@ -4,7 +4,7 @@ description: Node/Foundry CLI usage policy
 # Node & Foundry CLI
 
 ## Node toolchain
-- **Node.js**: 22 LTS
+- **Node.js**: 24 LTS
 - **Package manager**: npm
 - **@foundryvtt/foundryvtt-cli** installed as a local `devDependency`.
 - Invoke via `npx @foundryvtt/foundryvtt-cli` from Python subprocess (no global installs).

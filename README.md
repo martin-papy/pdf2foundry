@@ -17,6 +17,19 @@ Enable pre-commit hooks:
 pre-commit install
 ```
 
+## Development
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI/CD with the following checks:
+
+- **Linting & Formatting**: Ruff, Black, and MyPy
+- **Testing**: pytest with coverage reporting
+- **Build**: Package building and installation testing
+- **Cross-platform**: Testing on Ubuntu, Windows, and macOS
+
+All checks must pass before merging. The CI runs on Python 3.12 and 3.13.
+
 ## CLI Usage
 
 ```bash
@@ -26,7 +39,7 @@ pdf2foundry --help
 ### Command
 
 ```bash
-pdf2foundry run \
+pdf2foundry convert \
   --pdf "My Book.pdf" \
   --mod-id "pdf2foundry-my-book" \
   --mod-title "My Book (PDF Import)" \
