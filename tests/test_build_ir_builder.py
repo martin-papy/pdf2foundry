@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pdf2foundry.build.ir_builder import build_document_ir
+from pdf2foundry.builder.ir_builder import build_document_ir
 from pdf2foundry.model.content import HtmlPage, ParsedContent
 from pdf2foundry.model.document import OutlineNode, ParsedDocument
 
