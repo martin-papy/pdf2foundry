@@ -63,6 +63,6 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q --cov=pdf2foundry --cov-report=term-missing --cov-fail-under=90"
 testpaths = ["tests"]
 
