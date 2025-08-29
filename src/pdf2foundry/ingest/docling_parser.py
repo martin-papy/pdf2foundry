@@ -66,8 +66,13 @@ def parse_pdf_structure(pdf: Path, on_progress: ProgressCallback = None) -> Pars
     doc = conv.convert(str(pdf)).document
 
     # Determine page count (Docling API varies across versions)
+    # num_pages may be untyped depending on docling version; guard with getattr
     try:
-        page_count = int(doc.num_pages())
+        num_pages_fn = getattr(doc, "num_pages", None)
+        if callable(num_pages_fn):
+            page_count = int(num_pages_fn())
+        else:
+            page_count = int(getattr(doc, "num_pages", 0) or 0)
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 

@@ -110,13 +110,19 @@ def probe_docling() -> DoclingProbeReport:
     has_core_types = False
     if has_docling_core:
         try:
-            # Validate a couple of indicative core types exist
-            from docling_core.types.doc import ImageRefMode
-            from docling_core.types.doc.document import ContentLayer
+            # Import modules, then getattr to avoid mypy attr-defined issues
+            import importlib
 
-            # Access to ensure symbols resolve (silences unused warnings)
-            _ = (ImageRefMode, ContentLayer)
-            has_core_types = True
+            _doc_types = importlib.import_module("docling_core.types.doc")
+            _doc_doc = importlib.import_module("docling_core.types.doc.document")
+
+            ImageRefMode = getattr(_doc_types, "ImageRefMode", None)
+            ContentLayer = getattr(_doc_doc, "ContentLayer", None)
+
+            if ImageRefMode is not None and ContentLayer is not None:
+                has_core_types = True
+            else:
+                notes.append("docling-core types missing: ImageRefMode or ContentLayer not found")
         except Exception as exc:  # pragma: no cover - environmental or version issues
             notes.append(f"docling-core types import failed: {exc}")
 

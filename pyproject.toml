@@ -62,6 +62,16 @@ exclude = [
   "^tests/.*$"
 ]
 
+[[tool.mypy.overrides]]
+module = [
+  "docling",
+  "docling.*",
+  "docling_core",
+  "docling_core.*",
+  "pytest",
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-q --cov=pdf2foundry --cov-report=term-missing --cov-fail-under=90"
 testpaths = ["tests"]

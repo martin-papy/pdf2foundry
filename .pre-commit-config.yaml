@@ -23,6 +23,8 @@ repos:
     rev: v1.17.1
     hooks:
       - id: mypy
+        args:
+          - --config-file=pyproject.toml
         additional_dependencies:
           - typer==0.16.1
           - click==8.2.1
