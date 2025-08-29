@@ -104,10 +104,29 @@ jobs:
         name: dist-files
         path: dist/
 
-    - name: Install package from wheel
+    - name: Install package (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        if compgen -G "dist/*.whl" > /dev/null; then
+          pip install dist/*.whl
+        elif compgen -G "dist/*.tar.gz" > /dev/null; then
+          pip install dist/*.tar.gz
+        else
+          echo "No wheel or sdist found under dist/" >&2
+          exit 1
+        fi
+
+    - name: Install package (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
       run: |
         python -m pip install --upgrade pip
-        pip install dist/*.whl
+        $file = Get-ChildItem -Path dist -Recurse -Include *.whl, *.tar.gz | Select-Object -First 1
+        if ($null -eq $file) { Write-Error "No wheel or sdist found under dist/" }
+        pip install $file.FullName
 
     - name: Test CLI entrypoint
       run: |
