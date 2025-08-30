@@ -11,7 +11,10 @@ from pdf2foundry.model.foundry import (
     make_journal_entry,
     make_text_page,
 )
+from pdf2foundry.model.id_utils import make_entry_id, make_page_id
 from pdf2foundry.model.ir import ChapterIR, DocumentIR, SectionIR
+from pdf2foundry.transform.clean_html import clean_html_fragment
+from pdf2foundry.transform.html_wrap import rewrite_img_srcs, wrap_html
 
 ProgressCallback = Callable[[str, dict[str, int | str]], None] | None
 
@@ -90,7 +93,31 @@ def build_document_ir(
         chapter_ir = ChapterIR(id_path=chap_id_path, title=node.title, sections=[])
         _safe_emit(on_progress, "chapter:assembled", {"chapter": node.title})
 
-        for sec in sections_for(node):
+        secs = sections_for(node)
+        # Fallback: if no section nodes were found under this chapter, create
+        # synthetic sections per page across the chapter span so content is not lost.
+        if not secs:
+            start = node.page_start
+            end = (
+                node.page_end
+                if node.page_end is not None
+                else (parsed_content.pages[-1].page_no if parsed_content.pages else node.page_start)
+            )
+            for pno in range(start, end + 1):
+                segs = [*chap_id_path, _slugify(f"page-{pno:03d}")]
+                sec_id_path = _unique_path(segs, seen_at_level, level=2)
+                html = _merge_html(parsed_content.pages, pno, pno)
+                section_ir = SectionIR(
+                    id_path=sec_id_path,
+                    level=2,
+                    title=f"Page {pno}",
+                    page_start=pno,
+                    page_end=pno,
+                    html=html,
+                )
+                chapter_ir.sections.append(section_ir)
+
+        for sec in secs:
             sec_segs = [*chap_id_path, _slugify(sec.title)]
             sec_id_path = _unique_path(sec_segs, seen_at_level, level=sec.level)
             html = _merge_html(parsed_content.pages, sec.page_start, sec.page_end)
@@ -140,8 +167,9 @@ def map_ir_to_foundry_entries(
     entries: list[JournalEntry] = []
 
     for chapter_index, chapter in enumerate(ir.chapters, start=1):
+        entry_canonical: list[str] = [*chapter.id_path]
         if deterministic_ids:
-            entry_id = "|".join([ir.mod_id, *chapter.id_path])
+            entry_id = make_entry_id(ir.mod_id, entry_canonical)
         else:
             entry_id = "-".join(chapter.id_path)
         pages: list[JournalPageText] = []
@@ -153,23 +181,28 @@ def map_ir_to_foundry_entries(
         # Assign sort in large gaps to allow later inserts
         sort_base = 1000
         seen_page_names: dict[str, int] = {}
-        entry_canonical: list[str] = [*chapter.id_path]
+        temp_pages: list[tuple[str, str, int, str]] = []  # (page_name, page_id, index, html)
         for i, sec in enumerate(chapter.sections):
-            page_id = (
-                "|".join([ir.mod_id, *sec.id_path]) if deterministic_ids else "-".join(sec.id_path)
-            )
             sort = sort_base * (i + 1)
             # Deterministic page display name with sibling de-duplication
             raw_name = (sec.title or "").strip() or f"Untitled Section {i + 1}"
+            page_id = (
+                make_page_id(ir.mod_id, entry_canonical, raw_name)
+                if deterministic_ids
+                else "-".join(sec.id_path)
+            )
             count = seen_page_names.get(raw_name, 0)
             seen_page_names[raw_name] = count + 1
             page_name = raw_name if count == 0 else f"{raw_name} ({count + 1})"
 
+            cleaned = clean_html_fragment(sec.html)
+            html_scoped = wrap_html(cleaned)
+            html_with_imgs = rewrite_img_srcs(html_scoped, ir.mod_id)
             page = make_text_page(
                 _id=page_id,
                 name=page_name,
                 level=min(3, max(1, sec.level - 1)),  # clamp to 1..3
-                text_html=sec.html,
+                text_html=html_with_imgs,
                 sort=sort,
             )
             # Add canonical path flags for deterministic ID assignment
@@ -181,6 +214,23 @@ def map_ir_to_foundry_entries(
                 mod_ns["canonicalPathStr"] = "/".join(canonical_path)
                 mod_ns["sectionOrder"] = i
             pages.append(page)
+            temp_pages.append((page_name, page_id, i, html_with_imgs))
+
+        # Rewrite internal anchor links to @UUID after page IDs are known
+        try:
+            from pdf2foundry.transform.links import (
+                build_anchor_lookup,
+                rewrite_internal_anchors_to_uuid,
+            )
+
+            token_to_pageid = build_anchor_lookup([(n, pid) for (n, pid, _, _) in temp_pages])
+            for _n, _pid, idx, html_in in temp_pages:
+                pages[idx].text["content"] = rewrite_internal_anchors_to_uuid(
+                    html_in, entry_id, token_to_pageid
+                )
+        except Exception:
+            # If link rewriting fails for any reason, keep original HTML
+            pass
 
         # Encode folder path for Compendium Folders: [Book Title, Chapter Title]
         entry_flags = build_compendium_folder_flags([ir.title, ch_name])

@@ -68,6 +68,19 @@ def test_map_ir_to_foundry_entries_basic() -> None:
     # Sort ordering leaves gaps for future inserts
     assert p1.sort == 1000
     assert p2.sort == 2000
+    # Wrapped HTML content
+    content1 = p1.text.get("content")
+    assert isinstance(content1, str)
+    assert content1.startswith("<div class='pdf2foundry'>")
+    # Image src rewriter: inject an image and ensure it rewrites
+    ir_img, _ = _sample_ir()
+    # force an image tag in second section
+    ir_img.chapters[0].sections[1].html = '<p>x</p><img src="assets/foo.png">'
+    entries2 = map_ir_to_foundry_entries(ir_img)
+    p2b = entries2[0].pages[1]
+    content2 = p2b.text.get("content")
+    assert isinstance(content2, str)
+    assert 'src="modules/mod/assets/foo.png"' in content2
 
 
 def test_map_ir_name_fallbacks_and_dedup_levels() -> None:

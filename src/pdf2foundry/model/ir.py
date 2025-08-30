@@ -33,3 +33,4 @@ class DocumentIR:
     title: str
     chapters: list[ChapterIR] = field(default_factory=list)
     assets_dir: Path | None = None
+    pack_name: str | None = None

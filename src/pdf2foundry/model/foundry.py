@@ -67,6 +67,23 @@ class JournalEntry:
     ownership: dict[str, int] = field(default_factory=lambda: {"default": 0})
 
 
+def validate_entry(entry: JournalEntry) -> None:
+    """Basic shape validation for a JournalEntry and its pages.
+
+    Ensures: required fields present, page type/text/title invariants, and HTML format.
+    """
+
+    assert isinstance(entry._id, str) and entry._id
+    assert isinstance(entry.name, str) and entry.name
+    assert isinstance(entry.pages, list)
+    for p in entry.pages:
+        assert p.type == "text"
+        assert p.text.get("format") == 1
+        assert p.title.get("show") is True
+        lvl = p.title.get("level")
+        assert isinstance(lvl, int) and 1 <= lvl <= 3
+
+
 def make_journal_entry(
     _id: str,
     name: str,

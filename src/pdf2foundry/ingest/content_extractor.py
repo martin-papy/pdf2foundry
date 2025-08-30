@@ -56,6 +56,97 @@ def _extract_images_from_html(
     return updated, images
 
 
+def _rewrite_and_copy_referenced_images(
+    html: str, page_no: int, assets_dir: Path, name_prefix: str
+) -> tuple[str, list[ImageAsset]]:
+    """Copy non-embedded image sources to assets and rewrite src to assets/.
+
+    Handles local file paths, file:// URIs, and relative paths; leaves http(s) and
+    data URIs untouched.
+    """
+    pattern = re.compile(r'src="(?P<src>(?!data:|https?://|mailto:|assets/)[^"]+)"', re.IGNORECASE)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    images: list[ImageAsset] = []
+    counter = 0
+
+    def repl(m: re.Match[str]) -> str:
+        nonlocal counter
+        raw = m.group("src")
+        src_path = raw
+        if raw.lower().startswith("file://"):
+            from urllib.parse import urlparse as _urlparse
+
+            src_path = _urlparse(raw).path or ""
+        p = Path(src_path)
+        if not p.exists():
+            return m.group(0)
+        counter += 1
+        fname = p.name if p.name else f"{name_prefix}_img_{counter:04d}.bin"
+        dest = assets_dir / fname
+        try:
+            dest.write_bytes(p.read_bytes())
+        except Exception:
+            return m.group(0)
+        rel = f"assets/{fname}"
+        images.append(ImageAsset(src=rel, page_no=page_no, name=fname))
+        return f'src="{rel}"'
+
+    updated = pattern.sub(repl, html)
+    return updated, images
+
+
+def _rasterize_table_placeholder(dest_dir: Path, filename: str) -> str:
+    """Write a tiny 1x1 PNG placeholder to dest_dir/filename and return filename.
+
+    We avoid heavy dependencies during tests; real rasterization can replace this later.
+    """
+
+    # 1x1 transparent PNG (short constant split to satisfy line length)
+    png_b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJ"
+        "TYQAAAAASUVORK5CYII="
+    )
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        data = base64.b64decode(png_b64)
+    except Exception:
+        data = b""
+    (dest_dir / filename).write_bytes(data)
+    return filename
+
+
+def _process_tables(
+    html: str, page_no: int, assets_dir: Path, table_mode: str, name_prefix: str
+) -> tuple[str, list[TableContent]]:
+    """Process <table> blocks.
+
+    - auto: leave HTML tables intact; record TableContent(kind="html")
+    - image-only: replace each table with an <img src="assets/..."> placeholder and
+      write a tiny PNG file; record TableContent(kind="image")
+    """
+
+    tables: list[TableContent] = []
+    # Simple, robust-enough pattern to capture table blocks
+    pattern = re.compile(r"<table[\s\S]*?</table>", re.IGNORECASE)
+    counter = 0
+
+    def repl(m: re.Match[str]) -> str:
+        nonlocal counter
+        counter += 1
+        block = m.group(0)
+        if table_mode == "image-only":
+            fname = f"{name_prefix}_table_{counter:04d}.png"
+            _rasterize_table_placeholder(assets_dir, fname)
+            tables.append(TableContent(kind="image", page_no=page_no, html=None, image_name=fname))
+            return f'<img src="assets/{fname}">'
+        # auto mode: keep as HTML
+        tables.append(TableContent(kind="html", page_no=page_no, html=block, image_name=None))
+        return block
+
+    updated = pattern.sub(repl, html)
+    return updated, tables
+
+
 def _detect_links(html: str, page_no: int) -> list[LinkRef]:
     links: list[LinkRef] = []
     for m in re.finditer(r'<a\s+[^>]*href="(?P<href>[^"]+)"', html, re.IGNORECASE):
@@ -86,10 +177,14 @@ def extract_semantic_content(
 
     _safe_emit(on_progress, "content:start", {"page_count": page_count})
 
+    image_mode: object | None = None
     try:
+        # Optional advanced options when docling-core is present
+        from docling_core.types.doc import ImageRefMode
         from docling_core.types.doc.document import ContentLayer
 
         include_layers = {ContentLayer.BODY, ContentLayer.BACKGROUND, ContentLayer.FURNITURE}
+        image_mode = ImageRefMode.EMBEDDED
     except Exception:  # pragma: no cover - optional dependency path
         include_layers = None
 
@@ -103,16 +198,31 @@ def extract_semantic_content(
         page_no = p + 1
         try:
             if include_layers is not None:
-                html = doc.export_to_html(
-                    page_no=page_no,
-                    split_page_view=False,
-                    included_content_layers=include_layers,
-                )
+                if image_mode is not None:
+                    html = doc.export_to_html(
+                        page_no=page_no,
+                        split_page_view=False,
+                        included_content_layers=include_layers,
+                        image_mode=image_mode,
+                    )
+                else:
+                    html = doc.export_to_html(
+                        page_no=page_no,
+                        split_page_view=False,
+                        included_content_layers=include_layers,
+                    )
             else:
-                html = doc.export_to_html(
-                    page_no=page_no,
-                    split_page_view=False,
-                )
+                if image_mode is not None:
+                    html = doc.export_to_html(
+                        page_no=page_no,
+                        split_page_view=False,
+                        image_mode=image_mode,
+                    )
+                else:
+                    html = doc.export_to_html(
+                        page_no=page_no,
+                        split_page_view=False,
+                    )
         except Exception:
             html = ""
 
@@ -127,23 +237,28 @@ def extract_semantic_content(
             # If transform fails for any reason, proceed with original HTML
             pass
 
-        # Extract images
+        # Extract images (embedded base64)
         html, page_images = _extract_images_from_html(
             html, page_no, out_assets, f"page-{page_no:04d}"
         )
         images.extend(page_images)
+        # Copy referenced images (local paths)
+        html, ref_images = _rewrite_and_copy_referenced_images(
+            html, page_no, out_assets, f"page-{page_no:04d}"
+        )
+        images.extend(ref_images)
+        if ref_images:
+            _safe_emit(on_progress, "images:copied", {"page_no": page_no, "count": len(ref_images)})
         if page_images:
             _safe_emit(
                 on_progress, "images:extracted", {"page_no": page_no, "count": len(page_images)}
             )
 
-        # Tables (v1: we do not transform; leave for later)
-        if table_mode == "image-only":
-            # Placeholder: record an intent; actual region rasterization to be added later
-            pass
-        else:
-            # auto mode placeholder
-            pass
+        # Tables
+        html, page_tables = _process_tables(
+            html, page_no, out_assets, table_mode, f"page-{page_no:04d}"
+        )
+        tables.extend(page_tables)
 
         # Links
         page_links = _detect_links(html, page_no)

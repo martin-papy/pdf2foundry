@@ -14,10 +14,11 @@ class _Doc:
         return self._pages
 
     def export_to_html(self, **_: Any) -> str:
-        # include one embedded image and one link
+        # include one embedded image, one table, and one link
         return (
             '<div class="p">Hello'
             '<img src="data:image/png;base64,iVBORw0KGgo=">'
+            "<table><tr><td>A</td></tr></table>"
             '<a href="https://example.com">link</a>'
             "</div>"
         )
@@ -38,6 +39,8 @@ def test_extract_semantic_content(tmp_path: Path) -> None:
     assert len(out.pages) == 2
     # at least one image extracted
     assert out.images
+    # at least one table recorded (html mode)
+    assert out.tables and out.tables[0].kind in ("html", "image")
     # links detected
     assert out.links
     # events contain content:start and content:finalized
@@ -51,5 +54,7 @@ def test_extract_semantic_content_no_contentlayer(monkeypatch: Any, tmp_path: Pa
 
     sys.modules.pop("docling_core.types.doc.document", None)
     doc = _Doc(1)
-    out = extract_semantic_content(doc, tmp_path / "assets2", table_mode="auto")
+    out = extract_semantic_content(doc, tmp_path / "assets2", table_mode="image-only")
     assert len(out.pages) == 1
+    # in image-only mode, tables become images
+    assert out.tables and out.tables[0].kind == "image"
