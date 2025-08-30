@@ -4,6 +4,13 @@ from collections.abc import Callable
 
 from pdf2foundry.model.content import HtmlPage, ParsedContent
 from pdf2foundry.model.document import OutlineNode, ParsedDocument
+from pdf2foundry.model.foundry import (
+    JournalEntry,
+    JournalPageText,
+    build_compendium_folder_flags,
+    make_journal_entry,
+    make_text_page,
+)
 from pdf2foundry.model.ir import ChapterIR, DocumentIR, SectionIR
 
 ProgressCallback = Callable[[str, dict[str, int | str]], None] | None
@@ -110,3 +117,89 @@ def build_document_ir(
     return DocumentIR(
         mod_id=mod_id, title=doc_title, chapters=chapters, assets_dir=parsed_content.assets_dir
     )
+
+
+# --- Foundry mapping (Task 4.2): Map IR to Foundry Journal models ---
+
+
+def map_ir_to_foundry_entries(
+    ir: DocumentIR,
+    *,
+    deterministic_ids: bool = True,
+) -> list[JournalEntry]:
+    """Map a DocumentIR into Foundry JournalEntry objects with text pages.
+
+    Notes
+    - ID assignment is left deterministic and stable in later tasks; for now we
+      pass through placeholder IDs derived from id_path joined (caller can
+      replace with SHA1s). Keeping shape stable unblocks subsequent tasks.
+    - Folder flags will be set in a later subtask (4.3). This function focuses
+      on hierarchy mapping (Entry -> Pages) and page sorting.
+    """
+
+    entries: list[JournalEntry] = []
+
+    for chapter_index, chapter in enumerate(ir.chapters, start=1):
+        if deterministic_ids:
+            entry_id = "|".join([ir.mod_id, *chapter.id_path])
+        else:
+            entry_id = "-".join(chapter.id_path)
+        pages: list[JournalPageText] = []
+
+        # Derive deterministic display name for chapter
+        ch_name_raw = (chapter.title or "").strip()
+        ch_name = ch_name_raw or f"Untitled Chapter {chapter_index}"
+
+        # Assign sort in large gaps to allow later inserts
+        sort_base = 1000
+        seen_page_names: dict[str, int] = {}
+        entry_canonical: list[str] = [*chapter.id_path]
+        for i, sec in enumerate(chapter.sections):
+            page_id = (
+                "|".join([ir.mod_id, *sec.id_path]) if deterministic_ids else "-".join(sec.id_path)
+            )
+            sort = sort_base * (i + 1)
+            # Deterministic page display name with sibling de-duplication
+            raw_name = (sec.title or "").strip() or f"Untitled Section {i + 1}"
+            count = seen_page_names.get(raw_name, 0)
+            seen_page_names[raw_name] = count + 1
+            page_name = raw_name if count == 0 else f"{raw_name} ({count + 1})"
+
+            page = make_text_page(
+                _id=page_id,
+                name=page_name,
+                level=min(3, max(1, sec.level - 1)),  # clamp to 1..3
+                text_html=sec.html,
+                sort=sort,
+            )
+            # Add canonical path flags for deterministic ID assignment
+            canonical_path = [*entry_canonical, page_name]
+            page.flags.setdefault(ir.mod_id, {})
+            mod_ns = page.flags[ir.mod_id]
+            if isinstance(mod_ns, dict):
+                mod_ns["canonicalPath"] = canonical_path
+                mod_ns["canonicalPathStr"] = "/".join(canonical_path)
+                mod_ns["sectionOrder"] = i
+            pages.append(page)
+
+        # Encode folder path for Compendium Folders: [Book Title, Chapter Title]
+        entry_flags = build_compendium_folder_flags([ir.title, ch_name])
+        # Extend with module namespace for canonical paths
+        entry_flags.setdefault(ir.mod_id, {})
+        mod_flags = entry_flags[ir.mod_id]
+        if isinstance(mod_flags, dict):
+            mod_flags["canonicalPath"] = entry_canonical
+            mod_flags["canonicalPathStr"] = "/".join(entry_canonical)
+            mod_flags["nameSlug"] = entry_canonical[-1] if entry_canonical else ""
+
+        entry = make_journal_entry(
+            _id=entry_id,
+            name=ch_name,
+            pages=pages,
+            folder=None,
+            flags=entry_flags,
+            ownership={"default": 0},
+        )
+        entries.append(entry)
+
+    return entries

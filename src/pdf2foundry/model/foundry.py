@@ -24,6 +24,7 @@ class JournalPageText:
     text: dict[str, int | str]
     type: str = field(init=False, default="text")
     sort: int = 0
+    flags: dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Enforce invariants for text pages
