@@ -7,10 +7,10 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "@foundryvtt/foundryvtt-cli": "^1.0.0"
+    "@foundryvtt/foundryvtt-cli": "^2.0.0"
   },
   "scripts": {
-    "compile:pack": "npx @foundryvtt/foundryvtt-cli compilePack --input dist/$npm_config_modid/sources/journals --output dist/$npm_config_modid/packs/$npm_config_packname"
+    "compile:pack": "npx @foundryvtt/foundryvtt-cli compilePack --input dist/$npm_config_modid/sources/journals --output dist/$npm_config_modid/packs/$npm_config_packname",
+    "compile:debug": "node scripts/compile-pack-debug.js --module dist/$npm_config_modid --pack $npm_config_packname"
   }
 }
-

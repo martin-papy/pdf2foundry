@@ -293,8 +293,17 @@ def convert(
                 name = f"{base}-{n}"
             used_names.add(name)
             out_file = journals_src_dir / f"{idx:03d}-{name}.json"
+            # Include Classic Level key so the Foundry CLI packs primary docs
+            data = asdict(entry)
+            # Add Classic Level keys for Foundry CLI (root and pages)
+            data["_key"] = f"!journal!{entry._id}"
+            if isinstance(data.get("pages"), list):
+                for p in data["pages"]:
+                    pid = p.get("_id")
+                    if isinstance(pid, str) and pid:
+                        p["_key"] = f"!journal.pages!{entry._id}.{pid}"
             with out_file.open("w", encoding="utf-8") as f:
-                json.dump(asdict(entry), f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2)
 
         # 7) Write module.json
         module_manifest = build_module_manifest(

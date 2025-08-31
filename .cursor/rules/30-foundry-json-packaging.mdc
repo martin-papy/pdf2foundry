@@ -32,7 +32,11 @@ description: Foundry v12 JSON schema and packaging conventions
 1. Write sources under `sources/journals/*.json`.
 2. Copy assets into `assets/` without modification.
 3. Create `styles/pdf2foundry.css` (scoped selectors).
-4. Use the official Foundry CLI to compile sources → `packs/<pack-name>/` (LevelDB).
+4. Ensure Classic Level keys `_key` are present:
+   - Root JournalEntry: `!journal!<entryId>`
+   - Page entries: `!journal.pages!<entryId>.<pageId>`
+   These keys are required by the official Foundry CLI to pack both primary docs and embedded pages.
+5. Use the official Foundry CLI to compile sources → `packs/<pack-name>/` (LevelDB).
 
 ## UUID Links
 - Build `@UUID[JournalEntry.<entryId>.JournalEntryPage.<pageId>]` for internal links and TOC.
