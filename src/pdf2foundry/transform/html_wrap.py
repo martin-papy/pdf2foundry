@@ -29,6 +29,7 @@ def rewrite_img_srcs(html: str, mod_id: str) -> str:
     """
 
     def _repl(m: re.Match[str]) -> str:
+        prefix = m.group("prefix")  # includes "<img ... src=" with exact spacing
         quote = m.group("q")
         src = m.group("src")
         if src.startswith(("http://", "https://", "data:")):
@@ -36,8 +37,13 @@ def rewrite_img_srcs(html: str, mod_id: str) -> str:
         if src.startswith("modules/"):
             return m.group(0)
         if src.startswith("assets/"):
-            return f"src={quote}modules/{mod_id}/{src}{quote}"
+            return f"{prefix}{quote}modules/{mod_id}/{src}{quote}"
         return m.group(0)
 
-    pattern = re.compile(r"<img\s+[^>]*src=(?P<q>['\"])\s*(?P<src>[^'\"]+)\1", re.IGNORECASE)
+    # Match only the <img ... src=...> attribute portion while preserving the full
+    # tag prefix, so replacement does not drop the opening "<img ...".
+    pattern = re.compile(
+        r"(?P<prefix><img\s+[^>]*?\bsrc\s*=\s*)(?P<q>['\"])\s*(?P<src>[^'\"]+)(?P=q)",
+        re.IGNORECASE,
+    )
     return pattern.sub(_repl, html)

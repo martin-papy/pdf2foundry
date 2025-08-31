@@ -27,6 +27,13 @@ def test_compile_pack_invokes_npx(monkeypatch: Any, tmp_path: Path) -> None:
 
     def fake_run(cmd: list[str], capture_output: bool, text: bool, check: bool) -> Any:
         called["cmd"] = cmd
+        # Read the script the packaging wrote to disk for assertions
+        try:
+            script_path = Path(cmd[1]) if len(cmd) > 1 else None
+            if script_path and script_path.exists():
+                called["js"] = script_path.read_text(encoding="utf-8")
+        except Exception:
+            pass
 
         class R:
             returncode = 0
@@ -38,9 +45,10 @@ def test_compile_pack_invokes_npx(monkeypatch: Any, tmp_path: Path) -> None:
     monkeypatch.setattr(subprocess, "run", fake_run)
     compile_pack(module_dir, "pack")
 
-    # Using Node API via -e script
-    assert called["cmd"][0:2] == ["node", "-e"]
-    js = called["cmd"][2]
+    # Using a file-based Node script to avoid quoting issues
+    assert called["cmd"][0] == "node"
+    assert called["cmd"][1].endswith("__compile_pack.js")
+    js = called.get("js", "")
     assert "compilePack(" in js and "@foundryvtt/foundryvtt-cli" in js
 
 

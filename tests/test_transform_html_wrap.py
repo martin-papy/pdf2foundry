@@ -27,3 +27,5 @@ def test_rewrite_img_srcs() -> None:
     assert "http://example.com/c.png" in out
     assert "data:image/png;base64,AAA" in out
     assert f'src="modules/{mod}/assets/d.png"' in out
+    # Ensure the <img ...> tag opening is preserved (regression for dropped '<img ')
+    assert f'<img src="modules/{mod}/assets/a.png">' in out

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import json
 import subprocess
 from pathlib import Path
 
@@ -21,13 +23,15 @@ def compile_pack(module_dir: Path, pack_name: str) -> None:
         raise PackCompileError(f"Sources directory not found: {sources}")
     output.mkdir(parents=True, exist_ok=True)
 
-    # Prefer using the API via node -e to avoid global config requirements
+    # Build a small Node script on disk to avoid -e quoting issues
+    src_js = json.dumps(str(sources).replace("\\", "/"))
+    dest_js = json.dumps(str(output).replace("\\", "/"))
     node_js = (
         "const fs = require('fs');\n"
         "const path = require('path');\n"
         "const { compilePack } = require('@foundryvtt/foundryvtt-cli');\n"
-        f"const src = '{str(sources).replace('\\\\', '/')}';\n"
-        f"const dest = '{str(output).replace('\\\\', '/')}';\n"
+        f"const src = {src_js};\n"
+        f"const dest = {dest_js};\n"
         "function listJson(dir) {\n"
         "  const out = [];\n"
         "  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {\n"
@@ -57,7 +61,7 @@ def compile_pack(module_dir: Path, pack_name: str) -> None:
         "      }\n"
         "    }\n"
         "    if (patched || patchedPages) {\n"
-        "      fs.writeFileSync(file, JSON.stringify(doc, null, 2) + '\n');\n"
+        "      fs.writeFileSync(file, JSON.stringify(doc, null, 2) + '\\n');\n"
         "    }\n"
         "  } catch (e) { /* ignore */ }\n"
         "}\n"
@@ -71,12 +75,17 @@ def compile_pack(module_dir: Path, pack_name: str) -> None:
         ".catch(e=>{\n"
         "  console.error(e?.stack||e?.message||e);\n"
         "  process.exit(1);\n"
-        "});"
+        "});\n"
     )
-    cmd = ["node", "-e", node_js]
+    script_path = output.parent / "__compile_pack.js"
+    script_path.write_text(node_js, encoding="utf-8")
+    cmd = ["node", str(script_path)]
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as exc:
         raise PackCompileError(
             f"Foundry CLI failed (exit {exc.returncode}): {exc.stderr or exc.stdout}"
         ) from exc
+    finally:
+        with contextlib.suppress(Exception):
+            script_path.unlink()
