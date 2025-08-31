@@ -10,7 +10,6 @@ description: Foundry v12 JSON schema and packaging conventions
   - `pages` (array of JournalEntryPage)
   - `ownership` (default 0)
   - `folder` (null)
-  - `flags["compendium-folders"].folderPath` (optional nested folders)
 
 ## Journal Page JSON (per Section)
 - Fields:
@@ -27,7 +26,6 @@ description: Foundry v12 JSON schema and packaging conventions
   - `id`, `title`, `version`, `compatibility.minimum >= 12`
   - `authors[]`
   - `packs[]` with `type: "JournalEntry"` and `path` as folder (LevelDB)
-  - `relationships.requires[]` include `compendium-folders` when requested
   - `styles`: `styles/pdf2foundry.css`
 
 ## Packaging flow

@@ -16,8 +16,7 @@ def build_module_manifest(
 ) -> dict[str, Any]:
     """Build module.json manifest dictionary.
 
-    Produces a minimal, v12-compliant manifest with optional author, license,
-    and Compendium Folders dependency.
+    Produces a minimal, v12+-compliant manifest with optional author and license.
     """
 
     manifest: dict[str, Any] = {
@@ -25,7 +24,8 @@ def build_module_manifest(
         "title": mod_title,
         "description": description or "Imported Journals generated from a PDF using PDF2Foundry.",
         "version": version,
-        "compatibility": {"minimum": "13", "verified": "13"},
+        # Support v12+; leave verified unset to avoid premature pinning
+        "compatibility": {"minimum": "12"},
         "authors": ([{"name": author}] if author else []),
         "packs": [
             {
@@ -39,7 +39,7 @@ def build_module_manifest(
     }
     if license_str:
         manifest["license"] = license_str
-    # Foundry v13 provides native compendium folders; do not declare dependency
+    # Foundry v12+ provides native compendium folders; do not declare dependency
     return manifest
 
 

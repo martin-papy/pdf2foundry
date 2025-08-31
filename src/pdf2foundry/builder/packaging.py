@@ -30,6 +30,7 @@ def compile_pack(module_dir: Path, pack_name: str) -> None:
         "  // Ensure a Classic Level _key for JournalEntry documents\n"
         "  const ok = doc && typeof doc._id === 'string';\n"
         "  if (!doc._key && ok) { doc._key = `!journal!${doc._id}`; }\n"
+        "  return doc;\n"
         "};\n"
         "compilePack(src, dest, { log: true, recursive: true, transformEntry })\n"
         ".then(()=>process.exit(0)).catch(e=>{console.error(e?.stack||e?.message||e);process.exit(1);});"
