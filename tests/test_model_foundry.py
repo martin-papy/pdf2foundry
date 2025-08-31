@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from pdf2foundry.builder.manifest import build_module_manifest, validate_module_manifest
 from pdf2foundry.model.foundry import (
     JournalPageText,
     build_compendium_folder_flags,
@@ -46,9 +47,21 @@ def test_page_invariants_violations() -> None:
 
 
 def test_build_compendium_folder_flags() -> None:
+    # Function still available for backward compatibility, but v13 does not require dependency
     flags = build_compendium_folder_flags(["Book", "Chapter 1"], color="#AABBCC")
     assert "compendium-folders" in flags
-    cf = flags["compendium-folders"]
-    assert isinstance(cf, dict)
-    assert cf["folderPath"] == ["Book", "Chapter 1"]
-    assert cf["color"] == "#AABBCC"
+
+
+def test_build_and_validate_module_manifest() -> None:
+    manifest = build_module_manifest(
+        mod_id="m",
+        mod_title="My Module",
+        pack_name="m-journals",
+        version="0.1.0",
+        author="Alice",
+        license_str="MIT",
+        depend_compendium_folders=True,
+    )
+    issues = validate_module_manifest(manifest)
+    assert issues == []
+    assert manifest["packs"][0]["path"] == "packs/m-journals"

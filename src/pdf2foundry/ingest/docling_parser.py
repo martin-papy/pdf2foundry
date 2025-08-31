@@ -63,6 +63,8 @@ def parse_pdf_structure(pdf: Path, on_progress: ProgressCallback = None) -> Pars
     conv = DocumentConverter(
         format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)}
     )
+    # Emit early so UI can show a spinner immediately
+    _safe_emit(on_progress, "load_pdf", {"pdf": str(pdf)})
     doc = conv.convert(str(pdf)).document
 
     # Determine page count (Docling API varies across versions)
@@ -76,7 +78,7 @@ def parse_pdf_structure(pdf: Path, on_progress: ProgressCallback = None) -> Pars
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
-    _safe_emit(on_progress, "load_pdf", {"pdf": str(pdf), "page_count": page_count})
+    _safe_emit(on_progress, "load_pdf:success", {"pdf": str(pdf), "page_count": page_count})
 
     _safe_emit(on_progress, "extract_bookmarks:start", {"page_count": page_count})
 

@@ -18,7 +18,7 @@ PDF2Foundry is a Python CLI tool that ingests a **born-digital PDF** and outputs
 - **Tables** are converted to HTML `<table>` when possible; otherwise embedded as images.
 - **Internal links** are converted into Foundry-native `@UUID[...]` links.
 - A **TOC Journal Entry** is generated for navigation.
-- Structure (root folder, chapter folders) is preserved using **Compendium Folders** (dependency).
+  - Structure (root folder, chapter folders) is preserved via flags and is compatible with native v13 compendium folders (no dependency).
 
 ______________________________________________________________________
 
@@ -124,7 +124,7 @@ ______________________________________________________________________
 
   - `id`, `title`, `version`, `compatibility` (v12+).
   - `packs`: type `JournalEntry`.
-  - `dependencies`: include `Compendium Folders` if `--depend-compendium-folders=yes`.
+  - `dependencies`: none required for compendium folders in v13.
 
 - Use **Foundry official CLI** (Node-based) to compile JSON into LevelDB pack.
 
@@ -154,7 +154,7 @@ ______________________________________________________________________
 
 - **Foundry add-on:**
 
-  - **Compendium Folders** → required dependency if `--depend-compendium-folders=yes`.
+  - Native compendium folders in v13 (no dependency required).
 
 ______________________________________________________________________
 

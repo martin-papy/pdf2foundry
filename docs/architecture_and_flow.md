@@ -9,7 +9,7 @@
 
    - An **installable module folder** containing:
 
-     - `module.json` (declares a **Journal** compendium pack; optional dependency on **Compendium Folders**).
+     - `module.json` (declares a **Journal** compendium pack; no dependency needed for v13 folders).
      - `assets/` (images extracted from the PDF, unchanged).
      - `styles/pdf2foundry.css` (scoped, non-conflicting CSS).
      - `sources/journals/*.json` (source JSON for Journal Entries).
@@ -22,7 +22,7 @@
    - Journal Page **HTML format** is supported in v12 via `JOURNAL_ENTRY_PAGE_FORMATS.HTML`. ([Foundry Virtual Tabletop][1])
    - Journals & Pages are proper Documents; we can rely on UUID linking (`@UUID[...]`) and the journal/page document models. ([Foundry Virtual Tabletop][2], [Foundry VTT Wiki][3])
    - Since v11, compendium packs are **LevelDB directories**; build packs using the **official packaging flow** (Module Maker or CLI). ([Foundry Virtual Tabletop][4])
-   - **Compendium Folders** add-on enables **folders inside packs** (our chapter/section hierarchy). ([Foundry Virtual Tabletop][5], [Foundry Hub][6])
+   - v13 supports native **folders inside packs**; no external dependency required.
 
 ______________________________________________________________________
 
@@ -41,7 +41,6 @@ pdf2foundry \
   --tables auto \            # auto | image-only
   --images-dir assets \
   --out-dir ./dist \
-  --depend-compendium-folders yes \
   --deterministic-ids yes
 ```
 
@@ -98,7 +97,7 @@ ______________________________________________________________________
 
    - Each **Section = one Journal Page** (`type: "text"`, `text.format: "html"`; page `name`, `sort`, `image?` if needed).
 
-   - Optional **folders inside pack**: write folder metadata/flags compliant with **Compendium Folders** so the add-on can reconstruct hierarchy on import. ([Foundry Virtual Tabletop][5])
+   - Optional **folders inside pack**: flags may be included for compatibility; v13 reads native folders.
 
    - Example (trimmed):
 
@@ -114,10 +113,7 @@ ______________________________________________________________________
            "text": { "format": 1, "content": "<div class='pdf2foundry'><h2>…</h2>…</div>" },
            "sort": 100
          }
-       ],
-       "flags": {
-         "compendium-folders": { "folderPath": ["My Book", "Chapter 1"] }
-       }
+       ]
      }
      ```
 
@@ -143,7 +139,7 @@ ______________________________________________________________________
 
    - `module.json` essentials:
 
-     - `id`, `title`, `version`, `compatibility` (v12+), `authors`, `packs` (type: `"JournalEntry"`), `dependencies` (include **Compendium Folders** if requested). ([Foundry Virtual Tabletop][8])
+     - `id`, `title`, `version`, `compatibility` (v13+), `authors`, `packs` (type: `"JournalEntry"`). ([Foundry Virtual Tabletop][8])
 
    - **Compile packs** from `sources/` to `packs/` using the **official packaging route** (recommended since v11). You can do this via the **Module Maker UI** or its CLI-equivalent flow; either way, the result is a proper **LevelDB pack**. ([Foundry Virtual Tabletop][9])
 
@@ -185,7 +181,7 @@ ______________________________________________________________________
 1. Install the module; verify the **Journal pack** appears and imports. ([Foundry Virtual Tabletop][8])
 1. Open a few pages: confirm **HTML rendering** and assets load. ([Foundry Virtual Tabletop][10])
 1. Click TOC links: confirm **UUID navigation** to pages. ([Foundry Virtual Tabletop][7])
-1. If **Compendium Folders** is installed, confirm nested folders are present in the pack. ([Foundry Virtual Tabletop][5])
+1. v13 native pack folders present as expected.
 
 ______________________________________________________________________
 
@@ -205,8 +201,6 @@ If this matches your expectations, I’ll draft the **Journal Entry/Page JSON sc
 [2]: https://foundryvtt.com/api/v12/classes/client.JournalEntryPage.html?utm_source=chatgpt.com "JournalEntryPage | Foundry Virtual Tabletop - API Documentation ..."
 [3]: https://foundryvtt.wiki/en/development/api/document?utm_source=chatgpt.com "Document | Foundry VTT Community Wiki"
 [4]: https://foundryvtt.com/article/v11-leveldb-packs/?utm_source=chatgpt.com "Version 11 Content Packaging Changes - Foundry Virtual Tabletop"
-[5]: https://foundryvtt.com/packages/compendium-folders/?utm_source=chatgpt.com "Compendium Folders - Foundry Virtual Tabletop"
-[6]: https://www.foundryvtt-hub.com/package/compendium-folders/?utm_source=chatgpt.com "Compendium Folders - Foundry Hub"
 [7]: https://foundryvtt.com/article/journal/?utm_source=chatgpt.com "Journal Entries - Foundry Virtual Tabletop"
 [8]: https://foundryvtt.com/article/compendium/?utm_source=chatgpt.com "Compendium Packs - Foundry Virtual Tabletop"
 [9]: https://foundryvtt.com/article/packaging-guide/?utm_source=chatgpt.com "Content Packaging Guide - Foundry Virtual Tabletop"

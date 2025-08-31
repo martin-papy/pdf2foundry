@@ -3,15 +3,19 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 
 from pdf2foundry import __version__
 from pdf2foundry.builder.ir_builder import build_document_ir, map_ir_to_foundry_entries
+from pdf2foundry.builder.manifest import build_module_manifest, validate_module_manifest
+from pdf2foundry.builder.packaging import PackCompileError, compile_pack
+from pdf2foundry.builder.toc import build_toc_entry_from_entries, validate_toc_links
 from pdf2foundry.ingest.content_extractor import extract_semantic_content
 from pdf2foundry.ingest.docling_parser import parse_pdf_structure
 from pdf2foundry.model.foundry import JournalEntry
+from pdf2foundry.ui.progress import ProgressReporter
 
 app = typer.Typer(
     name="pdf2foundry",
@@ -33,19 +37,19 @@ def convert(
         ),
     ],
     mod_id: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--mod-id",
             help="Module ID (required, must be unique). Use lowercase, hyphens, no spaces.",
         ),
-    ],
+    ] = None,
     mod_title: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--mod-title",
             help="Module Title (required). Display name for the module.",
         ),
-    ],
+    ] = None,
     out_dir: Annotated[
         Path,
         typer.Option(
@@ -89,13 +93,14 @@ def convert(
             help="Use deterministic SHA1-based IDs for stable UUIDs across runs (default: yes)",
         ),
     ] = True,
-    depend_compendium_folders: Annotated[
+    # Foundry v13 has native compendium folders; dependency flag removed
+    compile_pack_now: Annotated[
         bool,
         typer.Option(
-            "--depend-compendium-folders/--no-depend-compendium-folders",
-            help="Add Compendium Folders module as dependency for folder structure (default: yes)",
+            "--compile-pack/--no-compile-pack",
+            help="Compile sources to LevelDB pack using Foundry CLI (default: no)",
         ),
-    ] = True,
+    ] = False,
 ) -> None:
     """
     Convert a born-digital PDF into a Foundry VTT v12+ module.
@@ -116,6 +121,40 @@ def convert(
         pdf2foundry convert "Guide.pdf" --mod-id "guide" --mod-title "Player Guide" \\
             --no-toc --tables image-only
     """
+    # Interactive prompts when minimal args are provided
+    if mod_id is None or mod_title is None:
+        # Build sensible defaults from PDF name
+        def _slug_default(text: str) -> str:
+            import re as _re
+
+            s = _re.sub(r"[^A-Za-z0-9]+", "-", (text or "").lower()).strip("-")
+            s = _re.sub(r"-+", "-", s)
+            return s or "untitled"
+
+        pdf_stem = pdf.stem
+        suggested_id = _slug_default(pdf_stem)
+        suggested_title = pdf_stem
+
+        if mod_id is None:
+            mod_id = typer.prompt("Module ID", default=suggested_id)
+        if mod_title is None:
+            mod_title = typer.prompt("Module Title", default=suggested_title)
+
+        # Optional metadata
+        if not author:
+            author = typer.prompt("Author", default="")
+        if not license:
+            license = typer.prompt("License", default="")
+
+        # Derived values and confirmations
+        if pack_name is None:
+            pack_name = typer.prompt("Pack name", default=f"{mod_id}-journals")
+        toc = typer.confirm("Generate TOC?", default=toc)
+        tables = typer.prompt("Table handling (auto/image-only)", default=tables)
+        deterministic_ids = typer.confirm("Use deterministic IDs?", default=deterministic_ids)
+        compile_pack_now = typer.confirm("Compile LevelDB pack now?", default=compile_pack_now)
+        out_dir = Path(typer.prompt("Output directory", default=str(out_dir)))
+
     # Set default pack name if not provided
     if pack_name is None:
         pack_name = f"{mod_id}-journals"
@@ -149,7 +188,6 @@ def convert(
     typer.echo(f"📋 Generate TOC: {'Yes' if toc else 'No'}")
     typer.echo(f"📊 Table Handling: {tables}")
     typer.echo(f"🔗 Deterministic IDs: {'Yes' if deterministic_ids else 'No'}")
-    typer.echo(f"📂 Compendium Folders Dependency: {'Yes' if depend_compendium_folders else 'No'}")
 
     # Execute best-effort conversion pipeline to produce sources and assets
     # Keep placeholder path for minimal PDFs used in unit tests
@@ -162,15 +200,25 @@ def convert(
         journals_src_dir = module_dir / "sources" / "journals"
         assets_dir = module_dir / "assets"
         styles_dir = module_dir / "styles"
+        packs_dir = module_dir / "packs" / pack_name
         journals_src_dir.mkdir(parents=True, exist_ok=True)
         assets_dir.mkdir(parents=True, exist_ok=True)
         styles_dir.mkdir(parents=True, exist_ok=True)
+        packs_dir.mkdir(parents=True, exist_ok=True)
 
         # 1) Parse PDF outline structure (Docling)
-        def _emit(event: str, payload: dict[str, int | str]) -> None:
-            typer.echo(f" · {event}: {payload}")
+        # Use rich progress UI for end-user feedback
+        with ProgressReporter() as pr:
+            # Startup spinner to cover module import latency
+            startup_task = pr.add_step("Starting…", total=None)
 
-        parsed_doc = parse_pdf_structure(pdf, on_progress=_emit)
+            def _emit(event: str, payload: dict[str, int | str]) -> None:
+                # First progress event marks end of startup
+                if startup_task in pr.progress.task_ids:
+                    pr.finish_task(startup_task)
+                pr.emit(event, payload)
+
+            parsed_doc = parse_pdf_structure(pdf, on_progress=_emit)
 
         # 2) Extract semantic content (HTML + images/tables/links)
         # Create a Docling document for export_to_html per page (see internal/poc_docling.py)
@@ -191,26 +239,43 @@ def convert(
         )
         dl_doc = conv.convert(str(pdf)).document
 
-        content = extract_semantic_content(
-            dl_doc,  # satisfies DocumentLike (num_pages, export_to_html)
-            out_assets=assets_dir,
-            table_mode=tables,
-            on_progress=_emit,
-        )
+        with ProgressReporter() as pr:
 
-        # 3) Build IR
-        ir = build_document_ir(
-            parsed_doc,
-            content,
-            mod_id=mod_id,
-            doc_title=mod_title,
-            on_progress=_emit,
-        )
+            def _emit(event: str, payload: dict[str, int | str]) -> None:
+                pr.emit(event, payload)
 
-        # 4) Map IR to Foundry Journal models
-        entries: list[JournalEntry] = map_ir_to_foundry_entries(ir)
+            content = extract_semantic_content(
+                dl_doc,  # satisfies DocumentLike (num_pages, export_to_html)
+                out_assets=assets_dir,
+                table_mode=tables,
+                on_progress=_emit,
+            )
 
-        # 5) Write sources JSON, one file per entry
+            # 3) Build IR
+            ir = build_document_ir(
+                parsed_doc,
+                content,
+                mod_id=mod_id,
+                doc_title=mod_title,
+                on_progress=_emit,
+            )
+
+            # 4) Map IR to Foundry Journal models
+            entries: list[JournalEntry] = map_ir_to_foundry_entries(ir)
+
+        # 5) Optionally add TOC entry at the beginning
+        if toc:
+            try:
+                toc_entry = build_toc_entry_from_entries(mod_id, entries, title="Table of Contents")
+                entries = [toc_entry, *entries]
+                issues = validate_toc_links(toc_entry, entries[1:])
+                for msg in issues:
+                    typer.echo(f"⚠️  TOC link warning: {msg}")
+            except Exception:
+                # On failure, follow error policy: omit TOC, continue
+                pass
+
+        # 6) Write sources JSON, one file per entry
         def _slugify(text: str) -> str:
             import re as _re
 
@@ -231,37 +296,23 @@ def convert(
             with out_file.open("w", encoding="utf-8") as f:
                 json.dump(asdict(entry), f, ensure_ascii=False, indent=2)
 
-        # 6) Write module.json
-        module_manifest: dict[str, Any] = {
-            "id": mod_id,
-            "title": mod_title,
-            "version": __version__,
-            "compatibility": {"minimum": "12"},
-            "authors": ([{"name": author}] if author else []),
-            "packs": [
-                {
-                    "name": pack_name,
-                    "label": f"{mod_title} Journals",
-                    "path": f"packs/{pack_name}",
-                    "type": "JournalEntry",
-                }
-            ],
-            "styles": ["styles/pdf2foundry.css"],
-        }
-        if depend_compendium_folders:
-            module_manifest["relationships"] = {
-                "requires": [
-                    {
-                        "id": "compendium-folders",
-                        "type": "module",
-                        "compatibility": {"minimum": "12"},
-                    }
-                ]
-            }
+        # 7) Write module.json
+        module_manifest = build_module_manifest(
+            mod_id=mod_id,
+            mod_title=mod_title,
+            pack_name=pack_name,
+            version=__version__,
+            author=author,
+            license_str=license,
+            depend_compendium_folders=False,
+        )
+        issues = validate_module_manifest(module_manifest)
+        for msg in issues:
+            typer.echo(f"⚠️  module.json warning: {msg}")
         with (module_dir / "module.json").open("w", encoding="utf-8") as f:
             json.dump(module_manifest, f, ensure_ascii=False, indent=2)
 
-        # 7) Write minimal CSS
+        # 8) Write minimal CSS
         css_path = styles_dir / "pdf2foundry.css"
         if not css_path.exists():
             css_text = (
@@ -270,8 +321,15 @@ def convert(
             )
             css_path.write_text(css_text, encoding="utf-8")
 
-        typer.echo(f"\n✅ Wrote sources to {journals_src_dir} and assets to {assets_dir}")
-        typer.echo("   Note: Pack compilation (packs/) is not performed automatically.")
+        if compile_pack_now:
+            try:
+                compile_pack(module_dir, pack_name)
+                typer.echo(f"\n✅ Compiled pack to {module_dir / 'packs' / pack_name}")
+            except PackCompileError as exc:
+                typer.echo(f"\n⚠️  Pack compilation failed: {exc}")
+        else:
+            typer.echo(f"\n✅ Wrote sources to {journals_src_dir} and assets to {assets_dir}")
+            typer.echo("   Note: Pack compilation (packs/) is not performed automatically.")
     except ModuleNotFoundError:  # pragma: no cover - environment dependent
         typer.echo("\n⚠️  Docling not installed; skipping conversion steps.")
     except Exception as exc:  # pragma: no cover - unexpected runtime errors

@@ -8,7 +8,7 @@ Convert born-digital PDFs into a Foundry VTT v12+ module compendium.
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
-python -m pip install -e .[full,dev]
+python -m pip install -e .[dev]
 ```
 
 Enable pre-commit hooks:
@@ -49,23 +49,33 @@ pdf2foundry convert \
   --toc/--no-toc \
   --tables auto|image-only \
   --deterministic-ids/--no-deterministic-ids \
-  --depend-compendium-folders/--no-depend-compendium-folders \
-  --images-dir assets \
-  --out-dir dist
+  --out-dir dist \
+  --compile-pack/--no-compile-pack
 ```
 
 - `--pdf` (required): Path to source PDF
+
 - `--mod-id` (required): Module ID
+
 - `--mod-title` (required): Module title
+
 - `--author`: Author name
+
 - `--license`: License string
+
 - `--pack-name`: Pack name (default: `<mod-id>-journals`)
+
 - `--toc`: Generate TOC entry (default: enabled)
+
 - `--tables`: `auto` (default) or `image-only`
+
 - `--deterministic-ids`: Use deterministic IDs (default: enabled)
-- `--depend-compendium-folders`: Depend on Compendium Folders (default: enabled)
-- `--images-dir`: Images directory name (default: `assets`)
+
+  (compendium folders are native in v13)
+
 - `--out-dir`: Output directory (default: `dist`)
+
+- `--compile-pack`: Compile JSON sources to LevelDB pack using Foundry CLI (default: disabled)
 
 ## Output Layout
 
@@ -79,3 +89,20 @@ pdf2foundry convert \
 ```
 
 See [docs/PRD.md](docs/PRD.md) and [docs/architecture_and_flow.md](docs/architecture_and_flow.md) for details.
+
+## Pack Compilation (Foundry CLI)
+
+- Requires Node.js (LTS) and the Foundry CLI as a devDependency (already configured in `package.json`).
+- You can compile during `convert` with `--compile-pack`, or manually via npm:
+
+```bash
+npm run compile:pack --modid=<mod-id> --packname=<mod-id>-journals
+```
+
+Under the hood this runs:
+
+```bash
+npx @foundryvtt/foundryvtt-cli compilePack \
+  --input dist/<mod-id>/sources/journals \
+  --output dist/<mod-id>/packs/<mod-id>-journals
+```

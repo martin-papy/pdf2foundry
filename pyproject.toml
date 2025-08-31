@@ -69,6 +69,7 @@ module = [
   "docling_core",
   "docling_core.*",
   "pytest",
+  "jinja2",
 ]
 ignore_missing_imports = true
 
