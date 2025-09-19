@@ -111,6 +111,55 @@ def parse_pdf_structure(pdf: Path, on_progress: ProgressCallback = None) -> Pars
     return ParsedDocument(page_count=page_count, outline=outline_nodes)
 
 
+def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> ParsedDocument:  # type: ignore[no-untyped-def]
+    """Parse structure from an existing Docling-like document.
+
+    Mirrors parse_pdf_structure but skips the conversion step.
+    """
+    _safe_emit(
+        on_progress,
+        "load_pdf:success",
+        {"pdf": "<doc>", "page_count": getattr(doc, "num_pages", 0) or 0},
+    )
+
+    try:
+        num_pages_fn = getattr(doc, "num_pages", None)
+        if callable(num_pages_fn):
+            page_count = int(num_pages_fn())
+        else:
+            page_count = int(getattr(doc, "num_pages", 0) or 0)
+    except Exception:
+        page_count = int(getattr(doc, "num_pages", 0) or 0)
+
+    _safe_emit(on_progress, "extract_bookmarks:start", {"page_count": page_count})
+    outline_nodes = _outline_from_docling(doc, page_count)
+    if outline_nodes:
+        chapters, sections = _count_chapters_sections(outline_nodes)
+        _safe_emit(
+            on_progress,
+            "extract_bookmarks:success",
+            {"page_count": page_count, "chapters": chapters, "sections": sections},
+        )
+    else:
+        _safe_emit(on_progress, "extract_bookmarks:empty", {"page_count": page_count})
+        _safe_emit(on_progress, "heuristics:start", {"page_count": page_count})
+        from pdf2foundry.ingest.heuristics import build_outline_from_headings
+
+        outline_nodes = build_outline_from_headings(doc, page_count)
+        chapters, sections = _count_chapters_sections(outline_nodes)
+        _safe_emit(
+            on_progress,
+            "heuristics:detected",
+            {"page_count": page_count, "chapters": chapters, "sections": sections},
+        )
+
+    _safe_emit(
+        on_progress, "outline:finalized", {"page_count": page_count, "nodes": chapters + sections}
+    )
+
+    return ParsedDocument(page_count=page_count, outline=outline_nodes)
+
+
 def _outline_from_docling(doc, page_count: int) -> list[OutlineNode]:  # type: ignore[no-untyped-def]
     """Attempt to extract outline/bookmarks from Docling document and normalize.
 

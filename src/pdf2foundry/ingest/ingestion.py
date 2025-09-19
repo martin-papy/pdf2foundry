@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+from pdf2foundry.ingest.docling_adapter import DoclingDocumentLike
 
 
 @dataclass
@@ -27,4 +30,70 @@ class JsonOpts:
     default_path: Path | None = None
 
 
-__all__ = ["JsonOpts"]
+ProgressCallback = Callable[[str, dict[str, int | str]], None] | None
+
+
+def _safe_emit(on_progress: ProgressCallback, event: str, payload: dict[str, int | str]) -> None:
+    if on_progress is None:
+        return
+    from contextlib import suppress
+
+    with suppress(Exception):
+        on_progress(event, payload)
+
+
+def ingest_docling(
+    pdf_path: Path,
+    json_opts: JsonOpts,
+    on_progress: ProgressCallback = None,
+) -> DoclingDocumentLike:
+    """Load or convert a Docling document once, optionally saving JSON.
+
+    Notes:
+    - JSON load-from-cache is deferred until deterministic serializers (Task 13.3).
+      For now, we always convert and optionally write JSON if supported by Docling.
+    """
+    from pdf2foundry.ingest.docling_adapter import run_docling_conversion
+
+    _safe_emit(on_progress, "load_pdf", {"pdf": str(pdf_path)})
+    doc = run_docling_conversion(pdf_path)
+
+    # Emit success with page_count if available
+    page_count = 0
+    try:
+        num_pages_fn = getattr(doc, "num_pages", None)
+        if callable(num_pages_fn):
+            page_count = int(num_pages_fn())
+        else:
+            page_count = int(getattr(doc, "num_pages", 0) or 0)
+    except Exception:
+        page_count = int(getattr(doc, "num_pages", 0) or 0)
+    _safe_emit(on_progress, "load_pdf:success", {"pdf": str(pdf_path), "page_count": page_count})
+
+    # Determine save path, if any
+    json_path: Path | None = None
+    if json_opts.path is not None:
+        json_path = json_opts.path
+    elif json_opts.write and json_opts.default_path is not None:
+        json_path = json_opts.default_path
+
+    if json_path is not None:
+        try:
+            to_json = getattr(doc, "to_json", None)
+            if callable(to_json):
+                json_text = to_json()
+                json_path.parent.mkdir(parents=True, exist_ok=True)
+                json_path.write_text(str(json_text), encoding="utf-8")
+                # Best-effort informational event
+                _safe_emit(on_progress, "docling_json:saved", {"path": str(json_path)})
+            else:
+                # Serializer not available; skip silently for now
+                pass
+        except Exception:
+            # Ignore write failures for now; detailed handling in Task 13.4/13.8
+            pass
+
+    return doc
+
+
+__all__ = ["JsonOpts", "ingest_docling"]

@@ -13,7 +13,8 @@ from pdf2foundry.builder.manifest import build_module_manifest, validate_module_
 from pdf2foundry.builder.packaging import PackCompileError, compile_pack
 from pdf2foundry.builder.toc import build_toc_entry_from_entries, validate_toc_links
 from pdf2foundry.ingest.content_extractor import extract_semantic_content
-from pdf2foundry.ingest.docling_parser import parse_pdf_structure
+from pdf2foundry.ingest.docling_parser import parse_structure_from_doc
+from pdf2foundry.ingest.ingestion import JsonOpts, ingest_docling
 from pdf2foundry.model.foundry import JournalEntry
 from pdf2foundry.ui.progress import ProgressReporter
 
@@ -244,7 +245,7 @@ def convert(
     if fallback_on_json_failure:
         typer.echo("↩️  Fallback on JSON failure: enabled")
 
-    # Execute best-effort conversion pipeline to produce sources and assets
+    # Execute single-pass ingestion pipeline: get/create Docling once, then reuse
     # Keep placeholder path for minimal PDFs used in unit tests
     if str(pdf).endswith(".pdf") and pdf.stat().st_size < 1024:
         typer.echo("\n⚠️  Conversion not yet implemented - this is a placeholder!")
@@ -261,52 +262,40 @@ def convert(
         styles_dir.mkdir(parents=True, exist_ok=True)
         packs_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1) Parse PDF outline structure (Docling)
         # Use rich progress UI for end-user feedback
         with ProgressReporter() as pr:
-            # Startup spinner to cover module import latency
             startup_task = pr.add_step("Starting…", total=None)
 
             def _emit(event: str, payload: dict[str, int | str]) -> None:
-                # First progress event marks end of startup
                 if startup_task in pr.progress.task_ids:
                     pr.finish_task(startup_task)
                 pr.emit(event, payload)
 
-            parsed_doc = parse_pdf_structure(pdf, on_progress=_emit)
+            json_opts = JsonOpts(
+                path=docling_json,
+                write=write_docling_json,
+                fallback_on_json_failure=fallback_on_json_failure,
+                default_path=(
+                    out_dir / mod_id / "sources" / "docling.json"
+                    if write_docling_json and docling_json is None
+                    else None
+                ),
+            )
 
-        # 2) Extract semantic content (HTML + images/tables/links)
-        # Create a Docling document for export_to_html per page (see internal/poc_docling.py)
-        from docling.datamodel.base_models import InputFormat
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import (
-            DocumentConverter,
-            PdfFormatOption,
-        )
+            dl_doc = ingest_docling(pdf, json_opts=json_opts, on_progress=_emit)
 
-        pipe_opts = PdfPipelineOptions(
-            generate_picture_images=True,
-            generate_page_images=True,
-            do_ocr=False,
-        )
-        conv = DocumentConverter(
-            format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)}
-        )
-        dl_doc = conv.convert(str(pdf)).document
+            # Parse structure from the existing Docling doc
+            parsed_doc = parse_structure_from_doc(dl_doc, on_progress=_emit)
 
-        with ProgressReporter() as pr:
-
-            def _emit(event: str, payload: dict[str, int | str]) -> None:
-                pr.emit(event, payload)
-
+            # Extract semantic content (HTML + images/tables/links)
             content = extract_semantic_content(
-                dl_doc,  # satisfies DocumentLike (num_pages, export_to_html)
+                dl_doc,
                 out_assets=assets_dir,
                 table_mode=tables,
                 on_progress=_emit,
             )
 
-            # 3) Build IR
+            # Build IR
             ir = build_document_ir(
                 parsed_doc,
                 content,
