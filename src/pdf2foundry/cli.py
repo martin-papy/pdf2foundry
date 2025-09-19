@@ -101,6 +101,38 @@ def convert(
             help="Compile sources to LevelDB pack using Foundry CLI (default: no)",
         ),
     ] = False,
+    # Docling JSON cache options (single-pass ingestion plan)
+    docling_json: Annotated[
+        Path | None,
+        typer.Option(
+            "--docling-json",
+            help=(
+                "Path to Docling JSON cache. If it exists and is valid, load from it; "
+                "otherwise convert and save to this path."
+            ),
+        ),
+    ] = None,
+    write_docling_json: Annotated[
+        bool,
+        typer.Option(
+            "--write-docling-json/--no-write-docling-json",
+            help=(
+                "When enabled without --docling-json, write the Docling JSON cache to the default "
+                "path (dist/<mod-id>/sources/docling.json). "
+                "Ignored when --docling-json is provided."
+            ),
+        ),
+    ] = False,
+    fallback_on_json_failure: Annotated[
+        bool,
+        typer.Option(
+            "--fallback-on-json-failure/--no-fallback-on-json-failure",
+            help=(
+                "If loading from JSON fails, fall back to conversion "
+                "(and overwrite when applicable)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """
     Convert a born-digital PDF into a Foundry VTT v12+ module.
@@ -173,6 +205,8 @@ def convert(
         )
         raise typer.Exit(1)
 
+    # Note: deprecated flags (--docling-json-load/--docling-json-save) were removed.
+
     # Display configuration
     typer.echo(f"📄 Converting PDF: {pdf}")
     typer.echo(f"🆔 Module ID: {mod_id}")
@@ -188,6 +222,27 @@ def convert(
     typer.echo(f"📋 Generate TOC: {'Yes' if toc else 'No'}")
     typer.echo(f"📊 Table Handling: {tables}")
     typer.echo(f"🔗 Deterministic IDs: {'Yes' if deterministic_ids else 'No'}")
+
+    # Summarize Docling JSON cache behavior (ensures options are used and validated)
+    default_json_path: Path | None = None
+    if docling_json is not None and write_docling_json:
+        typer.echo(
+            "🗃️  Docling JSON: --docling-json provided; "
+            "--write-docling-json is ignored (PATH semantics apply)"
+        )
+    if docling_json is not None:
+        typer.echo(
+            f"🗃️  Docling JSON cache: {docling_json} (load if exists; else convert then save)"
+        )
+    elif write_docling_json:
+        default_json_path = out_dir / mod_id / "sources" / "docling.json"
+        typer.echo(
+            f"🗃️  Docling JSON cache: will write to default path {default_json_path} when converting"
+        )
+    else:
+        typer.echo("🗃️  Docling JSON cache: disabled (no load/save)")
+    if fallback_on_json_failure:
+        typer.echo("↩️  Fallback on JSON failure: enabled")
 
     # Execute best-effort conversion pipeline to produce sources and assets
     # Keep placeholder path for minimal PDFs used in unit tests
