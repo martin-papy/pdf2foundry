@@ -1,43 +1,60 @@
 ---
-description: CLI contract for pdf2foundry (Typer)
+description: CLI contract for pdf2foundry (Typer) — single-pass ingestion and caching
+globs: src/pdf2foundry/cli.py
+alwaysApply: false
 ---
 # CLI Contract (Typer)
-
-## Command
 
 - Console script: `pdf2foundry`
 - Package: `pdf2foundry`
 
-## Required options
+## Command: convert
 
-- `--pdf <path>`: Path to source PDF.
-- `--mod-id <string>`: Module ID.
-- `--mod-title <string>`: Module title.
+Usage:
 
-## Optional metadata
+```bash
+pdf2foundry convert <pdf> [options]
+```
 
-- `--author <string>`
-- `--license <string>`
-- `--pack-name <string>` (default: `<mod-id>-journals`)
+### Required
 
-## Behavior flags (defaults)
+- pdf (argument): Path to source PDF file (readable file)
+- --mod-id <string>: Module ID (lowercase, hyphens, unique)
+- --mod-title <string>: Module Title (display name)
 
-- `--toc yes|no` (default: yes)
-- `--tables auto|image-only` (default: auto)
-- `--deterministic-ids yes|no` (default: yes)
-- `--depend-compendium-folders yes|no` (default: yes)
-- `--images-dir <path>` (default: `assets`)
-- `--out-dir <path>` (default: `dist`)
+### Optional metadata
+
+- --author <string>
+- --license <string>
+- --pack-name <string> (default: <mod-id>-journals)
+
+### Behavior flags (defaults)
+
+- --toc/--no-toc (default: --toc)
+- --tables <auto|image-only> (default: auto)
+- --deterministic-ids/--no-deterministic-ids (default: --deterministic-ids)
+- --out-dir <path> (default: dist)
+- --compile-pack/--no-compile-pack (default: --no-compile-pack)
+
+### Docling JSON cache (single-pass ingestion)
+
+- --docling-json <path>: If the file exists and is valid, load the Docling document from JSON; otherwise convert and save to this path.
+- --write-docling-json/--no-write-docling-json: When enabled without --docling-json, convert and write to the default path dist/<mod-id>/sources/docling.json.
+- --fallback-on-json-failure/--no-fallback-on-json-failure: If loading from JSON fails, fall back to conversion (and overwrite when applicable).
+
+Notes:
+
+- When both --docling-json and --write-docling-json are provided, PATH semantics apply and the write flag is ignored.
+- Deprecated flags --docling-json-load/--docling-json-save are removed and not supported.
 
 ## Behavior
 
-- Parse PDF → logical tree (bookmarks preferred; heuristic fallback).
-- Extract images to `<out-dir>/<mod-id>/assets/`.
-- Convert content to HTML; `text.format = 1`.
-- Deterministic IDs for entries/pages via SHA-1 strategy.
-- Generate optional TOC entry with `@UUID[...]` links.
-- Emit `sources/journals/*.json` and `styles/pdf2foundry.css`.
-- Package: run Foundry CLI to compile LevelDB pack in `packs/<pack-name>/`.
+- Single-pass ingestion: build or load one Docling document, then reuse it for:
+  - Parse structure (bookmarks preferred; heuristic fallback)
+  - Extract content as HTML; `text.format = 1`
+- Deterministic IDs for entries/pages (SHA-1 strategy)
+- Optional TOC entry with `@UUID[...]` links
+- Emit sources and assets, then optionally compile LevelDB pack
 
 ## Output layout
 
@@ -46,12 +63,27 @@ description: CLI contract for pdf2foundry (Typer)
   module.json
   assets/
   styles/pdf2foundry.css
-  sources/journals/*.json
+  sources/
+    journals/*.json
+    docling.json        # when JSON cache is written
   packs/<pack-name>/
 ```
 
 ## Exit codes
 
-- `0` on success; non-zero with clear message on failure.
+- 0 on success; non-zero with clear message on failure
+
+## Examples
+
+```bash
+# Basic conversion
+pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" --out-dir dist
+
+# Convert and cache Docling JSON (path semantics)
+pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" --docling-json dist/adc-v7/sources/docling.json
+
+# Write JSON to default cache path
+pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" --write-docling-json
+```
 
 See: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)

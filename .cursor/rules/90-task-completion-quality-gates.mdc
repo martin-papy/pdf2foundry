@@ -45,7 +45,7 @@ When completing any task implementation:
 
 1. **Implement the code changes**
 2. **Activate virtual environment**: `source .venv/bin/activate`
-3. **Run tests**: `pytest` (must pass)
+3. **Run tests**: `pytest` (must pass and the coverage MUST be at least 90%)
 4. **Run pre-commit**: `pre-commit run --all-files` (must pass)
 5. **Fix any issues** and repeat steps 3-4 until both pass
 6. **Only then** mark task as done: `task-master set-status --id=<task-id> --status=done`
@@ -53,6 +53,7 @@ When completing any task implementation:
 ## Error Handling
 
 - If tests fail: Fix the failing tests before proceeding
+- If test coverage is below 90%, add more tests to achieve at least 90% coverage
 - If pre-commit fails: Fix all linting, formatting, and other issues before proceeding
 - If virtual environment activation fails: Investigate and resolve environment issues
 - **Document any persistent issues** in the task using `update_subtask` before marking as done
