@@ -161,12 +161,26 @@ def _detect_links(html: str, page_no: int) -> list[LinkRef]:
 def extract_semantic_content(
     doc: DocumentLike, out_assets: Path, table_mode: str, on_progress: ProgressCallback = None
 ) -> ParsedContent:
-    """Extract per-page HTML, images, simple tables, and links from a Docling document.
+    """Extract content from a pre-loaded Docling document for Foundry VTT.
 
-    - For v1, tables are not reconstructed from structure; we leave placeholders
-      for auto vs image-only handling and will expand in a later iteration.
-    - Images embedded as base64 are extracted to files and srcs rewritten.
-    - Links are collected from anchor tags.
+    This function processes a DoclingDocument that has already been loaded or converted,
+    extracting per-page HTML content, images, tables, and links. It's part of the
+    single-pass ingestion design where the same document instance is used for both
+    structure parsing and content extraction.
+
+    Args:
+        doc: A DoclingDocument-like object with num_pages() and export_to_html() methods
+        out_assets: Directory where extracted images and assets will be saved
+        table_mode: "auto" (HTML when possible) or "image-only" for table handling
+        on_progress: Optional callback for progress events
+
+    Returns:
+        ParsedContent with pages, images, tables, and links
+
+    Note:
+        - Images embedded as base64 are extracted to files and srcs rewritten
+        - Links are collected from anchor tags in the HTML
+        - Tables use placeholder handling for auto vs image-only modes
     """
 
     # Determine page count

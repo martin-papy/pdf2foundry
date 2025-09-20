@@ -50,7 +50,10 @@ pdf2foundry convert \
   --tables auto|image-only \
   --deterministic-ids/--no-deterministic-ids \
   --out-dir dist \
-  --compile-pack/--no-compile-pack
+  --compile-pack/--no-compile-pack \
+  --docling-json cache.json \
+  --write-docling-json/--no-write-docling-json \
+  --fallback-on-json-failure/--no-fallback-on-json-failure
 ```
 
 - `--pdf` (required): Path to source PDF
@@ -77,6 +80,12 @@ pdf2foundry convert \
 
 - `--compile-pack`: Compile JSON sources to LevelDB pack using Foundry CLI (default: disabled)
 
+- `--docling-json`: Path to JSON cache file. If exists and valid, load; otherwise convert and save to this path
+
+- `--write-docling-json`: Save Docling JSON to default cache location (default: disabled)
+
+- `--fallback-on-json-failure`: If JSON loading fails, fall back to conversion (default: disabled)
+
 ## Output Layout
 
 ```text
@@ -84,8 +93,34 @@ pdf2foundry convert \
   module.json
   assets/
   styles/pdf2foundry.css
-  sources/journals/*.json
+  sources/
+    journals/*.json
+    docling.json        # when JSON cache is written
   packs/<pack-name>/
+```
+
+## Single-Pass Ingestion
+
+PDF2Foundry uses a single-pass ingestion design for efficiency:
+
+1. **One Conversion**: Each PDF is converted to a Docling document exactly once per run
+1. **JSON Caching**: Optionally cache the Docling document as JSON to avoid re-conversion
+1. **Reuse**: The same Docling document instance is used for both structure parsing and content extraction
+
+### Caching Examples
+
+```bash
+# Convert and cache for future runs
+pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
+  --docling-json book-cache.json
+
+# Subsequent runs load from cache (much faster)
+pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
+  --docling-json book-cache.json
+
+# Auto-save to default location
+pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
+  --write-docling-json
 ```
 
 See [docs/PRD.md](docs/PRD.md) and [docs/architecture_and_flow.md](docs/architecture_and_flow.md) for details.

@@ -46,9 +46,19 @@ def _count_chapters_sections(nodes: list[OutlineNode]) -> tuple[int, int]:
 
 
 def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> ParsedDocument:  # type: ignore[no-untyped-def]
-    """Parse structure from an existing Docling-like document.
+    """Parse document structure from a pre-loaded Docling document.
 
-    Mirrors the previous parse_pdf_structure behavior but skips conversion.
+    This function extracts the document structure (page count, outline/bookmarks)
+    from a DoclingDocument that has already been loaded or converted. It's part
+    of the single-pass ingestion design where the same document instance is used
+    for both structure parsing and content extraction.
+
+    Args:
+        doc: A DoclingDocument-like object with num_pages() method and outline attribute
+        on_progress: Optional callback for progress events
+
+    Returns:
+        ParsedDocument with page count and outline structure
     """
     try:
         num_pages_fn = getattr(doc, "num_pages", None)
