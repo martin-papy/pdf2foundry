@@ -1,11 +1,163 @@
 from __future__ import annotations
 
+import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from pdf2foundry.ingest.docling_adapter import DoclingDocumentLike
 from pdf2foundry.ingest.json_io import atomic_write_text, doc_to_json
+
+logger = logging.getLogger(__name__)
+
+
+class JsonLoadError(Exception):
+    """Raised when JSON file cannot be loaded or parsed."""
+
+    def __init__(self, path: Path, cause: Exception | None = None) -> None:
+        self.path = path
+        self.cause = cause
+        msg = f"Failed to load JSON from {path}"
+        if cause:
+            msg += f": {cause}"
+        msg += ". Consider deleting the cache file and re-running."
+        super().__init__(msg)
+
+
+class JsonValidationError(Exception):
+    """Raised when loaded JSON doesn't represent a valid DoclingDocument."""
+
+    def __init__(self, path: Path, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        msg = (
+            f"Invalid DoclingDocument JSON at {path}: {reason}. "
+            "Consider deleting the cache file and re-running."
+        )
+        super().__init__(msg)
+
+
+class ConversionError(Exception):
+    """Raised when PDF to DoclingDocument conversion fails."""
+
+    def __init__(self, pdf_path: Path, cause: Exception | None = None) -> None:
+        self.pdf_path = pdf_path
+        self.cause = cause
+        msg = f"Failed to convert PDF {pdf_path}"
+        if cause:
+            msg += f": {cause}"
+        super().__init__(msg)
+
+
+def validate_doc(doc: DoclingDocumentLike) -> None:
+    """Validate that a DoclingDocument has required fields and reasonable values.
+
+    Args:
+        doc: The document to validate
+
+    Raises:
+        JsonValidationError: If the document fails validation checks
+    """
+    # Check that we have a non-zero page count
+    try:
+        num_pages_fn = getattr(doc, "num_pages", None)
+        if callable(num_pages_fn):
+            page_count = int(num_pages_fn())
+        else:
+            page_count = int(getattr(doc, "num_pages", 0) or 0)
+    except Exception as e:
+        raise JsonValidationError(Path("<unknown>"), f"Cannot determine page count: {e}") from e
+
+    if page_count <= 0:
+        raise JsonValidationError(Path("<unknown>"), f"Invalid page count: {page_count}")
+
+    # Check that export_to_html method exists and is callable
+    if not hasattr(doc, "export_to_html") or not callable(doc.export_to_html):
+        raise JsonValidationError(Path("<unknown>"), "Missing or invalid 'export_to_html' method")
+
+    # Basic smoke test - try to call export_to_html to ensure it doesn't immediately fail
+    try:
+        html_output = doc.export_to_html()
+        if not isinstance(html_output, str):
+            raise JsonValidationError(Path("<unknown>"), "export_to_html() must return a string")
+    except Exception as e:
+        raise JsonValidationError(Path("<unknown>"), f"export_to_html() method failed: {e}") from e
+
+
+def load_json_file(path: Path) -> str:
+    """Load and parse JSON file, validating basic JSON syntax.
+
+    Args:
+        path: Path to the JSON file
+
+    Returns:
+        The raw JSON text as a string
+
+    Raises:
+        JsonLoadError: If the file cannot be read or parsed as JSON
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception as e:
+        raise JsonLoadError(path, e) from e
+
+    # Validate that it's parseable JSON
+    try:
+        json.loads(text)
+    except json.JSONDecodeError as e:
+        raise JsonLoadError(path, e) from e
+
+    return text
+
+
+def try_load_doc_from_json(
+    path: Path, fallback_on_failure: bool
+) -> tuple[DoclingDocumentLike | None, list[str]]:
+    """Attempt to load a DoclingDocument from JSON with optional fallback.
+
+    Args:
+        path: Path to the JSON file
+        fallback_on_failure: If True, return None and warnings on failure;
+                           if False, raise exceptions on failure
+
+    Returns:
+        Tuple of (document or None, list of warning messages)
+
+    Raises:
+        JsonLoadError: If fallback_on_failure is False and loading fails
+        JsonValidationError: If fallback_on_failure is False and validation fails
+    """
+    warnings: list[str] = []
+
+    try:
+        # Load and parse the JSON file
+        json_text = load_json_file(path)
+
+        # Convert JSON to DoclingDocument
+        from pdf2foundry.ingest.json_io import doc_from_json
+
+        doc = doc_from_json(json_text)
+
+        # Validate the document
+        validate_doc(doc)
+
+        logger.info("Successfully loaded DoclingDocument from cache: %s", path)
+        return doc, warnings
+
+    except (JsonLoadError, JsonValidationError) as e:
+        if fallback_on_failure:
+            warning_msg = (
+                f"Failed to load DoclingDocument from {path}: {e}. Will fall back to conversion."
+            )
+            warnings.append(warning_msg)
+            logger.warning(warning_msg)
+            return None, warnings
+        else:
+            # Re-raise with path context for validation errors
+            if isinstance(e, JsonValidationError) and e.path == Path("<unknown>"):
+                raise JsonValidationError(path, e.reason) from e
+            raise
 
 
 @dataclass
@@ -90,4 +242,13 @@ def ingest_docling(
     return doc
 
 
-__all__ = ["JsonOpts", "ingest_docling"]
+__all__ = [
+    "JsonOpts",
+    "ingest_docling",
+    "JsonLoadError",
+    "JsonValidationError",
+    "ConversionError",
+    "validate_doc",
+    "load_json_file",
+    "try_load_doc_from_json",
+]
