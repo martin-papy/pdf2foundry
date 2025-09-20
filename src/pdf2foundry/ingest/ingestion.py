@@ -202,12 +202,46 @@ def ingest_docling(
 ) -> DoclingDocumentLike:
     """Load or convert a Docling document once, optionally saving JSON.
 
-    Notes:
-    - JSON load-from-cache is deferred until deterministic serializers (Task 13.3).
-      For now, we always convert and optionally write JSON if supported by Docling.
+    Behavior:
+    - If json_opts.path is provided and exists: try to load from JSON. On failure,
+      fall back to conversion regardless of json_opts.fallback_on_json_failure
+      (convenience semantics).
+    - If json_opts.path is provided and does not exist: convert and then save to
+      that path.
+    - Else if json_opts.write and default_path provided: convert and save to the
+      default path.
+    - Else: convert only.
     """
     from pdf2foundry.ingest.docling_adapter import run_docling_conversion
 
+    # Convenience load path handling when explicit --docling-json PATH is provided
+    if json_opts.path is not None and json_opts.path.exists():
+        # Always allow fallback for convenience mode
+        doc, warnings = try_load_doc_from_json(json_opts.path, fallback_on_failure=True)
+        if doc is not None:
+            # Emit loaded event with page count
+            try:
+                num_pages_fn = getattr(doc, "num_pages", None)
+                if callable(num_pages_fn):
+                    page_count = int(num_pages_fn())
+                else:
+                    page_count = int(getattr(doc, "num_pages", 0) or 0)
+            except Exception:
+                page_count = int(getattr(doc, "num_pages", 0) or 0)
+            _safe_emit(
+                on_progress,
+                "docling_json:loaded",
+                {"path": str(json_opts.path), "page_count": page_count},
+            )
+            return doc
+        # If load failed with fallback, emit a warning event and continue to convert
+        _safe_emit(
+            on_progress,
+            "docling_json:load_failed",
+            {"path": str(json_opts.path)},
+        )
+
+    # Conversion branch
     _safe_emit(on_progress, "load_pdf", {"pdf": str(pdf_path)})
     doc = run_docling_conversion(pdf_path)
 
@@ -236,7 +270,7 @@ def ingest_docling(
             atomic_write_text(json_path, json_text)
             _safe_emit(on_progress, "docling_json:saved", {"path": str(json_path)})
         except Exception:
-            # Ignore write failures for now; detailed handling in Task 13.4/13.8
+            # Ignore write failures for now; detailed handling in Task 13.4
             pass
 
     return doc
