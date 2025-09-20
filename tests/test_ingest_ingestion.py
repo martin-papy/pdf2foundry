@@ -63,10 +63,16 @@ def test_ingest_docling_writes_json_when_path(
     monkeypatch.setattr("pdf2foundry.ingest.docling_adapter.run_docling_conversion", fake_convert)
 
     json_path = tmp_path / "docling.json"
-    doc = ingest_docling(Path("/tmp/x.pdf"), JsonOpts(path=json_path))
+    events: list[tuple[str, dict[str, int | str]]] = []
+
+    def on_progress(event: str, payload: dict[str, int | str]) -> None:
+        events.append((event, payload))
+
+    doc = ingest_docling(Path("/tmp/x.pdf"), JsonOpts(path=json_path), on_progress=on_progress)
     assert doc is dummy
     assert json_path.exists()
     assert json_path.read_text(encoding="utf-8").strip() != ""
+    assert any(e[0] == "docling_json:saved" for e in events)
 
 
 def test_parse_structure_from_doc_outline() -> None:

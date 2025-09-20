@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pdf2foundry.ingest.docling_adapter import DoclingDocumentLike
+from pdf2foundry.ingest.json_io import atomic_write_text, doc_to_json
 
 
 @dataclass
@@ -79,16 +80,9 @@ def ingest_docling(
 
     if json_path is not None:
         try:
-            to_json = getattr(doc, "to_json", None)
-            if callable(to_json):
-                json_text = to_json()
-                json_path.parent.mkdir(parents=True, exist_ok=True)
-                json_path.write_text(str(json_text), encoding="utf-8")
-                # Best-effort informational event
-                _safe_emit(on_progress, "docling_json:saved", {"path": str(json_path)})
-            else:
-                # Serializer not available; skip silently for now
-                pass
+            json_text = doc_to_json(doc, pretty=json_opts.pretty)
+            atomic_write_text(json_path, json_text)
+            _safe_emit(on_progress, "docling_json:saved", {"path": str(json_path)})
         except Exception:
             # Ignore write failures for now; detailed handling in Task 13.4/13.8
             pass
