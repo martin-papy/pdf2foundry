@@ -4,20 +4,24 @@ description: CLI contract for pdf2foundry (Typer)
 # CLI Contract (Typer)
 
 ## Command
+
 - Console script: `pdf2foundry`
 - Package: `pdf2foundry`
 
 ## Required options
+
 - `--pdf <path>`: Path to source PDF.
 - `--mod-id <string>`: Module ID.
 - `--mod-title <string>`: Module title.
 
 ## Optional metadata
+
 - `--author <string>`
 - `--license <string>`
 - `--pack-name <string>` (default: `<mod-id>-journals`)
 
 ## Behavior flags (defaults)
+
 - `--toc yes|no` (default: yes)
 - `--tables auto|image-only` (default: auto)
 - `--deterministic-ids yes|no` (default: yes)
@@ -26,6 +30,7 @@ description: CLI contract for pdf2foundry (Typer)
 - `--out-dir <path>` (default: `dist`)
 
 ## Behavior
+
 - Parse PDF → logical tree (bookmarks preferred; heuristic fallback).
 - Extract images to `<out-dir>/<mod-id>/assets/`.
 - Convert content to HTML; `text.format = 1`.
@@ -35,7 +40,8 @@ description: CLI contract for pdf2foundry (Typer)
 - Package: run Foundry CLI to compile LevelDB pack in `packs/<pack-name>/`.
 
 ## Output layout
-```
+
+```text
 <out-dir>/<mod-id>/
   module.json
   assets/
@@ -45,6 +51,7 @@ description: CLI contract for pdf2foundry (Typer)
 ```
 
 ## Exit codes
+
 - `0` on success; non-zero with clear message on failure.
 
 See: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)

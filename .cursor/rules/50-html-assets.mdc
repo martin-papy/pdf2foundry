@@ -4,22 +4,27 @@ description: HTML conversion, tables, and assets policy
 # HTML Conversion & Assets
 
 ## HTML pages
+
 - Journal Pages use `type: "text"` with `text.format: 1` (HTML).
 - Wrap content in `<div class="pdf2foundry">…</div>` to scope CSS.
 - Use semantic tags: h1–h4, p, ul/ol, table, figure/figcaption, img, code/pre.
 - Add stable anchors for section headings when helpful.
 
 ## Images
+
 - Extract images unchanged into `assets/`.
 - Reference images via `modules/<mod-id>/assets/<name>` inside HTML.
 
 ## Tables
+
 - Try Camelot (lattice/stream) to generate real `<table>` when possible.
 - If uncertain or failing, rasterize the region and embed as `<img>`.
 
 ## CSS
+
 - Provide `styles/pdf2foundry.css` with safe, minimal rules, e.g.:
-```
+
+```css
 .pdf2foundry h1, .pdf2foundry h2, .pdf2foundry h3 { margin-top: 0.6em; }
 .pdf2foundry figure { margin: 1em 0; text-align: center; }
 .pdf2foundry figcaption { font-size: 0.9em; opacity: 0.8; }
@@ -27,6 +32,7 @@ description: HTML conversion, tables, and assets policy
 ```
 
 ## Links
+
 - Internal: `@UUID[JournalEntry.<entryId>.JournalEntryPage.<pageId>]`.
 - External: standard `<a href>`.
 

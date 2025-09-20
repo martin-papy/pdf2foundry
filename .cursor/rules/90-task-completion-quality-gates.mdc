@@ -1,0 +1,64 @@
+---
+description: Task completion quality gates - pre-commit and testing requirements
+alwaysApply: true
+---
+
+# Task Completion Quality Gates
+
+**CRITICAL REQUIREMENT**: Before marking any Taskmaster task as `done`, you MUST execute the following quality gates in order:
+
+## Pre-Task Completion Checklist
+
+- **Activate Virtual Environment**: Always activate the project's virtual environment before running any commands:
+
+  ```bash
+  source .venv/bin/activate
+  ```
+
+- **Run Tests**: Execute the full test suite to ensure no regressions:
+
+  ```bash
+  pytest tests/ -v
+  ```
+
+- **Run Pre-commit Checks**: Execute all pre-commit hooks to ensure code quality:
+
+  ```bash
+  pre-commit run --all-files
+  ```
+
+- **Fix Any Issues**: If either tests fail or pre-commit checks fail:
+  - Fix all identified issues
+  - Re-run the failed command until it passes
+  - Only proceed once both tests and pre-commit checks pass
+
+## Quality Gate Enforcement
+
+- **NEVER** mark a task as `done` using `set_task_status` or `task-master set-status` without first completing ALL quality gates
+- **NEVER** skip quality gates for "minor changes" or "quick fixes"
+- **ALWAYS** run quality gates even for documentation-only changes
+- **ALWAYS** show the user the results of quality gate execution
+
+## Command Execution Pattern
+
+When completing any task implementation:
+
+1. **Implement the code changes**
+2. **Activate virtual environment**: `source .venv/bin/activate`
+3. **Run tests**: `pytest` (must pass)
+4. **Run pre-commit**: `pre-commit run --all-files` (must pass)
+5. **Fix any issues** and repeat steps 3-4 until both pass
+6. **Only then** mark task as done: `task-master set-status --id=<task-id> --status=done`
+
+## Error Handling
+
+- If tests fail: Fix the failing tests before proceeding
+- If pre-commit fails: Fix all linting, formatting, and other issues before proceeding
+- If virtual environment activation fails: Investigate and resolve environment issues
+- **Document any persistent issues** in the task using `update_subtask` before marking as done
+
+## Integration with Taskmaster Workflow
+
+This rule integrates with the [Taskmaster development workflow](mdc:.cursor/rules/taskmaster/dev_workflow.mdc) by adding mandatory quality gates to the task completion process.
+
+**Remember**: Quality gates are not optional - they are mandatory steps that ensure code reliability and maintainability.

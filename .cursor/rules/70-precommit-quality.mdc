@@ -4,6 +4,7 @@ description: Pre-commit and quality gates
 # Pre-commit & Quality Gates
 
 ## Pre-commit hooks
+
 - Use `pre-commit` with hooks:
   - ruff (lint + fix)
   - black (format)
@@ -11,10 +12,13 @@ description: Pre-commit and quality gates
   - pytest (changed tests only if feasible; otherwise run in CI)
 
 ## Local workflow
+
 - Run `ruff`, then `black`, then `mypy`, then `pytest` before committing.
 
 ## CI gates
+
 - All of the above must pass; treat warnings as failures.
 
 ## Files of interest
+
 - Enforce `src/` layout, `tests/` mirroring, `pyproject.toml` (PEP 621) presence, and `package.json` with Foundry CLI devDependency.

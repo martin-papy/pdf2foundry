@@ -4,6 +4,7 @@ description: Foundry v12 JSON schema and packaging conventions
 # Foundry JSON & Packaging (v12)
 
 ## Journal Entry JSON (per Chapter)
+
 - Fields:
   - `_id` (deterministic, 16 hex chars)
   - `name` (Chapter title)
@@ -12,6 +13,7 @@ description: Foundry v12 JSON schema and packaging conventions
   - `folder` (null)
 
 ## Journal Page JSON (per Section)
+
 - Fields:
   - `_id` (deterministic)
   - `name`
@@ -22,6 +24,7 @@ description: Foundry v12 JSON schema and packaging conventions
   - `sort` (ascending order; leave gaps for inserts)
 
 ## `module.json`
+
 - Must include:
   - `id`, `title`, `version`, `compatibility.minimum >= 12`
   - `authors[]`
@@ -29,6 +32,7 @@ description: Foundry v12 JSON schema and packaging conventions
   - `styles`: `styles/pdf2foundry.css`
 
 ## Packaging flow
+
 1. Write sources under `sources/journals/*.json`.
 2. Copy assets into `assets/` without modification.
 3. Create `styles/pdf2foundry.css` (scoped selectors).
@@ -39,6 +43,7 @@ description: Foundry v12 JSON schema and packaging conventions
 5. Use the official Foundry CLI to compile sources → `packs/<pack-name>/` (LevelDB).
 
 ## UUID Links
+
 - Build `@UUID[JournalEntry.<entryId>.JournalEntryPage.<pageId>]` for internal links and TOC.
 - Preserve IDs across runs to maintain link stability.
 

@@ -4,16 +4,19 @@ description: Error handling and logging policy
 # Error Handling & Logging
 
 ## Fallbacks
+
 - No bookmarks: use heading heuristic; log a warning summarizing detected chapters/sections.
 - Table parse failure/low confidence: rasterize to image; log info for the affected page/region.
 - Broken cross-reference: keep plain text; log a warning with source context.
 - PDF parse errors: abort gracefully with a clear error.
 
 ## Logging
+
 - Use structured logging where practical; include PDF page indices, object ids.
 - Summarize at end: number of chapters, sections, images exported, tables parsed vs rasterized, unresolved refs.
 
 ## Exit behavior
+
 - Return non-zero exit code on unrecoverable errors; otherwise continue with fallbacks.
 
 See: [architecture_and_flow.md](mdc:docs/architecture_and_flow.md), [technical_feasibility.md](mdc:docs/technical_feasibility.md)
