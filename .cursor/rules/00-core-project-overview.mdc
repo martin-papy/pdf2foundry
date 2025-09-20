@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # PDF2Foundry – Core Project Overview
 
-This project converts a born-digital PDF into a Foundry VTT v12+ module containing a Journal compendium with Entries (Chapters) and Pages (Sections). The CLI is `pdf2foundry` and follows the pipeline defined in the docs.
+This project converts a born-digital PDF into a Foundry VTT v13 module containing a Journal compendium with Entries (Chapters) and Pages (Sections). The CLI is `pdf2foundry` and follows the pipeline defined in the docs.
 
 ## Scope & Goals
 
@@ -35,13 +35,20 @@ This project converts a born-digital PDF into a Foundry VTT v12+ module containi
 
 ## Defaults (CLI)
 
-- `--toc yes`
-- `--tables auto` (Camelot when possible, else image)
-- `--deterministic-ids yes`
-- `--depend-compendium-folders yes`
-- `--images-dir assets`
-- `--out-dir dist`
-- `--pack-name <mod-id>-journals`
+- Command: `pdf2foundry convert <pdf> [options]`
+- Required: `--mod-id <id>`, `--mod-title <title>`
+- Defaults:
+  - `--toc`
+  - `--tables auto` (HTML when possible; else image-only)
+  - `--deterministic-ids`
+  - `--out-dir dist`
+  - `--pack-name <mod-id>-journals`
+
+### Docling JSON cache (single-pass ingestion)
+
+- `--docling-json <path>`: load if exists/valid; else convert then save to this path
+- `--write-docling-json`: when used without `--docling-json`, write to `dist/<mod-id>/sources/docling.json`
+- `--fallback-on-json-failure`: if JSON load fails, fall back to conversion (and overwrite)
 
 ## Error handling policy
 
@@ -56,4 +63,4 @@ This project converts a born-digital PDF into a Foundry VTT v12+ module containi
 - Exact layout reproduction beyond readable HTML.
 - Advanced table styling or image compression.
 
-Refer to: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md), [technical_feasibility.md](mdc:docs/technical_feasibility.md), [sample.module.json](mdc:docs/sample.module.json), [sample.journal_entry.json](mdc:docs/sample.journal_entry.json), [sample.md](mdc:docs/sample.md)
+Refer to: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md), [technical_feasibility.md](mdc:docs/technical_feasibility.md), [sample.module.json](mdc:docs/sample.module.json), [sample.journal_entry.json](mdc:docs/sample.journal_entry.json), [sample.md](mdc:docs/sample.md), [20-cli-contract.mdc](mdc:.cursor/rules/20-cli-contract.mdc)

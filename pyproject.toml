@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pdf2foundry"
 version = "0.1.0"
-description = "Convert born-digital PDFs into Foundry VTT v12+ module compendia."
+description = "Convert born-digital PDFs into Foundry VTT v13 module compendia."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [

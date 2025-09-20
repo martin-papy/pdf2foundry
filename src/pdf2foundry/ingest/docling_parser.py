@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
 from pdf2foundry.model.document import OutlineNode, ParsedDocument
 
@@ -43,78 +42,13 @@ def _count_chapters_sections(nodes: list[OutlineNode]) -> tuple[int, int]:
     return chapters, sections
 
 
-def parse_pdf_structure(pdf: Path, on_progress: ProgressCallback = None) -> ParsedDocument:
-    """Parse a born-digital PDF and return its logical outline.
-
-    Strategy:
-    - Try Docling bookmarks/outline first and normalize to OutlineNode tree
-    - If empty/missing, fallback to heuristics (heading detection)
-    - Emit progress events at key boundaries for CLI rendering
-    """
-
-    # Import lazily to avoid hard dependency at import time
-    from docling.datamodel.base_models import InputFormat
-    from docling.datamodel.pipeline_options import PdfPipelineOptions
-    from docling.document_converter import DocumentConverter, PdfFormatOption
-
-    pipe_opts = PdfPipelineOptions(
-        do_ocr=False, generate_picture_images=False, generate_page_images=False
-    )
-    conv = DocumentConverter(
-        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)}
-    )
-    # Emit early so UI can show a spinner immediately
-    _safe_emit(on_progress, "load_pdf", {"pdf": str(pdf)})
-    doc = conv.convert(str(pdf)).document
-
-    # Determine page count (Docling API varies across versions)
-    # num_pages may be untyped depending on docling version; guard with getattr
-    try:
-        num_pages_fn = getattr(doc, "num_pages", None)
-        if callable(num_pages_fn):
-            page_count = int(num_pages_fn())
-        else:
-            page_count = int(getattr(doc, "num_pages", 0) or 0)
-    except Exception:
-        page_count = int(getattr(doc, "num_pages", 0) or 0)
-
-    _safe_emit(on_progress, "load_pdf:success", {"pdf": str(pdf), "page_count": page_count})
-
-    _safe_emit(on_progress, "extract_bookmarks:start", {"page_count": page_count})
-
-    outline_nodes: list[OutlineNode] = _outline_from_docling(doc, page_count)
-
-    if outline_nodes:
-        chapters, sections = _count_chapters_sections(outline_nodes)
-        _safe_emit(
-            on_progress,
-            "extract_bookmarks:success",
-            {"page_count": page_count, "chapters": chapters, "sections": sections},
-        )
-    else:
-        _safe_emit(on_progress, "extract_bookmarks:empty", {"page_count": page_count})
-        _safe_emit(on_progress, "heuristics:start", {"page_count": page_count})
-        from pdf2foundry.ingest.heuristics import build_outline_from_headings
-
-        outline_nodes = build_outline_from_headings(doc, page_count)
-        chapters, sections = _count_chapters_sections(outline_nodes)
-        _safe_emit(
-            on_progress,
-            "heuristics:detected",
-            {"page_count": page_count, "chapters": chapters, "sections": sections},
-        )
-
-    _safe_emit(
-        on_progress, "outline:finalized", {"page_count": page_count, "nodes": chapters + sections}
-    )
-
-    return ParsedDocument(page_count=page_count, outline=outline_nodes)
+# Removed deprecated parse_pdf_structure(pdf: Path, ...) API. Use parse_structure_from_doc instead.
 
 
 def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> ParsedDocument:  # type: ignore[no-untyped-def]
     """Parse structure from an existing Docling-like document.
 
-    Mirrors parse_pdf_structure but skips the conversion step.
+    Mirrors the previous parse_pdf_structure behavior but skips conversion.
     """
     _safe_emit(
         on_progress,

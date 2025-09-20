@@ -16,7 +16,7 @@ def build_module_manifest(
 ) -> dict[str, Any]:
     """Build module.json manifest dictionary.
 
-    Produces a minimal, v12+-compliant manifest with optional author and license.
+    Produces a minimal, v13-compliant manifest with optional author and license.
     """
 
     manifest: dict[str, Any] = {
@@ -24,8 +24,8 @@ def build_module_manifest(
         "title": mod_title,
         "description": description or "Imported Journals generated from a PDF using PDF2Foundry.",
         "version": version,
-        # Support v12+; leave verified unset to avoid premature pinning
-        "compatibility": {"minimum": "12"},
+        # Target v13; leave verified unset to avoid premature pinning
+        "compatibility": {"minimum": "13"},
         "authors": ([{"name": author}] if author else []),
         "packs": [
             {
@@ -39,7 +39,7 @@ def build_module_manifest(
     }
     if license_str:
         manifest["license"] = license_str
-    # Foundry v12+ provides native compendium folders; do not declare dependency
+    # Foundry v13 provides native compendium folders; do not declare dependency
     return manifest
 
 
@@ -66,8 +66,8 @@ def validate_module_manifest(manifest: dict[str, Any]) -> list[str]:
     _require("styles", list)
 
     comp = manifest.get("compatibility", {})
-    if isinstance(comp, dict) and str(comp.get("minimum", "")) < "12":
-        issues.append("compatibility.minimum must be '12' or higher")
+    if isinstance(comp, dict) and str(comp.get("minimum", "")) < "13":
+        issues.append("compatibility.minimum must be '13' or higher")
 
     packs = manifest.get("packs", [])
     if isinstance(packs, list):

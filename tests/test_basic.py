@@ -33,7 +33,7 @@ def test_cli_convert_help() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["convert", "--help"])
     assert result.exit_code == 0
-    assert "Convert a born-digital PDF into a Foundry VTT v12+ module" in result.stdout
+    assert "Convert a born-digital PDF into a Foundry VTT v13 module" in result.stdout
 
 
 def test_cli_convert_placeholder() -> None:

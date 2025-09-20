@@ -1,6 +1,6 @@
 # PDF2Foundry
 
-Convert born-digital PDFs into a Foundry VTT v12+ module compendium.
+Convert born-digital PDFs into a Foundry VTT v13 module compendium.
 
 ## Installation (dev)
 

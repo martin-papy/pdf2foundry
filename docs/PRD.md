@@ -3,14 +3,14 @@
 **Project Name:** PDF2Foundry
 **Version:** 1.0 (Initial Release)
 **Prepared For:** Development Team
-**Foundry VTT Compatibility:** v12+
+**Foundry VTT Compatibility:** v13
 **Scope:** Convert a born-digital PDF into an installable Foundry VTT module containing a compendium of Journal Entries and Pages with images, HTML formatting, and internal navigation.
 
 ______________________________________________________________________
 
 ## 1. Project Overview
 
-PDF2Foundry is a Python CLI tool that ingests a **born-digital PDF** and outputs a **Foundry VTT v12+ module**. The module will contain a **compendium pack** (`JournalEntry` type) where:
+PDF2Foundry is a Python CLI tool that ingests a **born-digital PDF** and outputs a **Foundry VTT v13 module**. The module will contain a **compendium pack** (`JournalEntry` type) where:
 
 - Each **Chapter** in the PDF becomes a **Journal Entry**.
 - Each **Section** within a chapter becomes a **Journal Page** (format: HTML).
@@ -122,7 +122,7 @@ ______________________________________________________________________
 
 - `module.json` must include:
 
-  - `id`, `title`, `version`, `compatibility` (v12+).
+  - `id`, `title`, `version`, `compatibility` (v13).
   - `packs`: type `JournalEntry`.
   - `dependencies`: none required for compendium folders in v13.
 
@@ -132,7 +132,7 @@ ______________________________________________________________________
 
 ## 5. Non-Functional Requirements
 
-- **Compatibility:** Foundry v12+.
+- **Compatibility:** Foundry v13.
 - **Performance:** Should handle PDFs up to 500 pages without crashing.
 - **Extensibility:** Clear architecture to support OCR, compression, GUI in future versions.
 - **Reliability:** Deterministic ID generation ensures UUID stability.
@@ -178,7 +178,7 @@ ______________________________________________________________________
 
 ## 9. Success Criteria
 
-- GM can install the generated module into a v12 Foundry world.
+- GM can install the generated module into a v13 Foundry world.
 
 - Journal compendium appears with correct name and contents.
 

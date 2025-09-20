@@ -20,7 +20,7 @@ from pdf2foundry.ui.progress import ProgressReporter
 
 app = typer.Typer(
     name="pdf2foundry",
-    help="Convert born-digital PDFs into Foundry VTT v12+ module compendia.",
+    help="Convert born-digital PDFs into Foundry VTT v13 module compendia.",
     no_args_is_help=True,
 )
 
@@ -136,7 +136,7 @@ def convert(
     ] = False,
 ) -> None:
     """
-    Convert a born-digital PDF into a Foundry VTT v12+ module.
+    Convert a born-digital PDF into a Foundry VTT v13 module.
     
     This command processes a PDF file and generates a complete Foundry VTT module
     containing a Journal Entry compendium with chapters and sections from the PDF.
@@ -415,7 +415,7 @@ def main(
     ] = None,
 ) -> None:
     """
-    PDF2Foundry - Convert born-digital PDFs into Foundry VTT v12+ module compendia.
+    PDF2Foundry - Convert born-digital PDFs into Foundry VTT v13 module compendia.
 
     This tool converts born-digital PDF documents into installable Foundry VTT modules
     containing Journal Entry compendia with proper structure, images, tables, and navigation.

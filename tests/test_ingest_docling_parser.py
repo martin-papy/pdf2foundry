@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-from pdf2foundry.ingest.docling_parser import parse_pdf_structure
+from pdf2foundry.ingest.docling_parser import parse_structure_from_doc
 
 
 class _Node:
@@ -83,17 +82,17 @@ def _monkey_docling(monkeypatch: Any, doc: _Doc) -> None:
     sys.modules["docling.document_converter"] = mod_conv
 
 
-def test_parse_pdf_structure_bookmarks(monkeypatch: Any, tmp_path: Path) -> None:
+def test_parse_structure_from_doc_bookmarks(monkeypatch: Any) -> None:
     doc = _Doc()
-    _monkey_docling(monkeypatch, doc)
 
     events: list[dict[str, Any]] = []
 
     def on_progress(event: str, payload: dict[str, Any]) -> None:
         events.append({"event": event, **payload})
 
-    parsed = parse_pdf_structure(tmp_path / "dummy.pdf", on_progress=on_progress)
+    parsed = parse_structure_from_doc(doc, on_progress=on_progress)
     assert parsed.page_count == 5
     assert parsed.outline[0].title == "Chapter A"
-    assert events[0]["event"] == "load_pdf"
+    # First event in doc-based path is load_pdf:success
+    assert events[0]["event"] == "load_pdf:success"
     assert any(e["event"].startswith("extract_bookmarks") for e in events)

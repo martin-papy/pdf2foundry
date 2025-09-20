@@ -1,4 +1,4 @@
-"""PDF2Foundry - Convert born-digital PDFs into Foundry VTT v12+ module compendia."""
+"""PDF2Foundry - Convert born-digital PDFs into Foundry VTT v13 module compendia."""
 
 try:
     from importlib.metadata import version

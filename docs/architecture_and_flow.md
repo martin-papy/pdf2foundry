@@ -19,7 +19,7 @@
 
 1. **Core Foundry facts used**
 
-   - Journal Page **HTML format** is supported in v12 via `JOURNAL_ENTRY_PAGE_FORMATS.HTML`. ([Foundry Virtual Tabletop][1])
+   - Journal Page **HTML format** is supported in v13 via `JOURNAL_ENTRY_PAGE_FORMATS.HTML`.
    - Journals & Pages are proper Documents; we can rely on UUID linking (`@UUID[...]`) and the journal/page document models. ([Foundry Virtual Tabletop][2], [Foundry VTT Wiki][3])
    - Since v11, compendium packs are **LevelDB directories**; build packs using the **official packaging flow** (Module Maker or CLI). ([Foundry Virtual Tabletop][4])
    - v13 supports native **folders inside packs**; no external dependency required.
@@ -117,7 +117,7 @@ ______________________________________________________________________
      }
      ```
 
-     Where `text.format: 1` corresponds to **HTML** in v12. ([Foundry Virtual Tabletop][1])
+     Where `text.format: 1` corresponds to **HTML** in v13.
 
 1. **TOC generation (optional)**
 
@@ -176,10 +176,10 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## Validation checklist (done post-build in a v12 world)
+## Validation checklist (done post-build in a v13 world)
 
 1. Install the module; verify the **Journal pack** appears and imports. ([Foundry Virtual Tabletop][8])
-1. Open a few pages: confirm **HTML rendering** and assets load. ([Foundry Virtual Tabletop][10])
+1. Open a few pages: confirm **HTML rendering** and assets load.
 1. Click TOC links: confirm **UUID navigation** to pages. ([Foundry Virtual Tabletop][7])
 1. v13 native pack folders present as expected.
 
@@ -189,19 +189,20 @@ ______________________________________________________________________
 
 1. Minimal parser (bookmarks → chapters; sections by heading heuristic) + HTML generator + image export.
 1. JSON emit for Journal Entries/Pages + **deterministic IDs** + TOC.
-1. Packaging step (compile pack) and runtime verification in v12. ([Foundry Virtual Tabletop][4])
+1. Packaging step (compile pack) and runtime verification in v13.
 1. Refine table extraction (Docling options) + internal link mapping (annotations + regex).
 1. Optional polish: scoped CSS, edge-case heuristics, CLI ergonomics.
 
 ______________________________________________________________________
 
-If this matches your expectations, I’ll draft the **Journal Entry/Page JSON schema** we’ll emit (field-by-field, v12-safe), plus a **sample `module.json`** and the exact **build command(s)** we’ll run from the CLI.
+If this matches your expectations, I’ll draft the **Journal Entry/Page JSON schema** we’ll emit (field-by-field, v13-safe), plus a **sample `module.json`** and the exact **build command(s)** we’ll run from the CLI.
 
-[1]: https://foundryvtt.com/api/v12/enums/foundry.CONST.JOURNAL_ENTRY_PAGE_FORMATS.html?utm_source=chatgpt.com "JOURNAL_ENTRY_PAGE_FORMATS | Foundry Virtual Tabletop - API ..."
-[2]: https://foundryvtt.com/api/v12/classes/client.JournalEntryPage.html?utm_source=chatgpt.com "JournalEntryPage | Foundry Virtual Tabletop - API Documentation ..."
+<!-- v13 API deep links can be added when stabilized -->
+
+[1]: https://foundryvtt.com/ "Foundry Virtual Tabletop"
+[2]: https://foundryvtt.com/ "Foundry Virtual Tabletop"
 [3]: https://foundryvtt.wiki/en/development/api/document?utm_source=chatgpt.com "Document | Foundry VTT Community Wiki"
 [4]: https://foundryvtt.com/article/v11-leveldb-packs/?utm_source=chatgpt.com "Version 11 Content Packaging Changes - Foundry Virtual Tabletop"
 [7]: https://foundryvtt.com/article/journal/?utm_source=chatgpt.com "Journal Entries - Foundry Virtual Tabletop"
 [8]: https://foundryvtt.com/article/compendium/?utm_source=chatgpt.com "Compendium Packs - Foundry Virtual Tabletop"
 [9]: https://foundryvtt.com/article/packaging-guide/?utm_source=chatgpt.com "Content Packaging Guide - Foundry Virtual Tabletop"
-[10]: https://foundryvtt.com/api/v12/classes/client.JournalPageSheet.html?utm_source=chatgpt.com "JournalPageSheet | Foundry Virtual Tabletop - API Documentation ..."

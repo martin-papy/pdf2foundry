@@ -1,4 +1,4 @@
-"""Foundry VTT v12 Journal models (subset) used by pdf2foundry.
+"""Foundry VTT v13 Journal models (subset) used by pdf2foundry.
 
 These dataclasses model the minimal JSON we need to emit for Journal Entries
 and text Pages. We include helpers to enforce the required structure and to
