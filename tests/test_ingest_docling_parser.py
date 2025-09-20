@@ -93,6 +93,6 @@ def test_parse_structure_from_doc_bookmarks(monkeypatch: Any) -> None:
     parsed = parse_structure_from_doc(doc, on_progress=on_progress)
     assert parsed.page_count == 5
     assert parsed.outline[0].title == "Chapter A"
-    # First event in doc-based path is load_pdf:success
-    assert events[0]["event"] == "load_pdf:success"
-    assert any(e["event"].startswith("extract_bookmarks") for e in events)
+    # First event in doc-based path is parse_structure:start
+    assert events[0]["event"] == "parse_structure:start"
+    assert any(e["event"].startswith("parse_structure:") for e in events)

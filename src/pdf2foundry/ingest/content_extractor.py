@@ -175,7 +175,7 @@ def extract_semantic_content(
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
-    _safe_emit(on_progress, "content:start", {"page_count": page_count})
+    _safe_emit(on_progress, "extract_content:start", {"page_count": page_count})
 
     image_mode: object | None = None
     try:
@@ -226,7 +226,7 @@ def extract_semantic_content(
         except Exception:
             html = ""
 
-        _safe_emit(on_progress, "page:exported", {"page_no": page_no})
+        _safe_emit(on_progress, "extract_content:page_exported", {"page_no": page_no})
 
         # Multi-column detection and flattening (no-op + warning in v1)
         try:
@@ -248,10 +248,16 @@ def extract_semantic_content(
         )
         images.extend(ref_images)
         if ref_images:
-            _safe_emit(on_progress, "images:copied", {"page_no": page_no, "count": len(ref_images)})
+            _safe_emit(
+                on_progress,
+                "extract_content:images_copied",
+                {"page_no": page_no, "count": len(ref_images)},
+            )
         if page_images:
             _safe_emit(
-                on_progress, "images:extracted", {"page_no": page_no, "count": len(page_images)}
+                on_progress,
+                "extract_content:images_extracted",
+                {"page_no": page_no, "count": len(page_images)},
             )
 
         # Tables
@@ -265,14 +271,16 @@ def extract_semantic_content(
         links.extend(page_links)
         if page_links:
             _safe_emit(
-                on_progress, "links:detected", {"page_no": page_no, "count": len(page_links)}
+                on_progress,
+                "extract_content:links_detected",
+                {"page_no": page_no, "count": len(page_links)},
             )
 
         pages.append(HtmlPage(html=html, page_no=page_no))
 
     _safe_emit(
         on_progress,
-        "content:finalized",
+        "extract_content:success",
         {"pages": len(pages), "images": len(images), "tables": len(tables)},
     )
 

@@ -230,19 +230,19 @@ def ingest_docling(
                 page_count = int(getattr(doc, "num_pages", 0) or 0)
             _safe_emit(
                 on_progress,
-                "docling_json:loaded",
+                "ingest:loaded_from_cache",
                 {"path": str(json_opts.path), "page_count": page_count},
             )
             return doc
         # If load failed with fallback, emit a warning event and continue to convert
         _safe_emit(
             on_progress,
-            "docling_json:load_failed",
+            "ingest:cache_load_failed",
             {"path": str(json_opts.path)},
         )
 
     # Conversion branch
-    _safe_emit(on_progress, "load_pdf", {"pdf": str(pdf_path)})
+    _safe_emit(on_progress, "ingest:converting", {"pdf": str(pdf_path)})
     doc = run_docling_conversion(pdf_path)
 
     # Emit success with page_count if available
@@ -255,7 +255,7 @@ def ingest_docling(
             page_count = int(getattr(doc, "num_pages", 0) or 0)
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
-    _safe_emit(on_progress, "load_pdf:success", {"pdf": str(pdf_path), "page_count": page_count})
+    _safe_emit(on_progress, "ingest:converted", {"pdf": str(pdf_path), "page_count": page_count})
 
     # Determine save path, if any
     json_path: Path | None = None
@@ -268,7 +268,7 @@ def ingest_docling(
         try:
             json_text = doc_to_json(doc, pretty=json_opts.pretty)
             atomic_write_text(json_path, json_text)
-            _safe_emit(on_progress, "docling_json:saved", {"path": str(json_path)})
+            _safe_emit(on_progress, "ingest:saved_to_cache", {"path": str(json_path)})
         except Exception:
             # Ignore write failures for now; detailed handling in Task 13.4
             pass

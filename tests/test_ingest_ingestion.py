@@ -54,9 +54,9 @@ def test_ingest_docling_converts_and_emits(monkeypatch: pytest.MonkeyPatch) -> N
 
     doc = ingest_docling(Path("/tmp/x.pdf"), JsonOpts(), on_progress=on_progress)
     assert doc is dummy
-    # Expect load start and success events
-    assert any(e[0] == "load_pdf" for e in events)
-    assert any(e[0] == "load_pdf:success" for e in events)
+    # Expect ingest converting and converted events
+    assert any(e[0] == "ingest:converting" for e in events)
+    assert any(e[0] == "ingest:converted" for e in events)
 
 
 def test_ingest_docling_writes_json_when_path(
@@ -80,7 +80,7 @@ def test_ingest_docling_writes_json_when_path(
     assert doc is dummy
     assert json_path.exists()
     assert json_path.read_text(encoding="utf-8").strip() != ""
-    assert any(e[0] == "docling_json:saved" for e in events)
+    assert any(e[0] == "ingest:saved_to_cache" for e in events)
 
 
 def test_parse_structure_from_doc_outline() -> None:

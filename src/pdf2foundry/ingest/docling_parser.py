@@ -50,12 +50,6 @@ def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> Parse
 
     Mirrors the previous parse_pdf_structure behavior but skips conversion.
     """
-    _safe_emit(
-        on_progress,
-        "load_pdf:success",
-        {"pdf": "<doc>", "page_count": getattr(doc, "num_pages", 0) or 0},
-    )
-
     try:
         num_pages_fn = getattr(doc, "num_pages", None)
         if callable(num_pages_fn):
@@ -65,30 +59,32 @@ def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> Parse
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
-    _safe_emit(on_progress, "extract_bookmarks:start", {"page_count": page_count})
+    _safe_emit(on_progress, "parse_structure:start", {"page_count": page_count})
     outline_nodes = _outline_from_docling(doc, page_count)
     if outline_nodes:
         chapters, sections = _count_chapters_sections(outline_nodes)
         _safe_emit(
             on_progress,
-            "extract_bookmarks:success",
+            "parse_structure:bookmarks_found",
             {"page_count": page_count, "chapters": chapters, "sections": sections},
         )
     else:
-        _safe_emit(on_progress, "extract_bookmarks:empty", {"page_count": page_count})
-        _safe_emit(on_progress, "heuristics:start", {"page_count": page_count})
+        _safe_emit(on_progress, "parse_structure:no_bookmarks", {"page_count": page_count})
+        _safe_emit(on_progress, "parse_structure:heuristics_start", {"page_count": page_count})
         from pdf2foundry.ingest.heuristics import build_outline_from_headings
 
         outline_nodes = build_outline_from_headings(doc, page_count)
         chapters, sections = _count_chapters_sections(outline_nodes)
         _safe_emit(
             on_progress,
-            "heuristics:detected",
+            "parse_structure:heuristics_complete",
             {"page_count": page_count, "chapters": chapters, "sections": sections},
         )
 
     _safe_emit(
-        on_progress, "outline:finalized", {"page_count": page_count, "nodes": chapters + sections}
+        on_progress,
+        "parse_structure:success",
+        {"page_count": page_count, "nodes": chapters + sections},
     )
 
     return ParsedDocument(page_count=page_count, outline=outline_nodes)

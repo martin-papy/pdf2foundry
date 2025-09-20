@@ -43,9 +43,9 @@ def test_extract_semantic_content(tmp_path: Path) -> None:
     assert out.tables and out.tables[0].kind in ("html", "image")
     # links detected
     assert out.links
-    # events contain content:start and content:finalized
-    assert events[0]["event"] == "content:start"
-    assert events[-1]["event"] == "content:finalized"
+    # events contain extract_content:start and extract_content:success
+    assert events[0]["event"] == "extract_content:start"
+    assert events[-1]["event"] == "extract_content:success"
 
 
 def test_extract_semantic_content_no_contentlayer(monkeypatch: Any, tmp_path: Path) -> None:
