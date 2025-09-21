@@ -4,7 +4,11 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 
-from pdf2foundry.ingest.content_extractor import extract_semantic_content
+from pdf2foundry.ingest.content_extractor import (
+    _resolve_selected_pages,
+    extract_semantic_content,
+    yield_pages,
+)
 from pdf2foundry.model.pipeline_options import PdfPipelineOptions
 
 
@@ -296,3 +300,81 @@ class TestCaptionIntegration:
         for image in out.images:
             assert image.caption is None
             assert image.alt_text is None
+
+
+def test_resolve_selected_pages() -> None:
+    """Test page selection and validation logic."""
+    # Test all pages (None)
+    assert _resolve_selected_pages(5, None) == [1, 2, 3, 4, 5]
+
+    # Test specific pages
+    assert _resolve_selected_pages(5, [1, 3, 5]) == [1, 3, 5]
+
+    # Test deduplication and sorting
+    assert _resolve_selected_pages(5, [5, 1, 3, 1]) == [1, 3, 5]
+
+    # Test page validation - should raise error for out-of-range
+    try:
+        _resolve_selected_pages(5, [1, 6])
+        raise AssertionError("Should have raised ValueError")
+    except ValueError as e:
+        assert "Requested page 6 exceeds document length 5" in str(e)
+
+
+def test_yield_pages() -> None:
+    """Test page iteration helper."""
+    # Use the existing _Doc class which implements DocumentLike protocol
+    doc = _Doc(5)
+
+    # Test normal case
+    pages = list(yield_pages(doc, [1, 3, 5]))
+    assert pages == [(1, 0), (3, 2), (5, 4)]
+
+    # Test single page
+    pages = list(yield_pages(doc, [2]))
+    assert pages == [(2, 1)]
+
+    # Test empty
+    pages = list(yield_pages(doc, []))
+    assert pages == []
+
+
+def test_extract_semantic_content_with_page_subset(tmp_path: Path) -> None:
+    """Test that page subsetting works end-to-end."""
+    # Create a mock document with 3 pages
+    doc = _Doc(3)
+
+    # Test with page subset
+    options = PdfPipelineOptions(pages=[1, 3])
+
+    with patch("pdf2foundry.ingest.content_extractor.log_pipeline_configuration"):
+        out = extract_semantic_content(doc, tmp_path / "assets", options)
+
+    # Should only have pages 1 and 3
+    assert len(out.pages) == 2
+    assert out.pages[0].page_no == 1
+    assert out.pages[1].page_no == 3
+
+    # Test with all pages (None)
+    options_all = PdfPipelineOptions(pages=None)
+
+    with patch("pdf2foundry.ingest.content_extractor.log_pipeline_configuration"):
+        out_all = extract_semantic_content(doc, tmp_path / "assets", options_all)
+
+    # Should have all 3 pages
+    assert len(out_all.pages) == 3
+    assert [p.page_no for p in out_all.pages] == [1, 2, 3]
+
+
+def test_extract_semantic_content_page_validation_error(tmp_path: Path) -> None:
+    """Test that page validation raises appropriate errors."""
+    doc = _Doc(2)  # Only 2 pages
+
+    # Request page 3 which doesn't exist
+    options = PdfPipelineOptions(pages=[1, 3])
+
+    try:
+        extract_semantic_content(doc, tmp_path / "assets", options)
+        raise AssertionError("Should have raised ValueError")
+    except ValueError as e:
+        assert "Requested page 3 exceeds document length 2" in str(e)

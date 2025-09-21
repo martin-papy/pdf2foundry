@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -43,6 +43,46 @@ def _safe_emit(on_progress: ProgressCallback, event: str, payload: dict[str, int
 
     with suppress(Exception):
         on_progress(event, payload)
+
+
+def _resolve_selected_pages(total_pages: int, pages_option: list[int] | None) -> list[int]:
+    """Resolve and validate the selected pages for processing.
+
+    Args:
+        total_pages: Total number of pages in the document
+        pages_option: Optional list of 1-based page indices from CLI options
+
+    Returns:
+        List of 1-based page numbers to process, sorted in ascending order
+
+    Raises:
+        ValueError: If any requested page exceeds the document length
+    """
+    if pages_option is None:
+        # Process all pages
+        return list(range(1, total_pages + 1))
+
+    # Validate that all requested pages exist
+    max_requested = max(pages_option) if pages_option else 0
+    if max_requested > total_pages:
+        raise ValueError(f"Requested page {max_requested} exceeds document length {total_pages}")
+
+    # Return sorted, deduplicated list (pages_option should already be sorted from CLI parsing)
+    return sorted(set(pages_option))
+
+
+def yield_pages(doc: DocumentLike, selected_pages: list[int]) -> Iterator[tuple[int, int]]:
+    """Yield (page_no, zero_based_index) pairs for the selected pages in deterministic order.
+
+    Args:
+        doc: Document object (not used currently but kept for future extensibility)
+        selected_pages: List of 1-based page numbers to process
+
+    Yields:
+        Tuples of (page_no, zero_based_index) for each selected page
+    """
+    for page_no in selected_pages:
+        yield page_no, page_no - 1
 
 
 class DocumentLike(Protocol):
@@ -167,10 +207,26 @@ def extract_semantic_content(
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
-    _safe_emit(on_progress, "extract_content:start", {"page_count": page_count})
+    # Determine selected pages and validate
+    selected_pages = _resolve_selected_pages(page_count, pipeline_options.pages)
+
+    _safe_emit(on_progress, "extract_content:start", {"page_count": len(selected_pages)})
 
     # Log pipeline configuration for debugging
     log_pipeline_configuration(pipeline_options)
+
+    # Log page processing summary
+    if pipeline_options.pages is not None:
+        from pdf2foundry.ingest.feature_logger import _format_page_spec
+
+        logger.info(
+            "Processing pages: %s (%d of %d)",
+            _format_page_spec(selected_pages),
+            len(selected_pages),
+            page_count,
+        )
+    else:
+        logger.info("Processing all pages (%d total)", page_count)
 
     image_mode: object | None = None
     try:
@@ -231,8 +287,7 @@ def extract_semantic_content(
     )
 
     # Per-page export with images embedded for reliable extraction
-    for p in range(page_count):
-        page_no = p + 1
+    for page_no, _p in yield_pages(doc, selected_pages):
         try:
             if include_layers is not None:
                 if image_mode is not None:
