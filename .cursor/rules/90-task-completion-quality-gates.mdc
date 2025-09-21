@@ -63,10 +63,11 @@ When completing any task implementation:
 
 1. **Implement the code changes**
 2. **Activate virtual environment**: `source .venv/bin/activate`
-3. **Run tests**: `pytest` (must pass and the coverage MUST be at least 90%)
-4. **Run pre-commit**: `pre-commit run --all-files` (must pass)
-5. **Fix any issues** and repeat steps 3-4 until both pass
-6. **Only then** mark task as done: `task-master set-status --id=<task-id> --status=done`
+3. **Stage all modified files in the git repository**: only stage the changes, do not commit them
+4. **Run tests**: `pytest` (must pass and the coverage MUST be at least 90%)
+5. **Run pre-commit**: `pre-commit run --all-files` (must pass)
+6. **Fix any issues** and repeat steps 3-5 until both pass
+7. **Only then** mark task as done: `task-master set-status --id=<task-id> --status=done`
 
 ## Error Handling
 

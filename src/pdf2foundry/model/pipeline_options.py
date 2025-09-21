@@ -52,6 +52,9 @@ class PdfPipelineOptions:
     # Number of worker processes for CPU-bound page-level steps
     workers: int = 1
 
+    # Effective number of workers after capability resolution (set during pipeline setup)
+    workers_effective: int = 1
+
     # Enable experimental multi-column reflow in layout transform
     reflow_columns: bool = False
 
@@ -138,6 +141,7 @@ class PdfPipelineOptions:
             "text_coverage_threshold": self.text_coverage_threshold,
             "pages": self.pages,
             "workers": self.workers,
+            "workers_effective": self.workers_effective,
             "reflow_columns": self.reflow_columns,
         }
 
@@ -152,6 +156,7 @@ class PdfPipelineOptions:
             f"text_coverage_threshold={self.text_coverage_threshold}, "
             f"pages={self.pages}, "
             f"workers={self.workers}, "
+            f"workers_effective={self.workers_effective}, "
             f"reflow_columns={self.reflow_columns}"
             f")"
         )

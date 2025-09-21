@@ -37,6 +37,9 @@ def run_conversion_pipeline(
     ocr: str = "auto",
     picture_descriptions: str = "off",
     vlm_repo_id: str | None = None,
+    pages: list[int] | None = None,
+    workers: int = 1,
+    reflow_columns: bool = False,
 ) -> None:
     """Run the main conversion pipeline."""
     # Keep placeholder path for minimal PDFs used in unit tests
@@ -86,6 +89,40 @@ def run_conversion_pipeline(
                 ocr=ocr,
                 picture_descriptions=picture_descriptions,
                 vlm_repo_id=vlm_repo_id,
+                pages=pages,
+                workers=workers,
+                reflow_columns=reflow_columns,
+            )
+
+            # Detect backend capabilities and resolve effective workers
+            from pdf2foundry.backend.caps import (
+                detect_backend_capabilities,
+                log_worker_resolution,
+                resolve_effective_workers,
+            )
+
+            capabilities = detect_backend_capabilities()
+            total_pages = (
+                getattr(dl_doc, "page_count", None) if hasattr(dl_doc, "page_count") else None
+            )
+            pages_to_process = len(pages) if pages else total_pages
+
+            effective_workers, reasons = resolve_effective_workers(
+                requested=pipeline_options.workers,
+                capabilities=capabilities,
+                total_pages=pages_to_process,
+            )
+
+            # Update pipeline options with effective workers
+            pipeline_options.workers_effective = effective_workers
+
+            # Log worker resolution
+            log_worker_resolution(
+                requested=pipeline_options.workers,
+                effective=effective_workers,
+                reasons=reasons,
+                capabilities=capabilities,
+                pages_to_process=pages_to_process,
             )
 
             # Extract semantic content (HTML + images/tables/links)

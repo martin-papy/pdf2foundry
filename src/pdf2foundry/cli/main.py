@@ -345,6 +345,9 @@ def convert(
         ocr=ocr,
         picture_descriptions=picture_descriptions,
         vlm_repo_id=vlm_repo_id,
+        pages=parsed_pages,
+        workers=workers,
+        reflow_columns=reflow_columns,
     )
 
 

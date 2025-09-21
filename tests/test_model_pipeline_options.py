@@ -59,6 +59,7 @@ class TestPdfPipelineOptions:
         assert options.text_coverage_threshold == 0.05
         assert options.pages is None
         assert options.workers == 1
+        assert options.workers_effective == 1
         assert options.reflow_columns is False
 
     def test_from_cli_defaults(self) -> None:
@@ -72,6 +73,7 @@ class TestPdfPipelineOptions:
         assert options.text_coverage_threshold == 0.05
         assert options.pages is None
         assert options.workers == 1
+        assert options.workers_effective == 1
         assert options.reflow_columns is False
 
     def test_from_cli_all_values(self) -> None:
@@ -94,6 +96,7 @@ class TestPdfPipelineOptions:
         assert options.text_coverage_threshold == 0.1
         assert options.pages == [1, 3, 5]
         assert options.workers == 4
+        assert options.workers_effective == 1  # Default until capability detection runs
         assert options.reflow_columns is True
 
     def test_from_cli_invalid_tables(self) -> None:
@@ -139,6 +142,7 @@ class TestPdfPipelineOptions:
             "text_coverage_threshold": 0.1,
             "pages": [1, 3, 5],
             "workers": 4,
+            "workers_effective": 1,
             "reflow_columns": True,
         }
 
@@ -168,6 +172,7 @@ class TestPdfPipelineOptions:
         assert "text_coverage_threshold=0.1" in repr_str
         assert "pages=[1, 3, 5]" in repr_str
         assert "workers=4" in repr_str
+        assert "workers_effective=1" in repr_str
         assert "reflow_columns=True" in repr_str
 
     def test_current_defaults_snapshot(self) -> None:
@@ -182,4 +187,5 @@ class TestPdfPipelineOptions:
         assert options.text_coverage_threshold == 0.05  # Reasonable default for AUTO OCR
         assert options.pages is None  # Process all pages by default
         assert options.workers == 1  # Single-threaded by default
+        assert options.workers_effective == 1  # Matches workers by default
         assert options.reflow_columns is False  # Experimental feature off by default
