@@ -373,7 +373,9 @@ def extract_semantic_content(
             try:
                 from pdf2foundry.transform.layout import flatten_page_html
 
-                html = flatten_page_html(html, doc, page_no)
+                html = flatten_page_html(
+                    html, doc, page_no, reflow_enabled=pipeline_options.reflow_columns
+                )
             except Exception:
                 # If transform fails for any reason, proceed with original HTML
                 pass

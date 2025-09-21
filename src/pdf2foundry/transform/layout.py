@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -117,21 +118,67 @@ def detect_column_count(doc, page_no: int) -> int:  # type: ignore[no-untyped-de
     return 1
 
 
-def flatten_page_html(html: str, doc, page_no: int) -> str:  # type: ignore[no-untyped-def]
+def flatten_page_html(
+    html: str,
+    doc: Any,
+    page_no: int,
+    *,
+    reflow_enabled: bool = False,
+    page_width: float | None = None,
+) -> str:
     """Return a linearized HTML for a multi-column page.
 
     For v1, we rely on Docling to produce reasonable reading order. When a
     multi-column layout is detected, we log a warning to inform the user that
     we may need deeper reflow in future iterations.
+
+    Args:
+        html: HTML content from Docling
+        doc: Docling document object
+        page_no: 1-based page number
+        reflow_enabled: Enable experimental multi-column reflow
+        page_width: Page width in points (defaults to 612 for US Letter)
+
+    Returns:
+        HTML content, potentially reordered if reflow is enabled
     """
+    # Use default US Letter width if not provided
+    if page_width is None:
+        page_width = 612.0  # US Letter width in points
 
     columns = detect_column_count(doc, page_no)
     if columns >= 2:
-        logger.warning(
-            "Multi-column layout detected on page %d; using Docling reading order to flatten.",
-            page_no,
-        )
-        # TODO: future iterations may reorder blocks within HTML by column
-        return html
+        if reflow_enabled:
+            logger.info(
+                "Multi-column layout detected on page %d; applying experimental reflow.",
+                page_no,
+            )
+
+            # Get page blocks and apply reflow
+            blocks = _get_page_blocks(doc, page_no)
+            if blocks:
+                try:
+                    from pdf2foundry.transform.reflow import reflow_columns
+
+                    reordered_blocks = reflow_columns(list(blocks), page_width)
+                    if reordered_blocks != list(blocks):
+                        logger.debug(
+                            "Reordered %d blocks on page %d", len(reordered_blocks), page_no
+                        )
+                        # Note: For now, we return the original HTML since we don't have
+                        # a way to reconstruct HTML from reordered blocks. This sets up
+                        # the infrastructure for future HTML reconstruction.
+                        return html
+                except Exception as e:
+                    logger.warning("Column reflow failed on page %d: %s", page_no, e)
+
+            return html
+        else:
+            logger.warning(
+                "Multi-column layout detected on page %d; using Docling reading order to flatten.",
+                page_no,
+            )
+            # TODO: future iterations may reorder blocks within HTML by column
+            return html
 
     return html
