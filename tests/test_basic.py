@@ -103,7 +103,7 @@ def test_cli_convert_validation() -> None:
             ["convert", tmp_path, "--mod-id", "test", "--mod-title", "Test", "--tables", "invalid"],
         )
         assert result.exit_code == 1
-        assert "must be 'auto' or 'image-only'" in result.stdout
+        assert "Invalid tables mode 'invalid'" in result.stdout
     finally:
         import os
 

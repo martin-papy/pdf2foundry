@@ -1,0 +1,365 @@
+"""CLI interface for PDF2Foundry."""
+
+from pathlib import Path
+from typing import Annotated
+
+import typer
+
+from pdf2foundry import __version__
+from pdf2foundry.cli.conversion import run_conversion_pipeline
+from pdf2foundry.cli.display import (
+    display_configuration,
+    display_docling_cache_behavior,
+    display_validation_warnings,
+)
+from pdf2foundry.cli.interactive import prompt_for_missing_args
+
+app = typer.Typer(
+    name="pdf2foundry",
+    help="Convert born-digital PDFs into Foundry VTT v13 module compendia.",
+    no_args_is_help=True,
+)
+
+
+@app.command()
+def convert(
+    pdf: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to source PDF file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+    mod_id: Annotated[
+        str | None,
+        typer.Option(
+            "--mod-id",
+            help="Module ID (required, must be unique). Use lowercase, hyphens, no spaces.",
+        ),
+    ] = None,
+    mod_title: Annotated[
+        str | None,
+        typer.Option(
+            "--mod-title",
+            help="Module Title (required). Display name for the module.",
+        ),
+    ] = None,
+    out_dir: Annotated[
+        Path,
+        typer.Option(
+            "--out-dir",
+            help="Output directory for generated module (default: dist)",
+        ),
+    ] = Path("dist"),
+    author: Annotated[
+        str,
+        typer.Option("--author", help="Author name for module metadata"),
+    ] = "",
+    license: Annotated[
+        str,
+        typer.Option("--license", help="License string for module metadata"),
+    ] = "",
+    pack_name: Annotated[
+        str | None,
+        typer.Option(
+            "--pack-name",
+            help="Compendium pack name (default: <mod-id>-journals)",
+        ),
+    ] = None,
+    toc: Annotated[
+        bool,
+        typer.Option(
+            "--toc/--no-toc",
+            help="Generate Table of Contents Journal Entry (default: yes)",
+        ),
+    ] = True,
+    tables: Annotated[
+        str,
+        typer.Option(
+            "--tables",
+            help=(
+                "Table handling: 'structured' (always extract structure), "
+                "'auto' (try structured, fallback to image), or 'image-only' (always rasterize)"
+            ),
+        ),
+    ] = "auto",
+    ocr: Annotated[
+        str,
+        typer.Option(
+            "--ocr",
+            help=(
+                "OCR mode: 'auto' (OCR pages with low text coverage), "
+                "'on' (always OCR), or 'off' (never OCR, default)"
+            ),
+        ),
+    ] = "off",
+    picture_descriptions: Annotated[
+        str,
+        typer.Option(
+            "--picture-descriptions",
+            help="Generate image captions: 'on' (enable with VLM) or 'off' (disable, default)",
+        ),
+    ] = "off",
+    vlm_repo_id: Annotated[
+        str | None,
+        typer.Option(
+            "--vlm-repo-id",
+            help=(
+                "Hugging Face VLM repository ID for picture descriptions "
+                "(e.g., 'microsoft/Florence-2-base')"
+            ),
+        ),
+    ] = None,
+    deterministic_ids: Annotated[
+        bool,
+        typer.Option(
+            "--deterministic-ids/--no-deterministic-ids",
+            help="Use deterministic SHA1-based IDs for stable UUIDs across runs (default: yes)",
+        ),
+    ] = True,
+    # Foundry v13 has native compendium folders; dependency flag removed
+    compile_pack_now: Annotated[
+        bool,
+        typer.Option(
+            "--compile-pack/--no-compile-pack",
+            help="Compile sources to LevelDB pack using Foundry CLI (default: no)",
+        ),
+    ] = False,
+    # Docling JSON cache options (single-pass ingestion plan)
+    docling_json: Annotated[
+        Path | None,
+        typer.Option(
+            "--docling-json",
+            help=(
+                "Path to Docling JSON cache. If it exists and is valid, load from it; "
+                "otherwise convert and save to this path."
+            ),
+        ),
+    ] = None,
+    write_docling_json: Annotated[
+        bool,
+        typer.Option(
+            "--write-docling-json/--no-write-docling-json",
+            help=(
+                "When enabled without --docling-json, write the Docling JSON cache to the default "
+                "path (dist/<mod-id>/sources/docling.json). "
+                "Ignored when --docling-json is provided."
+            ),
+        ),
+    ] = False,
+    fallback_on_json_failure: Annotated[
+        bool,
+        typer.Option(
+            "--fallback-on-json-failure/--no-fallback-on-json-failure",
+            help=(
+                "If loading from JSON fails, fall back to conversion "
+                "(and overwrite when applicable)."
+            ),
+        ),
+    ] = False,
+) -> None:
+    """
+    Convert a born-digital PDF into a Foundry VTT v13 module.
+    
+    This command processes a PDF file and generates a complete Foundry VTT module
+    containing a Journal Entry compendium with chapters and sections from the PDF.
+    
+    Examples:
+    
+        # Basic conversion
+        pdf2foundry convert "My Book.pdf" --mod-id "my-book" --mod-title "My Book"
+        
+        # With custom output directory and author
+        pdf2foundry convert "Manual.pdf" --mod-id "game-manual" --mod-title "Game Manual" \\
+            --out-dir "modules" --author "John Doe"
+            
+        # Disable TOC and use image-only tables
+        pdf2foundry convert "Guide.pdf" --mod-id "guide" --mod-title "Player Guide" \\
+            --no-toc --tables image-only
+            
+        # Enable structured tables and OCR
+        pdf2foundry convert "Manual.pdf" --mod-id "manual" --mod-title "Game Manual" \\
+            --tables structured --ocr auto
+            
+        # Enable picture descriptions with VLM
+        pdf2foundry convert "Bestiary.pdf" --mod-id "bestiary" --mod-title "Monster Manual" \\
+            --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+    """
+    # Interactive prompts when minimal args are provided
+    if mod_id is None or mod_title is None:
+        (
+            mod_id,
+            mod_title,
+            author,
+            license,
+            pack_name,
+            toc,
+            tables,
+            ocr,
+            picture_descriptions,
+            vlm_repo_id,
+            deterministic_ids,
+            compile_pack_now,
+            out_dir,
+        ) = prompt_for_missing_args(
+            pdf,
+            mod_id,
+            mod_title,
+            author,
+            license,
+            pack_name,
+            toc,
+            tables,
+            ocr,
+            picture_descriptions,
+            vlm_repo_id,
+            deterministic_ids,
+            compile_pack_now,
+            out_dir,
+        )
+
+    # Set default pack name if not provided
+    if pack_name is None:
+        pack_name = f"{mod_id}-journals"
+
+    # Validate CLI options using PdfPipelineOptions
+    try:
+        from pdf2foundry.model.pipeline_options import PdfPipelineOptions
+
+        pipeline_options = PdfPipelineOptions.from_cli(
+            tables=tables,
+            ocr=ocr,
+            picture_descriptions=picture_descriptions,
+            vlm_repo_id=vlm_repo_id,
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}")
+        raise typer.Exit(1) from exc
+
+    # Validation warnings for picture descriptions
+    display_validation_warnings(pipeline_options, vlm_repo_id)
+
+    # Validate mod_id format (basic check)
+    if not mod_id.replace("-", "").replace("_", "").isalnum():
+        typer.echo(
+            "Error: --mod-id should contain only alphanumeric characters, hyphens, and underscores",
+        )
+        raise typer.Exit(1)
+
+    # Note: deprecated flags (--docling-json-load/--docling-json-save) were removed.
+
+    # Display configuration
+    display_configuration(
+        pdf,
+        mod_id,
+        mod_title,
+        out_dir,
+        pack_name,
+        author,
+        license,
+        toc,
+        tables,
+        ocr,
+        pipeline_options,
+        deterministic_ids,
+    )
+
+    # Summarize Docling JSON cache behavior
+    display_docling_cache_behavior(
+        docling_json, write_docling_json, fallback_on_json_failure, out_dir, mod_id
+    )
+
+    # Execute single-pass ingestion pipeline
+    run_conversion_pipeline(
+        pdf=pdf,
+        mod_id=mod_id,
+        mod_title=mod_title,
+        out_dir=out_dir,
+        pack_name=pack_name,
+        author=author,
+        license=license,
+        toc=toc,
+        tables=tables,
+        deterministic_ids=deterministic_ids,
+        compile_pack_now=compile_pack_now,
+        docling_json=docling_json,
+        write_docling_json=write_docling_json,
+        fallback_on_json_failure=fallback_on_json_failure,
+    )
+
+
+@app.command()
+def version() -> None:
+    """Show version information."""
+    typer.echo(f"pdf2foundry version {__version__}")
+
+
+def version_callback(value: bool) -> None:
+    """Version callback for --version flag."""
+    if value:
+        typer.echo(f"pdf2foundry version {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show version and exit",
+        ),
+    ] = None,
+) -> None:
+    """
+    PDF2Foundry - Convert born-digital PDFs into Foundry VTT v13 module compendia.
+
+    This tool converts born-digital PDF documents into installable Foundry VTT modules
+    containing Journal Entry compendia with proper structure, images, tables, and navigation.
+
+    Features:
+    - Preserves PDF structure (chapters → Journal Entries, sections → Journal Pages)
+    - Extracts images and tables with fallback handling
+    - Generates deterministic UUIDs for stable cross-references
+    - Creates Table of Contents with navigation links
+    - Supports Compendium Folders for organization
+
+    For detailed usage, run: pdf2foundry convert --help
+    """
+    pass
+
+
+@app.command()
+def doctor() -> None:
+    """Check environment for Docling and docling-core availability.
+
+    This command performs a lightweight probe without processing any PDFs.
+    It reports installed versions and whether a minimal DocumentConverter
+    can be constructed.
+    """
+    # Import inside the function to avoid hard dependency at CLI import time
+    try:
+        from pdf2foundry.docling_env import (
+            format_report_lines,
+            probe_docling,
+            report_is_ok,
+        )
+    except Exception as exc:  # pragma: no cover - extremely unlikely
+        typer.echo(f"Error: failed to load environment probe: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    report = probe_docling()
+    for line in format_report_lines(report):
+        typer.echo(line)
+
+    if not report_is_ok(report):
+        raise typer.Exit(1)
+
+
+if __name__ == "__main__":  # pragma: no cover - executed only via `python -m`
+    app()

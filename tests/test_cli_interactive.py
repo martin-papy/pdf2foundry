@@ -16,7 +16,8 @@ def test_cli_convert_interactive_defaults() -> None:
 
     try:
         # Provide newlines to accept defaults for all prompts
-        user_input = "\n" * 11
+        # Added 3 more prompts: ocr mode, picture descriptions, and vlm repo id (conditional)
+        user_input = "\n" * 13
         result = runner.invoke(app, ["convert", pdf_path], input=user_input)
         assert result.exit_code == 0
         # Echoes should include these lines
