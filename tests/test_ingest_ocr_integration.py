@@ -5,13 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from pdf2foundry.ingest.content_extractor import (
-    _apply_ocr_to_page,
-    _merge_ocr_results,
-    _rasterize_page,
-    extract_semantic_content,
-)
+from pdf2foundry.ingest.content_extractor import extract_semantic_content
 from pdf2foundry.ingest.ocr_engine import OcrResult
+from pdf2foundry.ingest.ocr_processor import _merge_ocr_results, _rasterize_page, apply_ocr_to_page
 from pdf2foundry.model.pipeline_options import OcrMode, PdfPipelineOptions
 
 
@@ -27,7 +23,7 @@ class TestApplyOcrToPage:
         engine = Mock()
         cache = Mock()
 
-        result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+        result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
         assert result == html
         engine.is_available.assert_not_called()
@@ -41,8 +37,8 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        with patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger:
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+        with patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger:
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             engine.is_available.assert_called_once()
@@ -58,8 +54,8 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        with patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger:
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+        with patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger:
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             engine.is_available.assert_called_once()
@@ -76,10 +72,10 @@ class TestApplyOcrToPage:
         cache = Mock()
 
         with (
-            patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=None),
-            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
+            patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=None),
+            patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger,
         ):
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             mock_logger.warning.assert_called()
@@ -99,13 +95,13 @@ class TestApplyOcrToPage:
         engine.run.return_value = ocr_results
 
         with (
-            patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor._merge_ocr_results") as mock_merge,
+            patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
+            patch("pdf2foundry.ingest.ocr_processor._merge_ocr_results") as mock_merge,
             patch("pdf2foundry.ingest.content_extractor.logging"),
         ):
             mock_merge.return_value = html + "\n<div>OCR content</div>"
 
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             # Verify OCR was run and cached
             engine.run.assert_called_once_with(mock_image)
@@ -130,13 +126,13 @@ class TestApplyOcrToPage:
         mock_image = Mock()
 
         with (
-            patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor._merge_ocr_results") as mock_merge,
+            patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
+            patch("pdf2foundry.ingest.ocr_processor._merge_ocr_results") as mock_merge,
             patch("pdf2foundry.ingest.content_extractor.logging"),
         ):
             mock_merge.return_value = html + "\n<div>Cached OCR content</div>"
 
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             # Verify OCR was not run (cache hit)
             engine.run.assert_not_called()
@@ -159,10 +155,10 @@ class TestApplyOcrToPage:
         engine.run.return_value = []  # No OCR results
 
         with (
-            patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
+            patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
+            patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger,
         ):
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             mock_logger.info.assert_called()
@@ -179,12 +175,12 @@ class TestApplyOcrToPage:
         mock_image = Mock()
 
         with (
-            patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
+            patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
+            patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger,
         ):
             engine.run.side_effect = Exception("OCR failed")
 
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             mock_logger.error.assert_called()
@@ -201,12 +197,12 @@ class TestApplyOcrToPage:
         mock_image = Mock()
 
         with (
-            patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
+            patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
+            patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger,
         ):
             engine.run.side_effect = Exception("OCR failed")
 
-            result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             mock_logger.warning.assert_called()
@@ -308,7 +304,9 @@ class TestMergeOcrResults:
         assert "Second text" in result
         assert "Third text" in result
         # Should have 4 <p> tags total (1 original + 3 OCR results)
-        assert result.count("<p>") == 4
+        # Count both <p> and <p with attributes
+        p_count = result.count("<p>") + result.count("<p ")
+        assert p_count == 4
 
     def test_merge_with_metadata(self) -> None:
         """Test merging OCR results with full metadata."""
@@ -357,6 +355,8 @@ class TestExtractSemanticContentOcrIntegration:
         doc = Mock()
         doc.num_pages.return_value = 1
         doc.export_to_html.return_value = "<p>Test content</p>"
+        doc.pages = []  # Make it iterable
+        doc.render_page = Mock(return_value=None)  # Mock render_page method
 
         options = PdfPipelineOptions(ocr_mode=OcrMode.ON)
 
@@ -369,7 +369,7 @@ class TestExtractSemanticContentOcrIntegration:
                 "pdf2foundry.ingest.content_extractor.TesseractOcrEngine", return_value=mock_engine
             ),
             patch("pdf2foundry.ingest.content_extractor.OcrCache", return_value=mock_cache),
-            patch("pdf2foundry.ingest.content_extractor._apply_ocr_to_page") as mock_apply_ocr,
+            patch("pdf2foundry.ingest.content_extractor.apply_ocr_to_page") as mock_apply_ocr,
         ):
             mock_apply_ocr.return_value = "<p>Test content</p>"
 
@@ -406,6 +406,8 @@ class TestExtractSemanticContentOcrIntegration:
         doc = Mock()
         doc.num_pages.return_value = 1
         doc.export_to_html.return_value = "<p>Test content</p>"
+        doc.pages = []  # Make it iterable
+        doc.render_page = Mock(return_value=None)  # Mock render_page method
 
         options = PdfPipelineOptions(ocr_mode=OcrMode.ON)
         progress_callback = Mock()
@@ -419,7 +421,7 @@ class TestExtractSemanticContentOcrIntegration:
                 "pdf2foundry.ingest.content_extractor.TesseractOcrEngine", return_value=mock_engine
             ),
             patch("pdf2foundry.ingest.content_extractor.OcrCache", return_value=mock_cache),
-            patch("pdf2foundry.ingest.content_extractor._apply_ocr_to_page") as mock_apply_ocr,
+            patch("pdf2foundry.ingest.content_extractor.apply_ocr_to_page") as mock_apply_ocr,
         ):
             mock_apply_ocr.return_value = "<p>Test content</p>"
 

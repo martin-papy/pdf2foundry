@@ -186,26 +186,38 @@ class TesseractOcrEngine:
 
 
 class OcrCache:
-    """Simple cache for OCR results to avoid reprocessing."""
+    """LRU cache for OCR results to avoid reprocessing.
 
-    def __init__(self) -> None:
-        """Initialize OCR cache."""
+    Thread Safety:
+    - This cache is NOT thread-safe by design for performance reasons
+    - It's intended to be used within a single pipeline execution thread
+    - If multi-threading is needed, each thread should have its own cache instance
+    - The current PDF2Foundry pipeline is single-threaded per document
+    """
+
+    def __init__(self, max_size: int = 2000) -> None:
+        """Initialize OCR cache with LRU eviction.
+
+        Args:
+            max_size: Maximum number of entries to cache
+        """
         self._cache: dict[str, list[OcrResult]] = {}
+        self._access_order: list[str] = []
+        self._max_size = max_size
 
     def _get_image_hash(self, image: Image.Image | Path | bytes) -> str:
         """Generate a hash key for an image."""
         if isinstance(image, Image.Image):
-            # Convert PIL image to bytes for hashing
-            from io import BytesIO
+            # Use shared image hashing utility for consistency
+            from pdf2foundry.ingest.image_cache import get_image_hash
 
-            buf = BytesIO()
-            image.save(buf, format="PNG")
-            image_bytes = buf.getvalue()
+            return get_image_hash(image)
         elif isinstance(image, Path | str):
             image_bytes = Path(image).read_bytes()
         else:
             image_bytes = image
 
+        # For non-PIL images, use direct byte hashing
         return hashlib.sha256(image_bytes).hexdigest()[:16]
 
     def get(
@@ -213,18 +225,37 @@ class OcrCache:
     ) -> list[OcrResult] | None:
         """Get cached OCR result if available."""
         key = f"{self._get_image_hash(image)}:{language or 'auto'}"
-        return self._cache.get(key)
+
+        if key in self._cache:
+            # Update access order (move to end)
+            self._access_order.remove(key)
+            self._access_order.append(key)
+            return self._cache[key]
+
+        return None
 
     def set(
         self, image: Image.Image | Path | bytes, language: str | None, results: list[OcrResult]
     ) -> None:
-        """Cache OCR results."""
+        """Cache OCR results with LRU eviction."""
         key = f"{self._get_image_hash(image)}:{language or 'auto'}"
+
+        # If already exists, update access order
+        if key in self._cache:
+            self._access_order.remove(key)
+
         self._cache[key] = results
+        self._access_order.append(key)
+
+        # Evict oldest if over limit
+        while len(self._cache) > self._max_size:
+            oldest_key = self._access_order.pop(0)
+            self._cache.pop(oldest_key, None)
 
     def clear(self) -> None:
         """Clear the cache."""
         self._cache.clear()
+        self._access_order.clear()
 
 
 def compute_text_coverage(html: str) -> float:

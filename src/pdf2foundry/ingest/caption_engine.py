@@ -7,7 +7,6 @@ images when picture descriptions are enabled.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from typing import Any, Protocol
 
@@ -171,20 +170,31 @@ class HFCaptionEngine:
 
 
 class CaptionCache:
-    """Simple cache for caption results to avoid reprocessing."""
+    """LRU cache for caption results to avoid reprocessing.
 
-    def __init__(self) -> None:
-        """Initialize caption cache."""
+    Thread Safety:
+    - This cache is NOT thread-safe by design for performance reasons
+    - It's intended to be used within a single pipeline execution thread
+    - If multi-threading is needed, each thread should have its own cache instance
+    - The current PDF2Foundry pipeline is single-threaded per document
+    """
+
+    def __init__(self, max_size: int = 2000) -> None:
+        """Initialize caption cache with LRU eviction.
+
+        Args:
+            max_size: Maximum number of entries to cache
+        """
         self._cache: dict[str, str | None] = {}
+        self._access_order: list[str] = []
+        self._max_size = max_size
 
     def _get_image_hash(self, image: Image.Image) -> str:
         """Generate a hash key for an image."""
-        from io import BytesIO
+        # Use shared image hashing utility for consistency
+        from pdf2foundry.ingest.image_cache import get_image_hash
 
-        buf = BytesIO()
-        image.save(buf, format="PNG")
-        image_bytes = buf.getvalue()
-        return hashlib.sha256(image_bytes).hexdigest()[:16]
+        return get_image_hash(image)
 
     def get(self, image: Image.Image) -> str | None | object:
         """Get cached caption result if available.
@@ -194,16 +204,35 @@ class CaptionCache:
             or a sentinel object if not in cache
         """
         key = self._get_image_hash(image)
-        return self._cache.get(key, object())  # Use sentinel for "not found"
+
+        if key in self._cache:
+            # Update access order (move to end)
+            self._access_order.remove(key)
+            self._access_order.append(key)
+            return self._cache[key]
+
+        return object()  # Sentinel for "not found"
 
     def set(self, image: Image.Image, caption: str | None) -> None:
-        """Cache caption result."""
+        """Cache caption result with LRU eviction."""
         key = self._get_image_hash(image)
+
+        # If already exists, update access order
+        if key in self._cache:
+            self._access_order.remove(key)
+
         self._cache[key] = caption
+        self._access_order.append(key)
+
+        # Evict oldest if over limit
+        while len(self._cache) > self._max_size:
+            oldest_key = self._access_order.pop(0)
+            self._cache.pop(oldest_key, None)
 
     def clear(self) -> None:
         """Clear the cache."""
         self._cache.clear()
+        self._access_order.clear()
 
 
 __all__ = [

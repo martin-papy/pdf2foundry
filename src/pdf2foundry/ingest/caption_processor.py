@@ -119,7 +119,9 @@ def apply_captions_to_images(
 
 
 def initialize_caption_components(
-    options: PdfPipelineOptions, on_progress: ProgressCallback = None
+    options: PdfPipelineOptions,
+    on_progress: ProgressCallback = None,
+    shared_image_cache: Any = None,
 ) -> tuple[HFCaptionEngine | None, CaptionCache | None]:
     """Initialize caption engine and cache components.
 
@@ -143,7 +145,12 @@ def initialize_caption_components(
         else:
             try:
                 caption_engine = HFCaptionEngine(options.vlm_repo_id)
-                caption_cache = CaptionCache()
+                # Use cache limits from shared cache if available
+                if shared_image_cache and hasattr(shared_image_cache, "_limits"):
+                    cache_size = shared_image_cache._limits.caption_cache
+                else:
+                    cache_size = 2000
+                caption_cache = CaptionCache(max_size=cache_size)
                 if caption_engine.is_available():
                     _safe_emit(
                         on_progress,
