@@ -46,6 +46,15 @@ class PdfPipelineOptions:
     # Text coverage threshold for AUTO OCR mode (5% default)
     text_coverage_threshold: float = 0.05
 
+    # Page selection (None means all pages)
+    pages: list[int] | None = None
+
+    # Number of worker processes for CPU-bound page-level steps
+    workers: int = 1
+
+    # Enable experimental multi-column reflow in layout transform
+    reflow_columns: bool = False
+
     @classmethod
     def from_cli(
         cls,
@@ -55,6 +64,9 @@ class PdfPipelineOptions:
         picture_descriptions: str = "off",
         vlm_repo_id: str | None = None,
         text_coverage_threshold: float = 0.05,
+        pages: list[int] | None = None,
+        workers: int = 1,
+        reflow_columns: bool = False,
     ) -> PdfPipelineOptions:
         """Build PdfPipelineOptions from CLI argument values.
 
@@ -64,6 +76,9 @@ class PdfPipelineOptions:
             picture_descriptions: Picture descriptions ("on", "off")
             vlm_repo_id: VLM repository ID for picture descriptions
             text_coverage_threshold: Text coverage threshold for AUTO OCR
+            pages: List of 1-based page indices to process (None for all pages)
+            workers: Number of worker processes for CPU-bound page-level steps
+            reflow_columns: Enable experimental multi-column reflow
 
         Returns:
             PdfPipelineOptions instance with mapped enum values
@@ -98,12 +113,19 @@ class PdfPipelineOptions:
                 f"Valid values: ['on', 'off']"
             )
 
+        # Validate workers parameter
+        if workers < 1:
+            raise ValueError(f"Workers must be >= 1, got {workers}")
+
         return cls(
             tables_mode=tables_mode,
             ocr_mode=ocr_mode,
             picture_descriptions=picture_descriptions_bool,
             vlm_repo_id=vlm_repo_id,
             text_coverage_threshold=text_coverage_threshold,
+            pages=pages,
+            workers=workers,
+            reflow_columns=reflow_columns,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -114,6 +136,9 @@ class PdfPipelineOptions:
             "picture_descriptions": self.picture_descriptions,
             "vlm_repo_id": self.vlm_repo_id,
             "text_coverage_threshold": self.text_coverage_threshold,
+            "pages": self.pages,
+            "workers": self.workers,
+            "reflow_columns": self.reflow_columns,
         }
 
     def __repr__(self) -> str:
@@ -124,7 +149,10 @@ class PdfPipelineOptions:
             f"ocr_mode={self.ocr_mode.value}, "
             f"picture_descriptions={self.picture_descriptions}, "
             f"vlm_repo_id={self.vlm_repo_id!r}, "
-            f"text_coverage_threshold={self.text_coverage_threshold}"
+            f"text_coverage_threshold={self.text_coverage_threshold}, "
+            f"pages={self.pages}, "
+            f"workers={self.workers}, "
+            f"reflow_columns={self.reflow_columns}"
             f")"
         )
 

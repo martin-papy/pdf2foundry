@@ -13,6 +13,7 @@ from pdf2foundry.cli.display import (
     display_validation_warnings,
 )
 from pdf2foundry.cli.interactive import prompt_for_missing_args
+from pdf2foundry.cli.parse import parse_page_spec
 
 app = typer.Typer(
     name="pdf2foundry",
@@ -159,6 +160,33 @@ def convert(
             ),
         ),
     ] = False,
+    pages: Annotated[
+        str | None,
+        typer.Option(
+            "--pages",
+            help=(
+                "Comma-separated list of 1-based page indices and ranges "
+                "(e.g., '1,3,5-10'). Default: all pages."
+            ),
+        ),
+    ] = None,
+    workers: Annotated[
+        int,
+        typer.Option(
+            "--workers",
+            help="Number of worker processes for CPU-bound page-level steps. Default: 1.",
+        ),
+    ] = 1,
+    reflow_columns: Annotated[
+        bool,
+        typer.Option(
+            "--reflow-columns",
+            help=(
+                "Experimental: enable multi-column reflow in layout transform. "
+                "Off by default. Use with caution on multi-column PDFs."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """
     Convert a born-digital PDF into a Foundry VTT v13 module.
@@ -186,6 +214,14 @@ def convert(
         # Enable picture descriptions with VLM
         pdf2foundry convert "Bestiary.pdf" --mod-id "bestiary" --mod-title "Monster Manual" \\
             --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+            
+        # Process specific pages with multiple workers
+        pdf2foundry convert "Manual.pdf" --mod-id "manual" --mod-title "Game Manual" \\
+            --pages "1,5-10,15" --workers 4
+            
+        # Enable experimental multi-column reflow
+        pdf2foundry convert "Academic.pdf" --mod-id "paper" --mod-title "Research Paper" \\
+            --reflow-columns
     """
     # Interactive prompts when minimal args are provided
     if mod_id is None or mod_title is None:
@@ -219,10 +255,26 @@ def convert(
             compile_pack_now,
             out_dir,
         )
+        # Note: Interactive prompts don't handle pages, workers, reflow_columns yet
+        # These remain as CLI-only options for now
 
     # Set default pack name if not provided
     if pack_name is None:
         pack_name = f"{mod_id}-journals"
+
+    # Parse pages specification if provided
+    parsed_pages: list[int] | None = None
+    if pages is not None:
+        try:
+            parsed_pages = parse_page_spec(pages)
+        except ValueError as exc:
+            typer.echo(f"Error: {exc}")
+            raise typer.Exit(1) from exc
+
+    # Validate workers parameter
+    if workers < 1:
+        typer.echo("Error: --workers must be >= 1")
+        raise typer.Exit(1)
 
     # Validate CLI options using PdfPipelineOptions
     try:
@@ -233,6 +285,9 @@ def convert(
             ocr=ocr,
             picture_descriptions=picture_descriptions,
             vlm_repo_id=vlm_repo_id,
+            pages=parsed_pages,
+            workers=workers,
+            reflow_columns=reflow_columns,
         )
     except ValueError as exc:
         typer.echo(f"Error: {exc}")

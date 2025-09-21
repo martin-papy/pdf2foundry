@@ -57,6 +57,9 @@ class TestPdfPipelineOptions:
         assert options.picture_descriptions is False
         assert options.vlm_repo_id is None
         assert options.text_coverage_threshold == 0.05
+        assert options.pages is None
+        assert options.workers == 1
+        assert options.reflow_columns is False
 
     def test_from_cli_defaults(self) -> None:
         """Test from_cli with no arguments yields expected defaults."""
@@ -67,6 +70,9 @@ class TestPdfPipelineOptions:
         assert options.picture_descriptions is False
         assert options.vlm_repo_id is None
         assert options.text_coverage_threshold == 0.05
+        assert options.pages is None
+        assert options.workers == 1
+        assert options.reflow_columns is False
 
     def test_from_cli_all_values(self) -> None:
         """Test from_cli with all arguments specified."""
@@ -76,6 +82,9 @@ class TestPdfPipelineOptions:
             picture_descriptions="on",
             vlm_repo_id="test-model",
             text_coverage_threshold=0.1,
+            pages=[1, 3, 5],
+            workers=4,
+            reflow_columns=True,
         )
 
         assert options.tables_mode == TableMode.STRUCTURED
@@ -83,6 +92,9 @@ class TestPdfPipelineOptions:
         assert options.picture_descriptions is True
         assert options.vlm_repo_id == "test-model"
         assert options.text_coverage_threshold == 0.1
+        assert options.pages == [1, 3, 5]
+        assert options.workers == 4
+        assert options.reflow_columns is True
 
     def test_from_cli_invalid_tables(self) -> None:
         """Test from_cli with invalid tables value raises error."""
@@ -99,6 +111,13 @@ class TestPdfPipelineOptions:
         with pytest.raises(ValueError, match="Invalid picture_descriptions 'invalid'"):
             PdfPipelineOptions.from_cli(picture_descriptions="invalid")
 
+    def test_from_cli_invalid_workers(self) -> None:
+        """Test from_cli with invalid workers value raises error."""
+        with pytest.raises(ValueError, match="Workers must be >= 1"):
+            PdfPipelineOptions.from_cli(workers=0)
+        with pytest.raises(ValueError, match="Workers must be >= 1"):
+            PdfPipelineOptions.from_cli(workers=-1)
+
     def test_to_dict(self) -> None:
         """Test to_dict serialization."""
         options = PdfPipelineOptions(
@@ -107,6 +126,9 @@ class TestPdfPipelineOptions:
             picture_descriptions=True,
             vlm_repo_id="test-model",
             text_coverage_threshold=0.1,
+            pages=[1, 3, 5],
+            workers=4,
+            reflow_columns=True,
         )
 
         expected = {
@@ -115,6 +137,9 @@ class TestPdfPipelineOptions:
             "picture_descriptions": True,
             "vlm_repo_id": "test-model",
             "text_coverage_threshold": 0.1,
+            "pages": [1, 3, 5],
+            "workers": 4,
+            "reflow_columns": True,
         }
 
         assert options.to_dict() == expected
@@ -127,6 +152,9 @@ class TestPdfPipelineOptions:
             picture_descriptions=True,
             vlm_repo_id="test-model",
             text_coverage_threshold=0.1,
+            pages=[1, 3, 5],
+            workers=4,
+            reflow_columns=True,
         )
 
         repr_str = repr(options)
@@ -138,6 +166,9 @@ class TestPdfPipelineOptions:
         assert "picture_descriptions=True" in repr_str
         assert "vlm_repo_id='test-model'" in repr_str
         assert "text_coverage_threshold=0.1" in repr_str
+        assert "pages=[1, 3, 5]" in repr_str
+        assert "workers=4" in repr_str
+        assert "reflow_columns=True" in repr_str
 
     def test_current_defaults_snapshot(self) -> None:
         """Test that defaults match current CLI behavior."""
@@ -149,3 +180,6 @@ class TestPdfPipelineOptions:
         assert options.picture_descriptions is False  # Current no-captions behavior
         assert options.vlm_repo_id is None  # No VLM by default
         assert options.text_coverage_threshold == 0.05  # Reasonable default for AUTO OCR
+        assert options.pages is None  # Process all pages by default
+        assert options.workers == 1  # Single-threaded by default
+        assert options.reflow_columns is False  # Experimental feature off by default
