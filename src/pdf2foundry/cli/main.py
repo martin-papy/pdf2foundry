@@ -91,11 +91,10 @@ def convert(
         typer.Option(
             "--ocr",
             help=(
-                "OCR mode: 'auto' (OCR pages with low text coverage), "
-                "'on' (always OCR), or 'off' (never OCR, default)"
+                "OCR mode: 'auto' (OCR pages with low text coverage, default), " "'on' (always OCR)"
             ),
         ),
-    ] = "off",
+    ] = "auto",
     picture_descriptions: Annotated[
         str,
         typer.Option(

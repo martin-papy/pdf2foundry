@@ -18,19 +18,6 @@ from pdf2foundry.model.pipeline_options import OcrMode, PdfPipelineOptions
 class TestApplyOcrToPage:
     """Test _apply_ocr_to_page function."""
 
-    def test_ocr_not_needed_off_mode(self) -> None:
-        """Test that OCR is skipped when mode is OFF."""
-        doc = Mock()
-        html = "<p>Some existing content</p>"
-        options = PdfPipelineOptions(ocr_mode=OcrMode.OFF)
-        engine = Mock()
-        cache = Mock()
-
-        result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
-
-        assert result == html
-        engine.is_available.assert_not_called()
-
     def test_ocr_not_needed_auto_mode_high_coverage(self) -> None:
         """Test that OCR is skipped in AUTO mode with high text coverage."""
         doc = Mock()
@@ -54,13 +41,13 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        with patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger:
+        with patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger:
             result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             engine.is_available.assert_called_once()
             # Should log error in ON mode
-            mock_get_logger.return_value.error.assert_called()
+            mock_logger.error.assert_called()
 
     def test_ocr_needed_but_engine_unavailable_auto_mode(self) -> None:
         """Test OCR needed but engine unavailable in AUTO mode."""
@@ -71,13 +58,13 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        with patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger:
+        with patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger:
             result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             engine.is_available.assert_called_once()
             # Should log warning in AUTO mode
-            mock_get_logger.return_value.warning.assert_called()
+            mock_logger.warning.assert_called()
 
     def test_ocr_page_rasterization_fails(self) -> None:
         """Test OCR when page rasterization fails."""
@@ -90,12 +77,12 @@ class TestApplyOcrToPage:
 
         with (
             patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=None),
-            patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger,
+            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
         ):
             result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
-            mock_get_logger.return_value.warning.assert_called()
+            mock_logger.warning.assert_called()
 
     def test_ocr_success_with_cache_miss(self) -> None:
         """Test successful OCR processing with cache miss."""
@@ -173,12 +160,12 @@ class TestApplyOcrToPage:
 
         with (
             patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger,
+            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
         ):
             result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
-            mock_get_logger.return_value.info.assert_called()
+            mock_logger.info.assert_called()
 
     def test_ocr_processing_exception_on_mode(self) -> None:
         """Test OCR processing exception in ON mode."""
@@ -193,14 +180,14 @@ class TestApplyOcrToPage:
 
         with (
             patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger,
+            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
         ):
             engine.run.side_effect = Exception("OCR failed")
 
             result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
-            mock_get_logger.return_value.error.assert_called()
+            mock_logger.error.assert_called()
 
     def test_ocr_processing_exception_auto_mode(self) -> None:
         """Test OCR processing exception in AUTO mode."""
@@ -215,14 +202,14 @@ class TestApplyOcrToPage:
 
         with (
             patch("pdf2foundry.ingest.content_extractor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger,
+            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
         ):
             engine.run.side_effect = Exception("OCR failed")
 
             result = _apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
-            mock_get_logger.return_value.warning.assert_called()
+            mock_logger.warning.assert_called()
 
 
 class TestRasterizePage:
@@ -343,23 +330,27 @@ class TestMergeOcrResults:
 class TestExtractSemanticContentOcrIntegration:
     """Test OCR integration in extract_semantic_content function."""
 
-    def test_ocr_initialization_off_mode(self) -> None:
-        """Test that OCR components are not initialized in OFF mode."""
+    def test_ocr_initialization_auto_mode(self) -> None:
+        """Test that OCR components are initialized in AUTO mode."""
         doc = Mock()
         doc.num_pages.return_value = 1
         doc.export_to_html.return_value = "<p>Test content</p>"
 
-        options = PdfPipelineOptions(ocr_mode=OcrMode.OFF)
+        options = PdfPipelineOptions(ocr_mode=OcrMode.AUTO)
 
         with (
             patch("pdf2foundry.ingest.content_extractor.TesseractOcrEngine") as mock_engine_class,
             patch("pdf2foundry.ingest.content_extractor.OcrCache") as mock_cache_class,
         ):
+            mock_engine = Mock()
+            mock_engine.is_available.return_value = True
+            mock_engine_class.return_value = mock_engine
+
             extract_semantic_content(doc, Path("/tmp"), options)
 
-            # OCR components should not be initialized
-            mock_engine_class.assert_not_called()
-            mock_cache_class.assert_not_called()
+            # OCR components should be initialized
+            mock_engine_class.assert_called_once()
+            mock_cache_class.assert_called_once()
 
     def test_ocr_initialization_on_mode(self) -> None:
         """Test OCR components initialization in ON mode."""
@@ -401,13 +392,13 @@ class TestExtractSemanticContentOcrIntegration:
                 "pdf2foundry.ingest.content_extractor.TesseractOcrEngine",
                 side_effect=Exception("Init failed"),
             ),
-            patch("pdf2foundry.ingest.content_extractor.logging.getLogger") as mock_get_logger,
+            patch("pdf2foundry.ingest.content_extractor.logger") as mock_logger,
         ):
             # Should not raise exception
             result = extract_semantic_content(doc, Path("/tmp"), options)
 
             # Should log warning and continue
-            mock_get_logger.return_value.warning.assert_called()
+            mock_logger.warning.assert_called()
             assert len(result.pages) == 1
 
     def test_ocr_progress_callbacks(self) -> None:

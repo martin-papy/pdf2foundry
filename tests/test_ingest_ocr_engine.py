@@ -79,33 +79,26 @@ class TestTesseractOcrEngine:
     def test_init(self) -> None:
         """Test engine initialization."""
         engine = TesseractOcrEngine()
-        assert engine._pytesseract is None
         assert engine._available is None
 
     def test_is_available_success(self) -> None:
         """Test availability check when tesseract is available."""
         engine = TesseractOcrEngine()
 
-        mock_pytesseract = Mock()
-        mock_pytesseract.get_tesseract_version.return_value = "5.0.0"
-
-        def mock_ensure() -> Mock:
-            engine._available = True
-            return mock_pytesseract
-
-        with patch.object(engine, "_ensure_pytesseract", side_effect=mock_ensure):
+        with patch(
+            "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version", return_value="5.0.0"
+        ):
             assert engine.is_available() is True
             assert engine._available is True
 
     def test_is_available_import_error(self) -> None:
-        """Test availability check when pytesseract is not installed."""
+        """Test availability check when tesseract is not available."""
         engine = TesseractOcrEngine()
 
-        def mock_ensure_fail() -> None:
-            engine._available = False
-            raise ImportError("No module")
-
-        with patch.object(engine, "_ensure_pytesseract", side_effect=mock_ensure_fail):
+        with patch(
+            "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version",
+            side_effect=Exception("Tesseract not found"),
+        ):
             assert engine.is_available() is False
             assert engine._available is False
 
@@ -113,11 +106,10 @@ class TestTesseractOcrEngine:
         """Test availability check when tesseract binary is not available."""
         engine = TesseractOcrEngine()
 
-        def mock_ensure_fail() -> None:
-            engine._available = False
-            raise ImportError("Tesseract not found")
-
-        with patch.object(engine, "_ensure_pytesseract", side_effect=mock_ensure_fail):
+        with patch(
+            "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version",
+            side_effect=Exception("Tesseract not found"),
+        ):
             assert engine.is_available() is False
             assert engine._available is False
 
@@ -135,7 +127,25 @@ class TestTesseractOcrEngine:
         mock_pytesseract.image_to_osd.return_value = {"script": "Latin"}
         mock_pytesseract.Output.DICT = "dict"
 
-        with patch.object(engine, "_ensure_pytesseract", return_value=mock_pytesseract):
+        with (
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version",
+                return_value="5.0.0",
+            ),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_string",
+                return_value="Hello world",
+            ),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_data",
+                return_value={"conf": ["95", "90", "85"]},
+            ),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_osd",
+                return_value={"script": "Latin"},
+            ),
+            patch("pdf2foundry.ingest.ocr_engine.pytesseract.Output.DICT", "dict"),
+        ):
             results = engine.run(mock_image)
 
             assert len(results) == 1
@@ -155,7 +165,17 @@ class TestTesseractOcrEngine:
         mock_pytesseract.image_to_data.return_value = {"conf": []}
         mock_pytesseract.Output.DICT = "dict"
 
-        with patch.object(engine, "_ensure_pytesseract", return_value=mock_pytesseract):
+        with (
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version",
+                return_value="5.0.0",
+            ),
+            patch("pdf2foundry.ingest.ocr_engine.pytesseract.image_to_string", return_value=""),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_data", return_value={"conf": []}
+            ),
+            patch("pdf2foundry.ingest.ocr_engine.pytesseract.Output.DICT", "dict"),
+        ):
             results = engine.run(mock_image)
             assert len(results) == 0
 
@@ -165,13 +185,20 @@ class TestTesseractOcrEngine:
 
         mock_image = Mock(spec=Image.Image)
 
-        # Mock pytesseract raising an exception
-        mock_pytesseract = Mock()
-        mock_pytesseract.image_to_string.side_effect = Exception("OCR failed")
-        mock_pytesseract.Output.DICT = "dict"
-
         with (
-            patch.object(engine, "_ensure_pytesseract", return_value=mock_pytesseract),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version",
+                return_value="5.0.0",
+            ),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_string",
+                side_effect=Exception("OCR failed"),
+            ),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_data",
+                side_effect=Exception("OCR failed"),
+            ),
+            patch("pdf2foundry.ingest.ocr_engine.pytesseract.Output.DICT", "dict"),
             pytest.raises(Exception, match="OCR failed"),
         ):
             engine.run(mock_image)
@@ -181,12 +208,11 @@ class TestTesseractOcrEngine:
         engine = TesseractOcrEngine()
 
         with (
-            patch.object(
-                engine,
-                "_ensure_pytesseract",
-                side_effect=ImportError("pytesseract not available: No module"),
+            patch(
+                "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version",
+                side_effect=Exception("Tesseract not found"),
             ),
-            pytest.raises(ImportError, match="pytesseract not available"),
+            pytest.raises(Exception, match="Tesseract OCR is not available"),
         ):
             engine.run(Mock())
 
@@ -308,12 +334,6 @@ class TestTextCoverage:
 
 class TestNeedsOcr:
     """Test OCR necessity determination."""
-
-    def test_needs_ocr_off_mode(self) -> None:
-        """Test that OCR is never needed in OFF mode."""
-        assert needs_ocr("", "off") is False
-        assert needs_ocr("<p>Some text</p>", "off") is False
-        assert needs_ocr("<img src='test.png'>", "off") is False
 
     def test_needs_ocr_on_mode(self) -> None:
         """Test that OCR is always needed in ON mode."""

@@ -3,8 +3,6 @@
 This module defines our own pipeline configuration options that extend beyond
 the basic Docling PdfPipelineOptions to support advanced features like
 structured tables, OCR, and picture descriptions.
-
-Note: Defaults must not change observable output versus pre-feature release.
 """
 
 from __future__ import annotations
@@ -27,25 +25,19 @@ class OcrMode(Enum):
 
     AUTO = "auto"  # Run OCR only on pages with insufficient text coverage
     ON = "on"  # Always run OCR for all pages/images
-    OFF = "off"  # Never run OCR (current default)
 
 
 @dataclass
 class PdfPipelineOptions:
-    """Pipeline configuration options for PDF2Foundry processing.
+    """Pipeline configuration options for PDF2Foundry processing."""
 
-    Defaults preserve current behavior to ensure backward compatibility.
-    When all defaults are used, output should be identical to current pipeline
-    (modulo metadata fields that are purely additive and not rendered).
-    """
-
-    # Table processing mode (default: AUTO preserves current behavior)
+    # Table processing mode
     tables_mode: TableMode = TableMode.AUTO
 
-    # OCR processing mode (default: OFF preserves current no-OCR behavior)
-    ocr_mode: OcrMode = OcrMode.OFF
+    # OCR processing mode (default: AUTO for intelligent OCR)
+    ocr_mode: OcrMode = OcrMode.AUTO
 
-    # Enable picture descriptions/captions (default: False preserves current behavior)
+    # Enable picture descriptions/captions
     picture_descriptions: bool = False
 
     # VLM repository ID for picture descriptions (required when picture_descriptions=True)
@@ -59,7 +51,7 @@ class PdfPipelineOptions:
         cls,
         *,
         tables: str = "auto",
-        ocr: str = "off",
+        ocr: str = "auto",
         picture_descriptions: str = "off",
         vlm_repo_id: str | None = None,
         text_coverage_threshold: float = 0.05,
@@ -68,7 +60,7 @@ class PdfPipelineOptions:
 
         Args:
             tables: Table handling mode ("structured", "auto", "image-only")
-            ocr: OCR mode ("auto", "on", "off")
+            ocr: OCR mode ("auto", "on")
             picture_descriptions: Picture descriptions ("on", "off")
             vlm_repo_id: VLM repository ID for picture descriptions
             text_coverage_threshold: Text coverage threshold for AUTO OCR

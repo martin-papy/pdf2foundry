@@ -12,22 +12,23 @@ authors = [
   { name = "Martin Papy", email = "martin.papy@gmail.com" }
 ]
 dependencies = [
-  "typer>=0.12.0",
-  "jinja2>=3.1.0",
-  "pillow>=10.0.0",
-  "rich>=13.7.0",
-  "docling>=2.0.0",
-  "docling-core>=2.0.0",
+  "typer>=0.16.0",
+  "jinja2>=3.1.6",
+  "pillow>=11.3.0",
+  "rich>=14.1.0",
+  "docling>=2.53.0",
+  "docling-core>=2.48.1",
+  "pytesseract>=0.3.13",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "ruff>=0.4.0",
-  "black>=24.3.0",
-  "mypy>=1.8.0",
-  "pytest>=8.1.0",
-  "pytest-cov>=5.0.0",
-  "pre-commit>=3.6.0",
+  "ruff>=0.13.1",
+  "black>=25.9.0",
+  "mypy>=1.18.2",
+  "pytest>=8.4.2",
+  "pytest-cov>=7.0.0",
+  "pre-commit>=4.3.0",
 ]
 
 [project.urls]
@@ -70,6 +71,7 @@ module = [
   "docling_core.*",
   "pytest",
   "jinja2",
+  "pytesseract",
 ]
 ignore_missing_imports = true
 

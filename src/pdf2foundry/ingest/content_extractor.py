@@ -28,6 +28,8 @@ from pdf2foundry.model.content import (
 )
 from pdf2foundry.model.pipeline_options import PdfPipelineOptions, TableMode
 
+logger = logging.getLogger(__name__)
+
 ProgressCallback = Callable[[str, dict[str, int | str]], None] | None
 
 
@@ -149,7 +151,6 @@ def _apply_ocr_to_page(
     Returns:
         HTML content with OCR results merged in
     """
-    logger = logging.getLogger(__name__)
 
     # Check if OCR is needed for this page
     if not needs_ocr(html, options.ocr_mode.value, options.text_coverage_threshold):
@@ -335,26 +336,19 @@ def extract_semantic_content(
     tables: list[TableContent] = []
     links: list[LinkRef] = []
 
-    # Initialize OCR components if needed
-    ocr_engine = None
-    ocr_cache = None
-    if pipeline_options.ocr_mode.value != "off":
-        try:
-            ocr_engine = TesseractOcrEngine()
-            ocr_cache = OcrCache()
-            if ocr_engine.is_available():
-                _safe_emit(
-                    on_progress, "ocr:initialized", {"mode": pipeline_options.ocr_mode.value}
-                )
-            else:
-                _safe_emit(
-                    on_progress, "ocr:unavailable", {"mode": pipeline_options.ocr_mode.value}
-                )
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"OCR initialization failed: {e}")
+    # Initialize OCR components
+    try:
+        ocr_engine = TesseractOcrEngine()
+        ocr_cache = OcrCache()
+        if ocr_engine.is_available():
+            _safe_emit(on_progress, "ocr:initialized", {"mode": pipeline_options.ocr_mode.value})
+        else:
+            _safe_emit(on_progress, "ocr:unavailable", {"mode": pipeline_options.ocr_mode.value})
+    except Exception as e:
+        logger.warning(f"OCR initialization failed: {e}")
+        # Create dummy objects to avoid None checks
+        ocr_engine = None
+        ocr_cache = None
 
     # Per-page export with images embedded for reliable extraction
     for p in range(page_count):
@@ -448,7 +442,7 @@ def extract_semantic_content(
                 {"page_no": page_no, "count": len(page_links)},
             )
 
-        # OCR processing if enabled
+        # OCR processing
         if ocr_engine is not None and ocr_cache is not None:
             html = _apply_ocr_to_page(
                 doc, html, page_no, pipeline_options, ocr_engine, ocr_cache, on_progress

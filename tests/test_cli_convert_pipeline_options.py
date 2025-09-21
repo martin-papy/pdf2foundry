@@ -40,7 +40,7 @@ def test_cli_convert_default_pipeline_options(temp_pdf: str) -> None:
 
         # Check default values are displayed
         assert "Table Handling: auto" in result.stdout
-        assert "OCR Mode: off" in result.stdout
+        assert "OCR Mode: auto" in result.stdout
         assert "Picture Descriptions: No" in result.stdout
 
     finally:
@@ -284,7 +284,7 @@ def test_cli_convert_all_tables_modes(temp_pdf: str, tables_mode: str) -> None:
         Path(temp_pdf).unlink(missing_ok=True)
 
 
-@pytest.mark.parametrize("ocr_mode", ["auto", "on", "off"])  # type: ignore[misc]
+@pytest.mark.parametrize("ocr_mode", ["auto", "on"])  # type: ignore[misc]
 def test_cli_convert_all_ocr_modes(temp_pdf: str, ocr_mode: str) -> None:
     """Test CLI with all valid OCR modes."""
     runner = CliRunner()

@@ -10,8 +10,9 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
+import pytesseract
 from PIL import Image  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
@@ -94,33 +95,19 @@ class TesseractOcrEngine:
 
     def __init__(self) -> None:
         """Initialize Tesseract OCR engine."""
-        self._pytesseract = None
         self._available: bool | None = None
-
-    def _ensure_pytesseract(self) -> Any:
-        """Lazy-load pytesseract module."""
-        if self._pytesseract is None:
-            try:
-                import pytesseract  # type: ignore[import-not-found]
-
-                self._pytesseract = pytesseract
-                # Test if tesseract is actually available
-                pytesseract.get_tesseract_version()
-                self._available = True
-            except (ImportError, Exception) as e:
-                logger.warning(f"Tesseract OCR not available: {e}")
-                self._available = False
-                raise ImportError(f"pytesseract not available: {e}") from e
-        return self._pytesseract
 
     def is_available(self) -> bool:
         """Check if Tesseract is available."""
         if self._available is None:
-            from contextlib import suppress
-
-            with suppress(ImportError):
-                self._ensure_pytesseract()
-        return self._available or False
+            try:
+                # Test if tesseract is actually available
+                pytesseract.get_tesseract_version()
+                self._available = True
+            except Exception as e:
+                logger.warning(f"Tesseract OCR not available: {e}")
+                self._available = False
+        return self._available
 
     def run(
         self,
@@ -140,7 +127,8 @@ class TesseractOcrEngine:
             ImportError: If pytesseract is not available
             Exception: If OCR processing fails
         """
-        pytesseract = self._ensure_pytesseract()
+        if not self.is_available():
+            raise Exception("Tesseract OCR is not available")
 
         # Convert input to PIL Image
         if isinstance(image, Path | str):

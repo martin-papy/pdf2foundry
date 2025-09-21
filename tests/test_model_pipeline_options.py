@@ -33,13 +33,11 @@ class TestOcrMode:
         """Test enum values match expected CLI strings."""
         assert OcrMode.AUTO.value == "auto"
         assert OcrMode.ON.value == "on"
-        assert OcrMode.OFF.value == "off"
 
     def test_enum_from_string(self) -> None:
         """Test creating enum from string values."""
         assert OcrMode("auto") == OcrMode.AUTO
         assert OcrMode("on") == OcrMode.ON
-        assert OcrMode("off") == OcrMode.OFF
 
     def test_invalid_string_raises_error(self) -> None:
         """Test invalid string raises ValueError."""
@@ -51,12 +49,11 @@ class TestPdfPipelineOptions:
     """Test PdfPipelineOptions dataclass."""
 
     def test_default_values(self) -> None:
-        """Test default values preserve current behavior."""
+        """Test default values."""
         options = PdfPipelineOptions()
 
-        # Defaults must preserve current behavior
         assert options.tables_mode == TableMode.AUTO
-        assert options.ocr_mode == OcrMode.OFF
+        assert options.ocr_mode == OcrMode.AUTO
         assert options.picture_descriptions is False
         assert options.vlm_repo_id is None
         assert options.text_coverage_threshold == 0.05
@@ -66,7 +63,7 @@ class TestPdfPipelineOptions:
         options = PdfPipelineOptions.from_cli()
 
         assert options.tables_mode == TableMode.AUTO
-        assert options.ocr_mode == OcrMode.OFF
+        assert options.ocr_mode == OcrMode.AUTO
         assert options.picture_descriptions is False
         assert options.vlm_repo_id is None
         assert options.text_coverage_threshold == 0.05
@@ -142,15 +139,13 @@ class TestPdfPipelineOptions:
         assert "vlm_repo_id='test-model'" in repr_str
         assert "text_coverage_threshold=0.1" in repr_str
 
-    def test_backward_compatibility_snapshot(self) -> None:
-        """Test that defaults match current behavior expectations."""
-        # This test serves as a snapshot to ensure defaults don't change
-        # and break backward compatibility
+    def test_current_defaults_snapshot(self) -> None:
+        """Test that defaults match current CLI behavior."""
         options = PdfPipelineOptions()
 
-        # These values must match current CLI defaults
+        # These values match current CLI defaults
         assert options.tables_mode.value == "auto"  # Current --tables default
-        assert options.ocr_mode.value == "off"  # Current no-OCR behavior
+        assert options.ocr_mode.value == "auto"  # OCR enabled by default
         assert options.picture_descriptions is False  # Current no-captions behavior
         assert options.vlm_repo_id is None  # No VLM by default
         assert options.text_coverage_threshold == 0.05  # Reasonable default for AUTO OCR

@@ -34,7 +34,7 @@ def run_conversion_pipeline(
     docling_json: Path | None,
     write_docling_json: bool,
     fallback_on_json_failure: bool,
-    ocr: str = "off",
+    ocr: str = "auto",
     picture_descriptions: str = "off",
     vlm_repo_id: str | None = None,
 ) -> None:
