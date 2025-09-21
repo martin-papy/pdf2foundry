@@ -7,6 +7,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Literal, Protocol
 
+from pdf2foundry.ingest.caption_processor import (
+    apply_captions_to_images,
+    initialize_caption_components,
+)
 from pdf2foundry.ingest.ocr_engine import (
     OcrCache,
     OcrResult,
@@ -350,6 +354,9 @@ def extract_semantic_content(
         ocr_engine = None
         ocr_cache = None
 
+    # Initialize Caption components
+    caption_engine, caption_cache = initialize_caption_components(pipeline_options, on_progress)
+
     # Per-page export with images embedded for reliable extraction
     for p in range(page_count):
         page_no = p + 1
@@ -452,6 +459,12 @@ def extract_semantic_content(
 
     # Replace structured table placeholders with actual HTML before finalizing
     replace_table_placeholders_in_pages(pages, tables)
+
+    # Apply captions to images if picture descriptions are enabled
+    if images and pipeline_options.picture_descriptions:
+        apply_captions_to_images(
+            images, out_assets, pipeline_options, caption_engine, caption_cache, on_progress
+        )
 
     _safe_emit(
         on_progress,
