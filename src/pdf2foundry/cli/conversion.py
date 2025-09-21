@@ -15,6 +15,7 @@ from pdf2foundry.ingest.content_extractor import extract_semantic_content
 from pdf2foundry.ingest.docling_parser import parse_structure_from_doc
 from pdf2foundry.ingest.ingestion import JsonOpts, ingest_docling
 from pdf2foundry.model.foundry import JournalEntry
+from pdf2foundry.model.pipeline_options import PdfPipelineOptions
 from pdf2foundry.ui.progress import ProgressReporter
 
 
@@ -33,6 +34,9 @@ def run_conversion_pipeline(
     docling_json: Path | None,
     write_docling_json: bool,
     fallback_on_json_failure: bool,
+    ocr: str = "off",
+    picture_descriptions: str = "off",
+    vlm_repo_id: str | None = None,
 ) -> None:
     """Run the main conversion pipeline."""
     # Keep placeholder path for minimal PDFs used in unit tests
@@ -76,11 +80,19 @@ def run_conversion_pipeline(
             # Parse structure from the existing Docling doc
             parsed_doc = parse_structure_from_doc(dl_doc, on_progress=_emit)
 
+            # Create pipeline options from CLI arguments
+            pipeline_options = PdfPipelineOptions.from_cli(
+                tables=tables,
+                ocr=ocr,
+                picture_descriptions=picture_descriptions,
+                vlm_repo_id=vlm_repo_id,
+            )
+
             # Extract semantic content (HTML + images/tables/links)
             content = extract_semantic_content(
                 dl_doc,
                 out_assets=assets_dir,
-                table_mode=tables,  # TODO: Use pipeline_options.tables_mode.value in Task 14.4
+                options=pipeline_options,
                 on_progress=_emit,
             )
 

@@ -30,7 +30,7 @@ class _FakeDocReferenced:
 
 
 def test_extract_embedded_base64_image(tmp_path: Path) -> None:
-    out = extract_semantic_content(_FakeDocEmbedded(), tmp_path, table_mode="auto")
+    out = extract_semantic_content(_FakeDocEmbedded(), tmp_path, options="auto")
     # One page, one image extracted
     assert len(out.images) == 1
     # File exists on disk in assets dir
@@ -45,7 +45,7 @@ def test_copy_referenced_local_image(tmp_path: Path) -> None:
     # Create a small binary to represent an image
     src_img = tmp_path / "orig.png"
     src_img.write_bytes(b"\x89PNG\r\n\x1a\n")
-    out = extract_semantic_content(_FakeDocReferenced(src_img), tmp_path, table_mode="auto")
+    out = extract_semantic_content(_FakeDocReferenced(src_img), tmp_path, options="auto")
     # Should have at least one referenced image copied
     assert any(img.name == src_img.name for img in out.images)
     # Copied file exists under assets/

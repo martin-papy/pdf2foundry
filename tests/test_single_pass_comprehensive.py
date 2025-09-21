@@ -122,7 +122,7 @@ class TestSinglePassConversion:
             structure_docs.append(doc)
             return Mock(page_count=doc.num_pages(), outline=[])
 
-        def mock_extract_content(doc: Any, out_assets: Path, table_mode: str, **_: Any) -> Any:
+        def mock_extract_content(doc: Any, out_assets: Path, options: str, **_: Any) -> Any:
             content_docs.append(doc)
             return Mock(pages=[], images=[], tables=[], links=[])
 
@@ -143,7 +143,7 @@ class TestSinglePassConversion:
         from pdf2foundry.ingest.docling_parser import parse_structure_from_doc
 
         parse_structure_from_doc(doc)
-        extract_semantic_content(doc, Path("/tmp/out"), table_mode="auto")
+        extract_semantic_content(doc, Path("/tmp/out"), options="auto")
 
         # All three should have received the same instance
         assert doc is test_doc
@@ -339,7 +339,7 @@ class TestJSONRoundtrip:
         original_doc = _TestDoc(pages=4)
 
         # Mock content extraction to return consistent results based on doc pages
-        def mock_extract(doc: Any, output_dir: Path, table_mode: str, **_: Any) -> Any:
+        def mock_extract(doc: Any, output_dir: Path, options: str, **_: Any) -> Any:
             from pdf2foundry.model.content import HtmlPage, ParsedContent
 
             pages = [
@@ -352,14 +352,14 @@ class TestJSONRoundtrip:
         )
 
         # Extract from original
-        original_content = extract_semantic_content(original_doc, tmp_path, table_mode="auto")
+        original_content = extract_semantic_content(original_doc, tmp_path, options="auto")
 
         # Serialize and deserialize
         json_text = doc_to_json(original_doc)
         roundtrip_doc = doc_from_json(json_text)
 
         # Extract from roundtrip doc
-        roundtrip_content = extract_semantic_content(roundtrip_doc, tmp_path, table_mode="auto")
+        roundtrip_content = extract_semantic_content(roundtrip_doc, tmp_path, options="auto")
 
         # Compare outputs - both should have same number of pages
         assert len(original_content.pages) == len(roundtrip_content.pages)

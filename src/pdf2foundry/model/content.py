@@ -288,10 +288,11 @@ class ImageAsset:
 
 @dataclass(slots=True)
 class TableContent:
-    kind: Literal["html", "image"]
+    kind: Literal["html", "image", "structured"]
     page_no: int  # 1-based
     html: str | None = None
     image_name: str | None = None
+    structured_table: StructuredTable | None = None
 
 
 @dataclass(slots=True)

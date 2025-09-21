@@ -288,6 +288,9 @@ def convert(
         docling_json=docling_json,
         write_docling_json=write_docling_json,
         fallback_on_json_failure=fallback_on_json_failure,
+        ocr=ocr,
+        picture_descriptions=picture_descriptions,
+        vlm_repo_id=vlm_repo_id,
     )
 
 
