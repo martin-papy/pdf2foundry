@@ -15,6 +15,7 @@ from typing import Any
 from PIL import Image  # type: ignore[import-not-found]
 
 from pdf2foundry.ingest.caption_engine import CaptionCache, HFCaptionEngine
+from pdf2foundry.ingest.feature_logger import log_error_policy, log_feature_availability
 from pdf2foundry.model.content import ImageAsset
 from pdf2foundry.model.pipeline_options import PdfPipelineOptions
 
@@ -137,6 +138,12 @@ def initialize_caption_components(
 
     if options.picture_descriptions:
         if options.vlm_repo_id is None:
+            log_error_policy(
+                "Captions",
+                "no_vlm_repo_id",
+                "skip",
+                "Picture descriptions enabled but no VLM repository ID provided",
+            )
             logger.warning(
                 "Picture descriptions enabled but no VLM repository ID provided. "
                 "Image captions will be skipped."
@@ -152,18 +159,26 @@ def initialize_caption_components(
                     cache_size = 2000
                 caption_cache = CaptionCache(max_size=cache_size)
                 if caption_engine.is_available():
+                    log_feature_availability("Captions", True)
                     _safe_emit(
                         on_progress,
                         "caption:initialized",
                         {"model_id": options.vlm_repo_id},
                     )
                 else:
+                    log_feature_availability("Captions", False, "VLM model not available")
                     _safe_emit(
                         on_progress,
                         "caption:unavailable",
                         {"model_id": options.vlm_repo_id},
                     )
             except Exception as e:
+                log_error_policy(
+                    "Captions",
+                    "model_load_failed",
+                    "continue",
+                    f"VLM model '{options.vlm_repo_id}' failed to load: {e}",
+                )
                 logger.error(f"Caption engine initialization failed: {e}")
                 _safe_emit(
                     on_progress,

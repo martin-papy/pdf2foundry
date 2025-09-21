@@ -42,9 +42,6 @@ def _count_chapters_sections(nodes: list[OutlineNode]) -> tuple[int, int]:
     return chapters, sections
 
 
-# Removed deprecated parse_pdf_structure(pdf: Path, ...) API. Use parse_structure_from_doc instead.
-
-
 def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> ParsedDocument:  # type: ignore[no-untyped-def]
     """Parse document structure from a pre-loaded Docling document.
 

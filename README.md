@@ -47,7 +47,10 @@ pdf2foundry convert \
   --license "OGL" \
   --pack-name "my-book-journals" \
   --toc/--no-toc \
-  --tables auto|image-only \
+  --tables auto|structured|image-only \
+  --ocr auto|on|off \
+  --picture-descriptions on|off \
+  --vlm-repo-id <huggingface-model-id> \
   --deterministic-ids/--no-deterministic-ids \
   --out-dir dist \
   --compile-pack/--no-compile-pack \
@@ -70,7 +73,13 @@ pdf2foundry convert \
 
 - `--toc`: Generate TOC entry (default: enabled)
 
-- `--tables`: `auto` (default) or `image-only`
+- `--tables`: Table processing mode - `auto` (default), `structured`, or `image-only`
+
+- `--ocr`: OCR processing mode - `auto` (default), `on`, or `off`
+
+- `--picture-descriptions`: Enable image captions - `on` or `off` (default)
+
+- `--vlm-repo-id`: Hugging Face model ID for image captions (required when `--picture-descriptions=on`)
 
 - `--deterministic-ids`: Use deterministic IDs (default: enabled)
 
@@ -85,6 +94,66 @@ pdf2foundry convert \
 - `--write-docling-json`: Save Docling JSON to default cache location (default: disabled)
 
 - `--fallback-on-json-failure`: If JSON loading fails, fall back to conversion (default: disabled)
+
+### Feature Examples
+
+**Basic conversion (default behavior):**
+
+```bash
+pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book"
+```
+
+**With structured table extraction:**
+
+```bash
+pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --tables structured
+```
+
+**With OCR for scanned pages:**
+
+```bash
+pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --ocr on
+```
+
+**With image captions:**
+
+```bash
+pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --picture-descriptions on --vlm-repo-id "Salesforce/blip-image-captioning-base"
+```
+
+**All features enabled:**
+
+```bash
+pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --tables structured --ocr auto --picture-descriptions on \
+  --vlm-repo-id "Salesforce/blip-image-captioning-base"
+```
+
+### Optional Dependencies
+
+Some features require additional system dependencies:
+
+- **OCR features** (`--ocr on|auto`): Requires Tesseract OCR
+
+  ```bash
+  # macOS
+  brew install tesseract
+
+  # Ubuntu/Debian
+  sudo apt-get install tesseract-ocr
+
+  # Windows
+  # Download from https://github.com/UB-Mannheim/tesseract/wiki
+  ```
+
+- **Image captions** (`--picture-descriptions on`): Requires transformers library and a VLM model
+
+  - Models are downloaded automatically from Hugging Face
+  - Popular models: `Salesforce/blip-image-captioning-base`, `microsoft/DialoGPT-medium`
+  - First run may take time to download models
 
 ## Output Layout
 

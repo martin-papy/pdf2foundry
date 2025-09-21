@@ -7,6 +7,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from pdf2foundry.ingest.feature_logger import log_error_policy
 from pdf2foundry.ingest.ocr_engine import (
     OcrCache,
     OcrResult,
@@ -61,8 +62,14 @@ def apply_ocr_to_page(
     # Check if OCR engine is available
     if not ocr_engine.is_available():
         if options.ocr_mode.value == "on":
+            log_error_policy(
+                "OCR", "missing_dependency", "continue", "OCR mode 'on' but Tesseract not available"
+            )
             logger.error(f"Page {page_no}: OCR requested but Tesseract not available")
         else:
+            log_error_policy(
+                "OCR", "missing_dependency", "skip", "OCR mode 'auto' but Tesseract not available"
+            )
             logger.warning(f"Page {page_no}: OCR auto-triggered but Tesseract not available")
         return html
 
@@ -109,8 +116,10 @@ def apply_ocr_to_page(
 
     except Exception as e:
         if options.ocr_mode.value == "on":
+            log_error_policy("OCR", "processing_failed", "continue", f"OCR processing failed: {e}")
             logger.error(f"Page {page_no}: OCR processing failed: {e}")
         else:
+            log_error_policy("OCR", "processing_failed", "skip", f"OCR processing failed: {e}")
             logger.warning(f"Page {page_no}: OCR processing failed: {e}")
         return html
 

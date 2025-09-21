@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from pdf2foundry.ingest.feature_logger import log_feature_decision
 from pdf2foundry.ingest.structured_tables import _extract_structured_tables
 from pdf2foundry.model.content import TableContent
 from pdf2foundry.model.pipeline_options import PdfPipelineOptions, TableMode
@@ -86,6 +87,9 @@ def _process_tables_with_options(
 
     # Handle IMAGE_ONLY mode - skip structured extraction entirely
     if options.tables_mode == TableMode.IMAGE_ONLY:
+        log_feature_decision(
+            "Tables", "force_rasterization", {"page": page_no, "mode": "IMAGE_ONLY"}
+        )
         logger.debug(
             "Table mode IMAGE_ONLY: forcing rasterization for all tables on page %d", page_no
         )
@@ -95,6 +99,9 @@ def _process_tables_with_options(
     structured_tables = _extract_structured_tables(doc, page_no)
 
     if not structured_tables:
+        log_feature_decision(
+            "Tables", "fallback_to_html", {"page": page_no, "reason": "no_structured_tables"}
+        )
         logger.debug(
             "No structured tables found on page %d, falling back to HTML processing", page_no
         )
@@ -102,6 +109,9 @@ def _process_tables_with_options(
         if options.tables_mode == TableMode.AUTO:
             return _process_tables(html, page_no, assets_dir, "auto", name_prefix)
         else:  # STRUCTURED mode
+            log_feature_decision(
+                "Tables", "structured_mode_fallback", {"page": page_no, "mode": "STRUCTURED"}
+            )
             logger.warning(
                 "STRUCTURED mode requested but no structured tables found on page %d", page_no
             )

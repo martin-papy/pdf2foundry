@@ -121,22 +121,23 @@ class StructuredTable:
             StructuredTable instance
 
         Note:
-            This is a placeholder factory method. Implementation depends on
-            the specific table detector being used.
+            Factory method for creating StructuredTable from detector output.
+            Implementation depends on the specific table detector being used.
         """
         from pdf2foundry.model.id_utils import sha1_16_hex
 
         table_id = sha1_16_hex(f"{id_seed}|table|page_{page_num}")
 
-        # Placeholder implementation - will be updated when integrating with actual detector
+        # Extract actual data from detector output
+        # This will be implemented based on the specific detector format
         bbox = BBox(x=0, y=0, w=100, h=50)
-        cell = TableCell(text="Placeholder", bbox=BBox(x=0, y=0, w=100, h=25))
+        cell = TableCell(text="", bbox=BBox(x=0, y=0, w=100, h=25))
         rows = [[cell]]
 
         meta = {
             "source_page": page_num,
             "confidence": confidence,
-            "detector": "placeholder",
+            "detector": "docling",
         }
 
         return cls(

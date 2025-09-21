@@ -143,7 +143,9 @@ class TestSinglePassConversion:
         from pdf2foundry.ingest.docling_parser import parse_structure_from_doc
 
         parse_structure_from_doc(doc)
-        extract_semantic_content(doc, Path("/tmp/out"), options="auto")
+        from pdf2foundry.model.pipeline_options import PdfPipelineOptions
+
+        extract_semantic_content(doc, Path("/tmp/out"), PdfPipelineOptions())
 
         # All three should have received the same instance
         assert doc is test_doc
@@ -352,14 +354,16 @@ class TestJSONRoundtrip:
         )
 
         # Extract from original
-        original_content = extract_semantic_content(original_doc, tmp_path, options="auto")
+        from pdf2foundry.model.pipeline_options import PdfPipelineOptions
+
+        original_content = extract_semantic_content(original_doc, tmp_path, PdfPipelineOptions())
 
         # Serialize and deserialize
         json_text = doc_to_json(original_doc)
         roundtrip_doc = doc_from_json(json_text)
 
         # Extract from roundtrip doc
-        roundtrip_content = extract_semantic_content(roundtrip_doc, tmp_path, options="auto")
+        roundtrip_content = extract_semantic_content(roundtrip_doc, tmp_path, PdfPipelineOptions())
 
         # Compare outputs - both should have same number of pages
         assert len(original_content.pages) == len(roundtrip_content.pages)

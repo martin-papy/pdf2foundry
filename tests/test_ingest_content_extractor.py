@@ -40,7 +40,7 @@ def test_extract_semantic_content(tmp_path: Path) -> None:
         events.append({"event": event, **payload})
 
     out = extract_semantic_content(
-        doc, tmp_path / "assets", options="auto", on_progress=on_progress
+        doc, tmp_path / "assets", PdfPipelineOptions(), on_progress=on_progress
     )
     # two pages created
     assert len(out.pages) == 2
@@ -61,7 +61,11 @@ def test_extract_semantic_content_no_contentlayer(monkeypatch: Any, tmp_path: Pa
 
     sys.modules.pop("docling_core.types.doc.document", None)
     doc = _Doc(1)
-    out = extract_semantic_content(doc, tmp_path / "assets2", options="image-only")
+    from pdf2foundry.model.pipeline_options import PdfPipelineOptions, TableMode
+
+    out = extract_semantic_content(
+        doc, tmp_path / "assets2", PdfPipelineOptions(tables_mode=TableMode.IMAGE_ONLY)
+    )
     assert len(out.pages) == 1
     # in image-only mode, tables become images
     assert out.tables and out.tables[0].kind == "image"

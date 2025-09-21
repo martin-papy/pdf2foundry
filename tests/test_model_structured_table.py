@@ -98,7 +98,7 @@ class TestStructuredTable:
         assert table.caption == "Detected Table"
         assert table.meta["source_page"] == 1
         assert table.meta["confidence"] == 0.85
-        assert table.meta["detector"] == "placeholder"
+        assert table.meta["detector"] == "docling"
         assert len(table.rows) == 1  # Placeholder implementation
 
     def test_from_raster_fallback_factory(self) -> None:

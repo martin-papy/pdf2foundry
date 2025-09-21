@@ -39,6 +39,24 @@ alwaysApply: true
 - **ALWAYS** run quality gates even for documentation-only changes
 - **ALWAYS** show the user the results of quality gate execution
 
+## Pre-Release Code Cleanup Requirements
+
+**CRITICAL**: Since we have not yet done our initial release, we do NOT want any backward compatibility or deprecation code:
+
+- **Remove ALL backward compatibility code** - we can break things freely before v1.0
+- **Remove ALL deprecated functions, classes, or methods** - clean slate approach
+- **Remove ALL unused functions** - keep the codebase lean and focused
+- **Clean up ANY legacy code patterns** - modernize everything
+- **Remove ANY "TODO: remove in v2.0" style comments** - remove the code now
+
+When implementing any task, actively look for and remove:
+
+- Deprecated imports or functions
+- Unused utility functions
+- Legacy compatibility shims
+- Old API endpoints or methods that are no longer needed
+- Any code marked with deprecation warnings
+
 ## Command Execution Pattern
 
 When completing any task implementation:

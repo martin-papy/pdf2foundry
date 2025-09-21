@@ -11,6 +11,10 @@ from pdf2foundry.ingest.caption_processor import (
     apply_captions_to_images,
     initialize_caption_components,
 )
+from pdf2foundry.ingest.feature_logger import (
+    log_feature_availability,
+    log_pipeline_configuration,
+)
 from pdf2foundry.ingest.ocr_engine import OcrCache, TesseractOcrEngine
 from pdf2foundry.ingest.ocr_processor import apply_ocr_to_page
 from pdf2foundry.ingest.table_processor import (
@@ -130,7 +134,7 @@ def _detect_links(html: str, page_no: int) -> list[LinkRef]:
 def extract_semantic_content(
     doc: DocumentLike,
     out_assets: Path,
-    options: PdfPipelineOptions | str,
+    options: PdfPipelineOptions,
     on_progress: ProgressCallback = None,
 ) -> ParsedContent:
     """Extract content from a pre-loaded Docling document for Foundry VTT.
@@ -143,7 +147,7 @@ def extract_semantic_content(
     Args:
         doc: A DoclingDocument-like object with num_pages() and export_to_html() methods
         out_assets: Directory where extracted images and assets will be saved
-        options: PdfPipelineOptions with table/OCR/caption settings, or legacy string table_mode
+        options: PdfPipelineOptions with table/OCR/caption settings
         on_progress: Optional callback for progress events
 
     Returns:
@@ -153,23 +157,9 @@ def extract_semantic_content(
         - Images embedded as base64 are extracted to files and srcs rewritten
         - Links are collected from anchor tags in the HTML
         - Tables support structured extraction, HTML fallback, or image-only modes
-        - Backward compatibility maintained for string table_mode parameter
     """
 
-    # Handle backward compatibility for string table_mode parameter
-    if isinstance(options, str):
-        # Legacy string mode - convert to PdfPipelineOptions
-        table_mode = options
-        if table_mode == "auto":
-            pipeline_options = PdfPipelineOptions(tables_mode=TableMode.AUTO)
-        elif table_mode == "image-only":
-            pipeline_options = PdfPipelineOptions(tables_mode=TableMode.IMAGE_ONLY)
-        else:
-            pipeline_options = PdfPipelineOptions(tables_mode=TableMode.AUTO)
-    else:
-        # New PdfPipelineOptions format
-        pipeline_options = options
-        table_mode = pipeline_options.tables_mode.value  # For legacy _process_tables calls
+    pipeline_options = options
 
     # Determine page count
     try:
@@ -178,6 +168,9 @@ def extract_semantic_content(
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
     _safe_emit(on_progress, "extract_content:start", {"page_count": page_count})
+
+    # Log pipeline configuration for debugging
+    log_pipeline_configuration(pipeline_options)
 
     image_mode: object | None = None
     try:
@@ -220,10 +213,13 @@ def extract_semantic_content(
         ocr_cache_size = cache_limits.ocr_cache if shared_image_cache else 2000
         ocr_cache = OcrCache(max_size=ocr_cache_size)
         if ocr_engine.is_available():
+            log_feature_availability("OCR", True)
             _safe_emit(on_progress, "ocr:initialized", {"mode": pipeline_options.ocr_mode.value})
         else:
+            log_feature_availability("OCR", False, "Tesseract not available")
             _safe_emit(on_progress, "ocr:unavailable", {"mode": pipeline_options.ocr_mode.value})
     except Exception as e:
+        log_feature_availability("OCR", False, f"Initialization failed: {e}")
         logger.warning(f"OCR initialization failed: {e}")
         # Create dummy objects to avoid None checks
         ocr_engine = None
@@ -312,7 +308,7 @@ def extract_semantic_content(
         else:
             # Fall back to legacy HTML-only processing
             html, page_tables = _process_tables(
-                html, page_no, out_assets, table_mode, f"page-{page_no:04d}"
+                html, page_no, out_assets, pipeline_options.tables_mode.value, f"page-{page_no:04d}"
             )
         tables.extend(page_tables)
 
