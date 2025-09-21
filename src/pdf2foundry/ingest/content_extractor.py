@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import base64
+import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal, Protocol
 
+from pdf2foundry.ingest.ocr_engine import (
+    OcrCache,
+    OcrResult,
+    TesseractOcrEngine,
+    compute_text_coverage,
+    needs_ocr,
+)
 from pdf2foundry.ingest.table_processor import (
     _process_tables,
     _process_tables_with_options,
@@ -118,6 +126,147 @@ def _detect_links(html: str, page_no: int) -> list[LinkRef]:
     return links
 
 
+def _apply_ocr_to_page(
+    doc: DocumentLike,
+    html: str,
+    page_no: int,
+    options: PdfPipelineOptions,
+    ocr_engine: TesseractOcrEngine,
+    ocr_cache: OcrCache,
+    on_progress: ProgressCallback = None,
+) -> str:
+    """Apply OCR processing to a page if needed and merge results into HTML.
+
+    Args:
+        doc: Document object for page rasterization
+        html: Current HTML content for the page
+        page_no: 1-based page number
+        options: Pipeline options with OCR settings
+        ocr_engine: OCR engine instance
+        ocr_cache: OCR result cache
+        on_progress: Progress callback
+
+    Returns:
+        HTML content with OCR results merged in
+    """
+    logger = logging.getLogger(__name__)
+
+    # Check if OCR is needed for this page
+    if not needs_ocr(html, options.ocr_mode.value, options.text_coverage_threshold):
+        logger.debug(f"Page {page_no}: OCR not needed (mode={options.ocr_mode.value})")
+        return html
+
+    # Check if OCR engine is available
+    if not ocr_engine.is_available():
+        if options.ocr_mode.value == "on":
+            logger.error(f"Page {page_no}: OCR requested but Tesseract not available")
+        else:
+            logger.warning(f"Page {page_no}: OCR auto-triggered but Tesseract not available")
+        return html
+
+    try:
+        # Get page as image for OCR
+        page_image = _rasterize_page(doc, page_no)
+        if page_image is None:
+            logger.warning(f"Page {page_no}: Could not rasterize page for OCR")
+            return html
+
+        # Check cache first
+        ocr_results = ocr_cache.get(page_image)
+        if ocr_results is None:
+            # Run OCR
+            logger.info(f"Page {page_no}: Running OCR (coverage={compute_text_coverage(html):.3f})")
+            ocr_results = ocr_engine.run(page_image)
+            ocr_cache.set(page_image, None, ocr_results)
+
+            _safe_emit(
+                on_progress,
+                "ocr:page_processed",
+                {"page_no": page_no, "results_count": len(ocr_results)},
+            )
+        else:
+            logger.debug(f"Page {page_no}: Using cached OCR results")
+
+        # Merge OCR results into HTML
+        if ocr_results:
+            ocr_html = _merge_ocr_results(ocr_results, html)
+            logger.info(f"Page {page_no}: OCR added {len(ocr_results)} text blocks")
+            return ocr_html
+        else:
+            logger.info(f"Page {page_no}: OCR found no text")
+            return html
+
+    except Exception as e:
+        if options.ocr_mode.value == "on":
+            logger.error(f"Page {page_no}: OCR processing failed: {e}")
+        else:
+            logger.warning(f"Page {page_no}: OCR processing failed: {e}")
+        return html
+
+
+def _rasterize_page(doc: DocumentLike, page_no: int) -> object | None:
+    """Rasterize a page to a PIL Image for OCR processing.
+
+    Args:
+        doc: Document object
+        page_no: 1-based page number
+
+    Returns:
+        PIL Image of the page, or None if rasterization fails
+    """
+    try:
+        # Try to use Docling's page rasterization if available
+        if hasattr(doc, "pages") and hasattr(doc, "render_page"):
+            # Use Docling's built-in page rendering
+            page_image = doc.render_page(page_no - 1)  # Docling uses 0-based indexing
+            return page_image  # type: ignore[no-any-return]
+
+        # Fallback: try to export page as image via other methods
+        # This is a simplified approach - in practice, you might need
+        # to use pdf2image or similar libraries
+
+        # For now, return None to indicate rasterization not available
+        # In a full implementation, you would use pdf2image or similar
+        return None
+
+    except Exception:
+        return None
+
+
+def _merge_ocr_results(ocr_results: list[OcrResult], html: str) -> str:
+    """Merge OCR results into existing HTML content.
+
+    Args:
+        ocr_results: List of OcrResult objects
+        html: Existing HTML content
+
+    Returns:
+        HTML with OCR results appended
+    """
+    if not ocr_results:
+        return html
+
+    # Create OCR content section
+    ocr_html_parts = ['<div class="ocr-content" data-source="ocr">']
+
+    for result in ocr_results:
+        if result.text.strip():
+            ocr_html_parts.append(f"<p>{result.to_html_span()}</p>")
+
+    ocr_html_parts.append("</div>")
+
+    # Append OCR content to existing HTML
+    # Insert before closing body/html tags if present, otherwise append
+    ocr_content = "\n".join(ocr_html_parts)
+
+    if "</body>" in html:
+        return html.replace("</body>", f"{ocr_content}\n</body>")
+    elif "</html>" in html:
+        return html.replace("</html>", f"{ocr_content}\n</html>")
+    else:
+        return html + "\n" + ocr_content
+
+
 def extract_semantic_content(
     doc: DocumentLike,
     out_assets: Path,
@@ -185,6 +334,27 @@ def extract_semantic_content(
     images: list[ImageAsset] = []
     tables: list[TableContent] = []
     links: list[LinkRef] = []
+
+    # Initialize OCR components if needed
+    ocr_engine = None
+    ocr_cache = None
+    if pipeline_options.ocr_mode.value != "off":
+        try:
+            ocr_engine = TesseractOcrEngine()
+            ocr_cache = OcrCache()
+            if ocr_engine.is_available():
+                _safe_emit(
+                    on_progress, "ocr:initialized", {"mode": pipeline_options.ocr_mode.value}
+                )
+            else:
+                _safe_emit(
+                    on_progress, "ocr:unavailable", {"mode": pipeline_options.ocr_mode.value}
+                )
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"OCR initialization failed: {e}")
 
     # Per-page export with images embedded for reliable extraction
     for p in range(page_count):
@@ -276,6 +446,12 @@ def extract_semantic_content(
                 on_progress,
                 "extract_content:links_detected",
                 {"page_no": page_no, "count": len(page_links)},
+            )
+
+        # OCR processing if enabled
+        if ocr_engine is not None and ocr_cache is not None:
+            html = _apply_ocr_to_page(
+                doc, html, page_no, pipeline_options, ocr_engine, ocr_cache, on_progress
             )
 
         pages.append(HtmlPage(html=html, page_no=page_no))
