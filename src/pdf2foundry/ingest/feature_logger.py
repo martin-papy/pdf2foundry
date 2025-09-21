@@ -141,8 +141,8 @@ def log_error_policy(
 
 
 __all__ = [
-    "log_pipeline_configuration",
+    "log_error_policy",
     "log_feature_availability",
     "log_feature_decision",
-    "log_error_policy",
+    "log_pipeline_configuration",
 ]

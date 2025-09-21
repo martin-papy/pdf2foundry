@@ -397,11 +397,11 @@ class ParsedContent:
 
 __all__ = [
     "BBox",
-    "TableCell",
-    "StructuredTable",
     "HtmlPage",
     "ImageAsset",
-    "TableContent",
     "LinkRef",
     "ParsedContent",
+    "StructuredTable",
+    "TableCell",
+    "TableContent",
 ]

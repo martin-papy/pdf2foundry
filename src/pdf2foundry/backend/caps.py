@@ -216,6 +216,6 @@ def log_worker_resolution(
 __all__ = [
     "BackendCapabilities",
     "detect_backend_capabilities",
-    "resolve_effective_workers",
     "log_worker_resolution",
+    "resolve_effective_workers",
 ]

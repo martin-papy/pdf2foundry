@@ -466,8 +466,8 @@ def should_enable_image_cache(
 
 __all__ = [
     "BBox",
-    "CachedImage",
     "CacheLimits",
+    "CachedImage",
     "SharedImageCache",
     "get_image_hash",
     "should_enable_image_cache",

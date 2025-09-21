@@ -156,6 +156,6 @@ def _do_docling_convert_impl(
 
 __all__ = [
     "DoclingDocumentLike",
-    "run_docling_conversion",
     "load_docling_document",
+    "run_docling_conversion",
 ]

@@ -127,7 +127,7 @@ def atomic_write_text(path: Path, data: str, *, encoding: str = "utf-8") -> None
 
 
 __all__ = [
-    "doc_to_json",
-    "doc_from_json",
     "atomic_write_text",
+    "doc_from_json",
+    "doc_to_json",
 ]

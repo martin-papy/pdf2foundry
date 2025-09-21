@@ -341,7 +341,7 @@ def try_structured_table(
 
 
 __all__ = [
-    "try_structured_table",
-    "_extract_structured_tables",
     "_calculate_bbox_overlap",
+    "_extract_structured_tables",
+    "try_structured_table",
 ]

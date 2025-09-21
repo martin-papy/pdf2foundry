@@ -236,7 +236,7 @@ class CaptionCache:
 
 
 __all__ = [
+    "CaptionCache",
     "CaptionEngine",
     "HFCaptionEngine",
-    "CaptionCache",
 ]

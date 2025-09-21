@@ -311,10 +311,10 @@ def needs_ocr(html: str, ocr_mode: str, threshold: float = 0.05) -> bool:
 
 
 __all__ = [
-    "OcrResult",
-    "OcrEngine",
-    "TesseractOcrEngine",
     "OcrCache",
+    "OcrEngine",
+    "OcrResult",
+    "TesseractOcrEngine",
     "compute_text_coverage",
     "needs_ocr",
 ]

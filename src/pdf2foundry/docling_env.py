@@ -173,7 +173,7 @@ def format_report_lines(report: DoclingProbeReport) -> list[str]:
 
 __all__ = [
     "DoclingProbeReport",
+    "format_report_lines",
     "probe_docling",
     "report_is_ok",
-    "format_report_lines",
 ]

@@ -277,12 +277,12 @@ def ingest_docling(
 
 
 __all__ = [
-    "JsonOpts",
-    "ingest_docling",
-    "JsonLoadError",
-    "JsonValidationError",
     "ConversionError",
-    "validate_doc",
+    "JsonLoadError",
+    "JsonOpts",
+    "JsonValidationError",
+    "ingest_docling",
     "load_json_file",
     "try_load_doc_from_json",
+    "validate_doc",
 ]

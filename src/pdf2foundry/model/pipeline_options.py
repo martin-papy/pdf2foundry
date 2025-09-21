@@ -163,7 +163,7 @@ class PdfPipelineOptions:
 
 
 __all__ = [
-    "TableMode",
     "OcrMode",
     "PdfPipelineOptions",
+    "TableMode",
 ]

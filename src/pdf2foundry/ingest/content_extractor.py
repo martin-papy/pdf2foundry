@@ -286,111 +286,164 @@ def extract_semantic_content(
         pipeline_options, on_progress, shared_image_cache
     )
 
-    # Per-page export with images embedded for reliable extraction
-    for page_no, _p in yield_pages(doc, selected_pages):
-        try:
-            if include_layers is not None:
-                if image_mode is not None:
-                    html = doc.export_to_html(
-                        page_no=page_no,
-                        split_page_view=False,
-                        included_content_layers=include_layers,
-                        image_mode=image_mode,
-                    )
-                else:
-                    html = doc.export_to_html(
-                        page_no=page_no,
-                        split_page_view=False,
-                        included_content_layers=include_layers,
-                    )
-            else:
-                if image_mode is not None:
-                    html = doc.export_to_html(
-                        page_no=page_no,
-                        split_page_view=False,
-                        image_mode=image_mode,
-                    )
-                else:
-                    html = doc.export_to_html(
-                        page_no=page_no,
-                        split_page_view=False,
-                    )
-        except Exception:
-            html = ""
+    # Check if we should use parallel processing
+    # Note: Parallel processing is disabled when OCR or captions are enabled
+    # because these components use caches that are not thread/process-safe
+    workers_effective = getattr(pipeline_options, "workers_effective", pipeline_options.workers)
+    use_parallel = workers_effective > 1 and ocr_engine is None and caption_engine is None
 
-        _safe_emit(on_progress, "extract_content:page_exported", {"page_no": page_no})
-
-        # Multi-column detection and flattening (no-op + warning in v1)
-        try:
-            from pdf2foundry.transform.layout import flatten_page_html
-
-            html = flatten_page_html(html, doc, page_no)
-        except Exception:
-            # If transform fails for any reason, proceed with original HTML
-            pass
-
-        # Extract images (embedded base64)
-        html, page_images = _extract_images_from_html(
-            html, page_no, out_assets, f"page-{page_no:04d}"
+    if workers_effective > 1 and not use_parallel:
+        logger.info(
+            "Parallel processing disabled due to OCR or caption processing. "
+            "Using sequential mode for cache safety."
         )
-        images.extend(page_images)
-        # Copy referenced images (local paths)
-        html, ref_images = _rewrite_and_copy_referenced_images(
-            html, page_no, out_assets, f"page-{page_no:04d}"
+
+    if use_parallel:
+        # Use parallel processing for CPU-bound page operations
+        from pdf2foundry.ingest.parallel_processor import process_pages_parallel
+
+        pages, images, tables, links, processing_time = process_pages_parallel(
+            doc=doc,
+            selected_pages=selected_pages,
+            out_assets=out_assets,
+            pipeline_options=pipeline_options,
+            include_layers=include_layers,
+            image_mode=image_mode,
         )
-        images.extend(ref_images)
-        if ref_images:
-            _safe_emit(
-                on_progress,
-                "extract_content:images_copied",
-                {"page_no": page_no, "count": len(ref_images)},
-            )
-        if page_images:
+
+        # Emit progress events for parallel processing
+        for page in pages:
+            _safe_emit(on_progress, "extract_content:page_exported", {"page_no": page.page_no})
+
+        if images:
             _safe_emit(
                 on_progress,
                 "extract_content:images_extracted",
-                {"page_no": page_no, "count": len(page_images)},
+                {"page_no": "all", "count": len(images)},
             )
 
-        # Tables - use new structured processing if available, fall back to legacy
-        if pipeline_options.tables_mode in (TableMode.STRUCTURED, TableMode.AUTO) and hasattr(
-            doc, "pages"
-        ):
-            # Use new structured table processing
-            html, page_tables = _process_tables_with_options(
-                doc, html, page_no, out_assets, pipeline_options, f"page-{page_no:04d}"
-            )
-        else:
-            # Fall back to legacy HTML-only processing
-            html, page_tables = _process_tables(
-                html, page_no, out_assets, pipeline_options.tables_mode.value, f"page-{page_no:04d}"
-            )
-        tables.extend(page_tables)
-
-        # Links
-        page_links = _detect_links(html, page_no)
-        links.extend(page_links)
-        if page_links:
+        if links:
             _safe_emit(
                 on_progress,
                 "extract_content:links_detected",
-                {"page_no": page_no, "count": len(page_links)},
+                {"page_no": "all", "count": len(links)},
             )
+    else:
+        # Use sequential processing (original logic)
+        pages = []
+        images = []
+        tables = []
+        links = []
 
-        # OCR processing
-        if ocr_engine is not None and ocr_cache is not None:
-            html = apply_ocr_to_page(
-                doc,
-                html,
-                page_no,
-                pipeline_options,
-                ocr_engine,
-                ocr_cache,
-                on_progress,
-                shared_image_cache,
+        # Per-page export with images embedded for reliable extraction
+        for page_no, _p in yield_pages(doc, selected_pages):
+            try:
+                if include_layers is not None:
+                    if image_mode is not None:
+                        html = doc.export_to_html(
+                            page_no=page_no,
+                            split_page_view=False,
+                            included_content_layers=include_layers,
+                            image_mode=image_mode,
+                        )
+                    else:
+                        html = doc.export_to_html(
+                            page_no=page_no,
+                            split_page_view=False,
+                            included_content_layers=include_layers,
+                        )
+                else:
+                    if image_mode is not None:
+                        html = doc.export_to_html(
+                            page_no=page_no,
+                            split_page_view=False,
+                            image_mode=image_mode,
+                        )
+                    else:
+                        html = doc.export_to_html(
+                            page_no=page_no,
+                            split_page_view=False,
+                        )
+            except Exception:
+                html = ""
+
+            _safe_emit(on_progress, "extract_content:page_exported", {"page_no": page_no})
+
+            # Multi-column detection and flattening (no-op + warning in v1)
+            try:
+                from pdf2foundry.transform.layout import flatten_page_html
+
+                html = flatten_page_html(html, doc, page_no)
+            except Exception:
+                # If transform fails for any reason, proceed with original HTML
+                pass
+
+            # Extract images (embedded base64)
+            html, page_images = _extract_images_from_html(
+                html, page_no, out_assets, f"page-{page_no:04d}"
             )
+            images.extend(page_images)
+            # Copy referenced images (local paths)
+            html, ref_images = _rewrite_and_copy_referenced_images(
+                html, page_no, out_assets, f"page-{page_no:04d}"
+            )
+            images.extend(ref_images)
+            if ref_images:
+                _safe_emit(
+                    on_progress,
+                    "extract_content:images_copied",
+                    {"page_no": page_no, "count": len(ref_images)},
+                )
+            if page_images:
+                _safe_emit(
+                    on_progress,
+                    "extract_content:images_extracted",
+                    {"page_no": page_no, "count": len(page_images)},
+                )
 
-        pages.append(HtmlPage(html=html, page_no=page_no))
+            # Tables - use new structured processing if available, fall back to legacy
+            if pipeline_options.tables_mode in (TableMode.STRUCTURED, TableMode.AUTO) and hasattr(
+                doc, "pages"
+            ):
+                # Use new structured table processing
+                html, page_tables = _process_tables_with_options(
+                    doc, html, page_no, out_assets, pipeline_options, f"page-{page_no:04d}"
+                )
+            else:
+                # Fall back to legacy HTML-only processing
+                html, page_tables = _process_tables(
+                    html,
+                    page_no,
+                    out_assets,
+                    pipeline_options.tables_mode.value,
+                    f"page-{page_no:04d}",
+                )
+            tables.extend(page_tables)
+
+            # Links
+            page_links = _detect_links(html, page_no)
+            links.extend(page_links)
+            if page_links:
+                _safe_emit(
+                    on_progress,
+                    "extract_content:links_detected",
+                    {"page_no": page_no, "count": len(page_links)},
+                )
+
+            # OCR processing
+            if ocr_engine is not None and ocr_cache is not None:
+                html = apply_ocr_to_page(
+                    doc,
+                    html,
+                    page_no,
+                    pipeline_options,
+                    ocr_engine,
+                    ocr_cache,
+                    on_progress,
+                    shared_image_cache,
+                )
+
+            pages.append(HtmlPage(html=html, page_no=page_no))
 
     # Replace structured table placeholders with actual HTML before finalizing
     replace_table_placeholders_in_pages(pages, tables)
