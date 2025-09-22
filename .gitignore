@@ -69,3 +69,6 @@ tasks/
 
 # Pre-commit debug logs
 .git/precommit-debug.log
+tests/e2e/perf/latest.json
+tests/e2e/perf/test_context_mgr.json
+tests/e2e/perf/test_context.json
