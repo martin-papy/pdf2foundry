@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Protocol
 
 import pytesseract
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,7 @@ class TesseractOcrEngine:
             raise Exception("Tesseract OCR is not available")
 
         # Convert input to PIL Image
+        pil_image: Image.Image
         if isinstance(image, Path | str):
             pil_image = Image.open(image)
         elif isinstance(image, bytes):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import Mock, patch
 
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 from pdf2foundry.ingest.caption_engine import CaptionCache, HFCaptionEngine
 

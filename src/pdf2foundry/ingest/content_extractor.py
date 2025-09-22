@@ -231,7 +231,7 @@ def extract_semantic_content(
     image_mode: object | None = None
     try:
         # Optional advanced options when docling-core is present
-        from docling_core.types.doc import ImageRefMode
+        from docling_core.types.doc import ImageRefMode  # type: ignore[attr-defined]
         from docling_core.types.doc.document import ContentLayer
 
         include_layers = {ContentLayer.BODY, ContentLayer.BACKGROUND, ContentLayer.FURNITURE}

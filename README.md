@@ -192,7 +192,31 @@ pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
   --write-docling-json
 ```
 
-See [docs/PRD.md](docs/PRD.md) and [docs/architecture_and_flow.md](docs/architecture_and_flow.md) for details.
+## Performance Features
+
+PDF2Foundry includes several performance and processing options:
+
+- **Page Selection** (`--pages`): Process specific pages or ranges (e.g., `--pages "1,5-10,15"`)
+- **Parallel Processing** (`--workers`): Use multiple workers for CPU-bound operations (e.g., `--workers 4`)
+- **Multi-Column Reflow** (`--reflow-columns`): Experimental reordering of multi-column text (use with caution)
+
+### Performance Examples
+
+```bash
+# Process specific pages with multiple workers
+pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
+  --pages "1-10" --workers 4
+
+# Enable experimental multi-column reflow for academic papers
+pdf2foundry convert paper.pdf --mod-id paper --mod-title "Research Paper" \
+  --reflow-columns
+
+# Combine all performance features
+pdf2foundry convert journal.pdf --mod-id journal --mod-title "Academic Journal" \
+  --pages "5-25" --workers 3 --reflow-columns
+```
+
+See [docs/performance.md](docs/performance.md) for detailed performance guidance, [docs/PRD.md](docs/PRD.md) and [docs/architecture_and_flow.md](docs/architecture_and_flow.md) for technical details.
 
 ## Pack Compilation (Foundry CLI)
 

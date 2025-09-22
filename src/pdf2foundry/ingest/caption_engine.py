@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol
 
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class HFCaptionEngine:
         """Lazily load the transformers pipeline."""
         if self._pipeline is None:
             try:
-                import transformers  # type: ignore[import-not-found]
+                import transformers
 
                 logger.info(f"Loading VLM model: {self.model_id}")
 
@@ -89,8 +89,9 @@ class HFCaptionEngine:
                     # Default to image-to-text for most VLM models
                     task = "image-to-text"
 
-                self._pipeline = transformers.pipeline(
-                    task=task,
+                # Use Any to avoid complex transformers typing issues
+                self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
+                    task,
                     model=self.model_id,
                     device_map="auto",  # Use GPU if available
                 )

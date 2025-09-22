@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from pdf2foundry.cli import app
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def temp_pdf() -> Generator[str, None, None]:
     """Create a temporary minimal PDF file for testing."""
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -258,7 +258,7 @@ def test_cli_convert_invalid_picture_descriptions_option(temp_pdf: str) -> None:
         Path(temp_pdf).unlink(missing_ok=True)
 
 
-@pytest.mark.parametrize("tables_mode", ["structured", "auto", "image-only"])  # type: ignore[misc]
+@pytest.mark.parametrize("tables_mode", ["structured", "auto", "image-only"])
 def test_cli_convert_all_tables_modes(temp_pdf: str, tables_mode: str) -> None:
     """Test CLI with all valid tables modes."""
     runner = CliRunner()
@@ -284,7 +284,7 @@ def test_cli_convert_all_tables_modes(temp_pdf: str, tables_mode: str) -> None:
         Path(temp_pdf).unlink(missing_ok=True)
 
 
-@pytest.mark.parametrize("ocr_mode", ["auto", "on"])  # type: ignore[misc]
+@pytest.mark.parametrize("ocr_mode", ["auto", "on"])
 def test_cli_convert_all_ocr_modes(temp_pdf: str, ocr_mode: str) -> None:
     """Test CLI with all valid OCR modes."""
     runner = CliRunner()

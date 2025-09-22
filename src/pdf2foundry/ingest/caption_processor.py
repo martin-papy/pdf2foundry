@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 from pdf2foundry.ingest.caption_engine import CaptionCache, HFCaptionEngine
 from pdf2foundry.ingest.feature_logger import log_error_policy, log_feature_availability

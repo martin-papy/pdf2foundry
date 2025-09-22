@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 from pdf2foundry.ingest.ocr_engine import (
     OcrCache,

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any, NamedTuple
 
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -367,7 +367,7 @@ class SharedImageCache:
                     # Ensure correct color mode
                     if hasattr(page_image, "convert") and page_image.mode != color_mode:
                         page_image = page_image.convert(color_mode)
-                    return page_image
+                    return page_image  # type: ignore[no-any-return]
 
             # Fallback: try other rasterization methods
             # This would use pdf2image or similar in a full implementation

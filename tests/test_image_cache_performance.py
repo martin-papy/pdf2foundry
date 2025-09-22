@@ -4,7 +4,7 @@ import time
 from unittest.mock import Mock, patch
 
 import pytest
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 from pdf2foundry.ingest.image_cache import (
     BBox,
@@ -15,7 +15,7 @@ from pdf2foundry.ingest.image_cache import (
 )
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_doc() -> Mock:
     """Create a mock document with render_page method."""
     doc = Mock()
@@ -42,7 +42,7 @@ def mock_doc() -> Mock:
     return doc
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def image_cache() -> SharedImageCache:
     """Create a shared image cache with small limits for testing."""
     limits = CacheLimits(
