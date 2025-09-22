@@ -91,11 +91,47 @@ class HFCaptionEngine:
 
                 # Use Any to avoid complex transformers typing issues
                 # Different mypy configurations may see different errors
-                self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
-                    task,
-                    model=self.model_id,
-                    device_map="auto",  # Use GPU if available
-                )
+
+                # Special handling for Florence-2 models due to API differences
+                if "florence" in self.model_id.lower():
+                    # Florence-2 requires direct model/processor usage, not pipeline
+                    try:
+                        from transformers import AutoModelForCausalLM, AutoProcessor
+
+                        logger.info("Loading Florence-2 model and processor directly")
+                        self._processor = AutoProcessor.from_pretrained(  # type: ignore[no-untyped-call]
+                            self.model_id, trust_remote_code=True
+                        )
+                        self._model = AutoModelForCausalLM.from_pretrained(
+                            self.model_id,
+                            trust_remote_code=True,
+                            torch_dtype="auto",
+                            attn_implementation="eager",  # Avoid flash_attn requirement
+                        )
+                        # Store as a custom object instead of pipeline
+                        self._pipeline = {"model": self._model, "processor": self._processor, "type": "florence2"}
+                        logger.info("Florence-2 model and processor loaded successfully")
+                    except Exception as florence_error:
+                        logger.error(f"Failed to load Florence-2 model directly: {florence_error}")
+                        raise
+                else:
+                    # Standard pipeline creation for other models
+                    # Try with device_map first, fallback without it
+                    try:
+                        self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
+                            task,
+                            model=self.model_id,
+                            device_map="auto",  # Use GPU if available
+                        )
+                    except ValueError as device_map_error:
+                        if "device_map" in str(device_map_error):
+                            logger.warning(f"Model doesn't support device_map, trying without: {device_map_error}")
+                            self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
+                                task,
+                                model=self.model_id,
+                            )
+                        else:
+                            raise
                 logger.info(f"Successfully loaded VLM model: {self.model_id}")
             except Exception as e:
                 logger.error(f"Failed to load VLM model {self.model_id}: {e}")
@@ -119,8 +155,37 @@ class HFCaptionEngine:
             if self._pipeline is None:
                 self._load_pipeline()
 
-            # Generate caption
-            result = self._pipeline(pil_image)
+            # Generate caption - handle Florence-2 vs standard pipeline
+            if isinstance(self._pipeline, dict) and self._pipeline.get("type") == "florence2":
+                # Florence-2 specific generation
+                model = self._pipeline["model"]
+                processor = self._pipeline["processor"]
+
+                # Florence-2 uses a specific prompt format for captioning
+                prompt = "<MORE_DETAILED_CAPTION>"
+                inputs = processor(text=prompt, images=pil_image, return_tensors="pt")
+
+                # Generate with Florence-2
+                generated_ids = model.generate(
+                    input_ids=inputs["input_ids"],
+                    pixel_values=inputs["pixel_values"],
+                    max_new_tokens=1024,
+                    num_beams=3,
+                    do_sample=False,
+                )
+
+                # Decode the result
+                generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+
+                # Extract the caption from Florence-2's response format
+                # Florence-2 returns: "<MORE_DETAILED_CAPTION>actual caption text"
+                result = generated_text.replace(prompt, "").strip() if prompt in generated_text else generated_text.strip()
+
+                # Convert to expected format for downstream processing
+                result = [{"generated_text": result}]
+            else:
+                # Standard pipeline generation
+                result = self._pipeline(pil_image)
 
             # Extract text from result - format varies by model
             if isinstance(result, list) and len(result) > 0:

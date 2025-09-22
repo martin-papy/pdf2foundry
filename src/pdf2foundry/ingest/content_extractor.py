@@ -441,6 +441,11 @@ def extract_semantic_content(
     if images and pipeline_options.picture_descriptions:
         apply_captions_to_images(images, out_assets, pipeline_options, caption_engine, caption_cache, on_progress)
 
+        # Update HTML img tags with captions
+        from pdf2foundry.ingest.caption_html import update_html_with_captions
+
+        update_html_with_captions(pages, images)
+
     # Log cache metrics if shared cache was used
     if shared_image_cache is not None:
         metrics = shared_image_cache.get_metrics()

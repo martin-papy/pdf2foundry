@@ -105,7 +105,9 @@ def convert(
         str | None,
         typer.Option(
             "--vlm-repo-id",
-            help=("Hugging Face VLM repository ID for picture descriptions " "(e.g., 'microsoft/Florence-2-base')"),
+            help=(
+                "Hugging Face VLM repository ID for picture descriptions " "(e.g., 'Salesforce/blip-image-captioning-base')"
+            ),
         ),
     ] = None,
     deterministic_ids: Annotated[
