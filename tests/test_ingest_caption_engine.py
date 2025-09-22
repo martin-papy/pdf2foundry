@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import Mock, patch
 
+import pytest
 from PIL import Image
 
 from pdf2foundry.ingest.caption_engine import CaptionCache, HFCaptionEngine
@@ -30,6 +31,16 @@ class MockCaptionEngine:
 
 class TestHFCaptionEngine:
     """Test HFCaptionEngine class."""
+
+    @pytest.fixture(autouse=True)
+    def mock_logger(self, isolate_logging):
+        """Mock the logger to prevent StreamHandler issues in CI."""
+        with patch("pdf2foundry.ingest.caption_engine.logger") as mock_log:
+            mock_log.warning = Mock()
+            mock_log.error = Mock()
+            mock_log.debug = Mock()
+            mock_log.info = Mock()
+            yield mock_log
 
     def test_init(self) -> None:
         """Test HFCaptionEngine initialization."""
@@ -64,14 +75,25 @@ class TestHFCaptionEngine:
         available = engine.is_available()
         assert available is False
 
-    @patch("builtins.__import__")
-    def test_is_available_other_error(self, mock_import: Mock) -> None:
+    def test_is_available_other_error(self) -> None:
         """Test availability check with other errors."""
-        mock_import.side_effect = RuntimeError("Some other error")
+        # Store original __import__ to avoid recursion
+        original_import = __import__
 
-        engine = HFCaptionEngine("microsoft/Florence-2-base")
-        available = engine.is_available()
-        assert available is False
+        with patch("builtins.__import__") as mock_import:
+
+            def side_effect(name: str, *args: Any, **kwargs: Any) -> Any:
+                if name == "importlib.util":
+                    raise RuntimeError("Some other error")
+                else:
+                    # Use the original import to avoid recursion
+                    return original_import(name, *args, **kwargs)
+
+            mock_import.side_effect = side_effect
+
+            engine = HFCaptionEngine("microsoft/Florence-2-base")
+            available = engine.is_available()
+            assert available is False
 
     def test_generate_not_available(self) -> None:
         """Test caption generation when engine is not available."""
@@ -188,6 +210,9 @@ class TestHFCaptionEngine:
             # Create a test image first (before mocking import)
             image = Image.new("RGB", (100, 100), color="red")
 
+            # Store original __import__ to avoid recursion
+            original_import = __import__
+
             with patch("builtins.__import__") as mock_import:
                 # Mock transformers import and pipeline creation to fail
                 def side_effect(name: str, *args: Any, **kwargs: Any) -> Any:
@@ -196,8 +221,8 @@ class TestHFCaptionEngine:
                         mock_transformers.pipeline.side_effect = RuntimeError("Model not found")
                         return mock_transformers
                     else:
-                        # For other imports, use the real import
-                        return __import__(name, *args, **kwargs)
+                        # Use the original import to avoid recursion
+                        return original_import(name, *args, **kwargs)
 
                 mock_import.side_effect = side_effect
 

@@ -90,7 +90,7 @@ class HFCaptionEngine:
                     task = "image-to-text"
 
                 # Use Any to avoid complex transformers typing issues
-                self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
+                self._pipeline = transformers.pipeline(  # type: ignore[attr-defined]
                     task,
                     model=self.model_id,
                     device_map="auto",  # Use GPU if available
