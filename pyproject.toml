@@ -117,6 +117,7 @@ markers = [
     "ocr: marks tests that require OCR functionality",
     "vlm: marks tests that require Vision Language Models",
     "pack: marks tests that involve Foundry pack compilation",
+    "e2e: marks tests as end-to-end tests",
     "integration: marks tests as integration tests",
     "errors: marks tests that test error handling",
 ]
