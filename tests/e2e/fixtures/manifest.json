@@ -1,0 +1,57 @@
+{
+  "description": "Manifest of test fixtures with SHA256 checksums for integrity verification",
+  "version": "1.0.0",
+  "fixtures": {
+    "academic-paper.pdf": {
+      "description": "Academic paper with complex formatting, tables, and references",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists",
+      "size_bytes": 0,
+      "pages": 0,
+      "tags": ["academic", "complex", "tables", "references"]
+    },
+    "basic.pdf": {
+      "description": "Simple PDF with basic text and headings",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists", 
+      "size_bytes": 0,
+      "pages": 0,
+      "tags": ["simple", "basic", "text"]
+    },
+    "comprehensive-manual.pdf": {
+      "description": "Comprehensive manual with TOC, images, and complex structure",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists",
+      "size_bytes": 0,
+      "pages": 0,
+      "tags": ["manual", "toc", "images", "complex"]
+    },
+    "data-manual.pdf": {
+      "description": "Data-heavy manual with tables and charts",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists",
+      "size_bytes": 0,
+      "pages": 0,
+      "tags": ["data", "tables", "charts"]
+    },
+    "illustrated-guide.pdf": {
+      "description": "Guide with many illustrations and images",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists",
+      "size_bytes": 0,
+      "pages": 0,
+      "tags": ["illustrated", "images", "guide"]
+    },
+    "scanned-document.pdf": {
+      "description": "Scanned document requiring OCR processing",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists",
+      "size_bytes": 0,
+      "pages": 0,
+      "tags": ["scanned", "ocr", "image-based"]
+    },
+    "single-page.pdf": {
+      "description": "Single page PDF for simple testing",
+      "sha256": "placeholder_hash_will_be_updated_when_file_exists",
+      "size_bytes": 0,
+      "pages": 1,
+      "tags": ["single-page", "simple"]
+    }
+  },
+  "generated": "2025-01-22T00:00:00Z",
+  "note": "SHA256 hashes will be automatically updated by the fixture utilities when files are verified"
+}

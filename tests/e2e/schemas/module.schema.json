@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pdf2foundry.com/schemas/foundry-module.json",
+  "title": "Foundry VTT v13 Module Schema",
+  "description": "JSON Schema for validating Foundry VTT v13 module.json files",
+  "type": "object",
+  "required": ["id", "title", "version", "compatibility"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique module identifier using lowercase letters, numbers, and hyphens"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable module title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the module"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+.*$",
+      "description": "Semantic version string"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/author"
+      },
+      "description": "List of module authors"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/compatibility"
+    },
+    "relationships": {
+      "type": "object",
+      "properties": {
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        },
+        "recommends": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "packs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pack"
+      },
+      "description": "Compendium packs included in this module"
+    },
+    "styles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "CSS stylesheets to include"
+    },
+    "scripts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "JavaScript files to include"
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/media"
+      },
+      "description": "Media files (covers, icons, etc.)"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Module homepage URL"
+    },
+    "manifest": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the module.json manifest"
+    },
+    "download": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to download the module"
+    },
+    "readme": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the module README"
+    },
+    "license": {
+      "type": "string",
+      "description": "License identifier"
+    },
+    "flags": {
+      "type": "object",
+      "description": "Module-specific flags and settings"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "author": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "discord": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "compatibility": {
+      "type": "object",
+      "required": ["minimum"],
+      "properties": {
+        "minimum": {
+          "type": "string",
+          "pattern": "^\\d+$",
+          "description": "Minimum compatible Foundry version"
+        },
+        "verified": {
+          "type": "string",
+          "pattern": "^\\d+$",
+          "description": "Verified compatible Foundry version"
+        },
+        "maximum": {
+          "type": "string",
+          "pattern": "^\\d+$",
+          "description": "Maximum compatible Foundry version"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dependency": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["module", "system", "world"]
+        },
+        "manifest": {
+          "type": "string",
+          "format": "uri"
+        },
+        "compatibility": {
+          "$ref": "#/$defs/compatibility"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pack": {
+      "type": "object",
+      "required": ["name", "label", "path", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Pack identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable pack name"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to the pack directory"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Actor", "Adventure", "Cards", "ChatMessage", "Combat", "FogExploration",
+            "Folder", "Item", "JournalEntry", "Macro", "Playlist", "RollTable",
+            "Scene", "Setting", "User"
+          ],
+          "description": "Type of documents in this pack"
+        },
+        "system": {
+          "type": "string",
+          "description": "Game system this pack is designed for"
+        },
+        "private": {
+          "type": "boolean",
+          "description": "Whether this pack is private"
+        },
+        "flags": {
+          "type": "object",
+          "description": "Pack-specific flags"
+        }
+      },
+      "additionalProperties": false
+    },
+    "media": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["cover", "icon", "screenshot"],
+          "description": "Type of media file"
+        },
+        "url": {
+          "type": "string",
+          "description": "Path or URL to the media file"
+        },
+        "caption": {
+          "type": "string",
+          "description": "Caption for the media"
+        }
+      },
+      "additionalProperties": false
+    },
+    "journalEntry": {
+      "type": "object",
+      "required": ["_id", "name", "pages"],
+      "properties": {
+        "_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{16}$",
+          "description": "16-character hexadecimal ID"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Entry name"
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/journalPage"
+          },
+          "description": "Pages within this journal entry"
+        },
+        "folder": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{16}$",
+          "description": "Parent folder ID"
+        },
+        "sort": {
+          "type": "number",
+          "description": "Sort order"
+        },
+        "ownership": {
+          "type": "object",
+          "description": "Ownership permissions"
+        },
+        "flags": {
+          "type": "object",
+          "description": "Entry-specific flags"
+        }
+      },
+      "additionalProperties": false
+    },
+    "journalPage": {
+      "type": "object",
+      "required": ["_id", "name", "type"],
+      "properties": {
+        "_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{16}$",
+          "description": "16-character hexadecimal ID"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Page name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "image", "pdf", "video"],
+          "description": "Page type"
+        },
+        "title": {
+          "type": "object",
+          "properties": {
+            "show": {
+              "type": "boolean"
+            },
+            "level": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6
+            }
+          }
+        },
+        "text": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string",
+              "description": "HTML content"
+            },
+            "format": {
+              "type": "integer",
+              "enum": [1, 2],
+              "description": "Text format (1=HTML, 2=Markdown)"
+            }
+          }
+        },
+        "image": {
+          "type": "object",
+          "properties": {
+            "src": {
+              "type": "string",
+              "description": "Image source path"
+            },
+            "caption": {
+              "type": "string"
+            }
+          }
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "src": {
+              "type": "string",
+              "description": "Video source path"
+            },
+            "controls": {
+              "type": "boolean"
+            },
+            "volume": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "src": {
+          "type": "string",
+          "description": "Source file path for PDF pages"
+        },
+        "sort": {
+          "type": "number",
+          "description": "Sort order"
+        },
+        "ownership": {
+          "type": "object",
+          "description": "Page ownership permissions"
+        },
+        "flags": {
+          "type": "object",
+          "description": "Page-specific flags"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

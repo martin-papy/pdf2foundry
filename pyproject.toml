@@ -19,6 +19,10 @@ dependencies = [
   "docling>=2.53.0",
   "docling-core>=2.48.1",
   "pytesseract>=0.3.13",
+  # VLM dependencies for image captioning
+  "transformers>=4.44.2",
+  "huggingface_hub>=0.24.2",
+  "torch>=2.3.1",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +33,14 @@ dev = [
   "pytest>=8.4.2",
   "pytest-cov>=7.0.0",
   "pre-commit>=4.3.0",
+  # E2E testing dependencies
+  "pytest-xdist>=3.6.1",
+  "pytest-benchmark>=4.0.0",
+  "jsonschema>=4.23.0",
+  "referencing>=0.35.1",
+  "beautifulsoup4>=4.12.3",
+  "lxml>=5.3.0",
+  "reportlab>=4.2.0",
 ]
 
 [project.urls]
@@ -81,12 +93,31 @@ show_error_context = false
 [[tool.mypy.overrides]]
 module = [
   "docling.*",
-  "jinja2",
   "pytesseract",
 ]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-addopts = "-q --cov=pdf2foundry --cov-report=term-missing --cov-fail-under=90"
+addopts = "-ra -q --cov=pdf2foundry --cov-report=term-missing --cov-fail-under=90"
 testpaths = ["tests"]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:transformers.*",
+    "ignore::UserWarning:huggingface_hub.*",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "perf: marks tests as performance tests",
+    "cache: marks tests that use caching functionality",
+    "ocr: marks tests that require OCR functionality",
+    "vlm: marks tests that require Vision Language Models",
+    "pack: marks tests that involve Foundry pack compilation",
+    "integration: marks tests as integration tests",
+    "errors: marks tests that test error handling",
+]
 
