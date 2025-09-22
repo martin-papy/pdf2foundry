@@ -113,7 +113,7 @@ def validate_img_tag(img_tag, available_images: set[str], module_dir: Path, sour
     return errors
 
 
-def test_corruption_detection(sample_image: dict[str, Any] | None) -> None:
+def check_corruption_detection(sample_image: dict[str, Any] | None) -> None:
     """
     Test corruption detection by deliberately corrupting an image.
 
@@ -298,7 +298,7 @@ def validate_image_integrity_and_formats(extracted_images: list[dict[str, Any]])
             corrupted_images.append(f"Image {rel_path} failed validation: {e}")
 
     # Test corruption detection with a deliberate corruption
-    test_corruption_detection(extracted_images[0] if extracted_images else None)
+    check_corruption_detection(extracted_images[0] if extracted_images else None)
 
     # Report results
     if validation_errors:
@@ -314,18 +314,34 @@ def validate_image_integrity_and_formats(extracted_images: list[dict[str, Any]])
     print(f"✓ Validated integrity and format of {len(extracted_images)} images")
 
 
-def test_accessibility_features(tmp_output_dir: Path, input_pdf: Path, cli_runner) -> None:
+def test_accessibility_features(tmp_output_dir: Path, cli_runner) -> None:
     """
     Test accessibility checks for alt text under feature toggle.
 
     Args:
         tmp_output_dir: Temporary output directory
-        input_pdf: Input PDF fixture
         cli_runner: CLI runner fixture
 
     Raises:
         pytest.fail: If accessibility validation fails
     """
+    # Import get_fixture function
+    import sys
+    from pathlib import Path
+
+    # Add the current directory to path for imports
+    sys.path.insert(0, str(Path(__file__).parent))
+    from fixtures import get_fixture
+
+    # Get input fixture
+    try:
+        input_pdf = get_fixture("basic.pdf")
+    except FileNotFoundError as e:
+        pytest.skip(f"Required fixture not found: {e}")
+
+    # Verify fixture is available (for future implementation)
+    assert input_pdf.exists(), f"Input PDF fixture not found: {input_pdf}"
+
     # Note: This is a placeholder implementation since the CLI doesn't currently
     # have explicit accessibility flags. We'll test the current behavior and
     # ensure it's graceful.

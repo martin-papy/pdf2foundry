@@ -23,7 +23,7 @@ def get_fixture(name: str) -> Path:
         FileNotFoundError: If the fixture doesn't exist
     """
     # Get the fixtures directory (two levels up from this file, then fixtures/)
-    fixtures_dir = Path(__file__).parent.parent.parent.parent / "fixtures"
+    fixtures_dir = Path(__file__).parent.parent / "fixtures"
     fixture_path = fixtures_dir / name
 
     if not fixture_path.exists():

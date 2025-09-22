@@ -34,7 +34,7 @@ def project_root() -> Path:
 @pytest.fixture(scope="session")
 def fixtures_dir(project_root: Path) -> Path:
     """Get the fixtures directory path."""
-    fixtures_path = project_root / "fixtures"
+    fixtures_path = project_root / "tests" / "e2e" / "fixtures"
     assert fixtures_path.exists(), f"Fixtures directory not found: {fixtures_path}"
     return fixtures_path
 
