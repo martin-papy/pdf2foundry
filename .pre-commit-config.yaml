@@ -76,8 +76,8 @@ repos:
   - repo: local
     hooks:
       - id: pytest
-        name: Run test suite
-        entry: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=90
+        name: Run unit tests with coverage
+        entry: pytest tests/unit/ -v --cov=src --cov-report=term-missing --cov-fail-under=90
         language: system
         pass_filenames: false
         stages: [pre-push]

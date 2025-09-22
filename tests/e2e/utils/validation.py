@@ -265,6 +265,13 @@ def _resolve_asset_path(asset_ref: str, module_dir: Path) -> Path | None:
     if asset_ref.startswith("/"):
         asset_ref = asset_ref[1:]
 
+    # Handle module-relative paths (e.g., "modules/module-id/assets/file.png")
+    # Strip the "modules/module-id/" prefix if present
+    module_name = module_dir.name
+    module_prefix = f"modules/{module_name}/"
+    if asset_ref.startswith(module_prefix):
+        asset_ref = asset_ref[len(module_prefix) :]
+
     # Resolve relative to module directory
     return module_dir / asset_ref
 

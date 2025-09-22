@@ -97,8 +97,14 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.coverage.run]
+# Only collect coverage from unit tests, exclude E2E tests
+omit = [
+    "tests/e2e/*",
+]
+
 [tool.pytest.ini_options]
-addopts = "-ra -q --cov=pdf2foundry --cov-report=term-missing --cov-fail-under=90"
+addopts = "-ra -q"
 testpaths = ["tests"]
 log_cli = true
 log_cli_level = "INFO"

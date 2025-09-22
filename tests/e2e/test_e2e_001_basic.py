@@ -4,9 +4,12 @@ This test validates the basic end-to-end conversion of fixtures/basic.pdf
 with default settings, ensuring module structure, schema compliance, and content fidelity.
 """
 
+import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -14,6 +17,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.fixtures import get_fixture
+from utils.validation import validate_assets, validate_compendium_structure, validate_module_json
 
 
 @pytest.mark.e2e
@@ -65,7 +69,13 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
     ]
 
     try:
-        result = cli_runner(cmd_args)
+        # Run CLI with a reasonable timeout to prevent hanging
+        result = cli_runner(cmd_args, timeout=120)  # 2 minute timeout
+    except subprocess.TimeoutExpired:
+        pytest.fail(
+            f"CLI conversion timed out after 120 seconds. This may indicate a hanging issue "
+            f"with the docling library or PDF processing. Command: pdf2foundry {' '.join(cmd_args)}"
+        )
     except Exception as e:
         pytest.fail(f"CLI execution failed with exception: {e}")
 
@@ -81,9 +91,77 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
             f"Output: {result.stdout}. Debug log saved to: {debug_log}"
         )
 
-    # Subsequent validation steps will be implemented in following subtasks
-    # For now, just verify the command executed successfully
+    # Step 2: Validate module.json against schema
+    module_json_path = tmp_output_dir / "test-basic" / "module.json"
+    if not module_json_path.exists():
+        pytest.fail(f"module.json not found at expected location: {module_json_path}")
+
+    validation_errors = validate_module_json(module_json_path)
+    if validation_errors:
+        error_msg = "module.json validation failed:\n" + "\n".join(f"  - {error}" for error in validation_errors)
+        pytest.fail(error_msg)
+
+    # Step 3: Validate compendium structure and assets
+    module_dir = tmp_output_dir / "test-basic"
+
+    # Validate directory structure
+    structure_errors = validate_compendium_structure(module_dir)
+    if structure_errors:
+        error_msg = "Compendium structure validation failed:\n" + "\n".join(f"  - {error}" for error in structure_errors)
+        pytest.fail(error_msg)
+
+    # Validate asset integrity
+    asset_errors = validate_assets(module_dir)
+    if asset_errors:
+        error_msg = "Asset validation failed:\n" + "\n".join(f"  - {error}" for error in asset_errors)
+        pytest.fail(error_msg)
+
+    # Verify at least one Journal entry/page is generated
+    sources_journals_dir = module_dir / "sources" / "journals"
+    if not sources_journals_dir.exists():
+        pytest.fail(f"Journal sources directory not found: {sources_journals_dir}")
+
+    journal_files = list(sources_journals_dir.glob("*.json"))
+    if not journal_files:
+        pytest.fail(f"No journal entry files found in: {sources_journals_dir}")
+
+    # Verify at least one journal file has pages
+    has_pages = False
+    for journal_file in journal_files:
+        try:
+            with journal_file.open() as f:
+                journal_data = json.load(f)
+
+            if isinstance(journal_data, dict) and journal_data.get("pages"):
+                has_pages = True
+                break
+        except Exception as e:
+            pytest.fail(f"Error reading journal file {journal_file}: {e}")
+
+    if not has_pages:
+        pytest.fail("No journal entries with pages found - content generation may have failed")
+
+    # Step 4: Content fidelity checks
+    expected_content_strings = [
+        "Drow Elite Warriors",
+        "Beholder",
+        "Appendix",
+        "Order of the Gauntlet",
+        "Underdark",
+        "Veterans",
+    ]
+    _assert_content_contains(module_dir, expected_content_strings)
+
+    # Step 5: Negative validation - test that validation properly fails when module.json is missing
+    _test_negative_validation(module_dir)
+
     print("✓ CLI conversion completed successfully")
+    print("✓ module.json validation passed")
+    print("✓ Compendium structure validation passed")
+    print("✓ Asset validation passed")
+    print("✓ Content fidelity checks passed")
+    print("✓ Negative validation tests passed")
+    print(f"✓ Found {len(journal_files)} journal entries with content")
     print(f"✓ Output directory: {tmp_output_dir}")
     print(f"✓ Generated files: {list(tmp_output_dir.rglob('*'))}")
 
@@ -114,11 +192,163 @@ def _assert_content_contains(module_dir: Path, expected_strings: list[str]) -> N
     """
     Assert that the generated content contains expected strings.
 
-    This function will be implemented in subtask 18.5 to perform content fidelity checks.
+    Searches through all JSON and HTML content in the module directory for the expected strings
+    using case-insensitive matching.
 
     Args:
         module_dir: Path to the generated module directory
         expected_strings: List of strings that should be present in the content
+
+    Raises:
+        AssertionError: If any expected string is not found in the content
     """
-    # Implementation placeholder - will be completed in subtask 18.5
-    pass
+    if not module_dir.exists():
+        pytest.fail(f"Module directory not found: {module_dir}")
+
+    # Collect all content text from JSON and HTML files
+    all_content = []
+
+    # Search in sources directory for JSON files
+    sources_dir = module_dir / "sources"
+    if sources_dir.exists():
+        for json_file in sources_dir.rglob("*.json"):
+            try:
+                with json_file.open() as f:
+                    data = json.load(f)
+                content_text = _extract_text_content(data)
+                if content_text:
+                    all_content.append(content_text)
+            except Exception as e:
+                pytest.fail(f"Error reading JSON file {json_file}: {e}")
+
+        # Also check standalone HTML files
+        for html_file in sources_dir.rglob("*.html"):
+            try:
+                with html_file.open() as f:
+                    html_content = f.read()
+                text_content = _strip_html_tags(html_content)
+                if text_content:
+                    all_content.append(text_content)
+            except Exception as e:
+                pytest.fail(f"Error reading HTML file {html_file}: {e}")
+
+    # Combine all content and normalize whitespace
+    combined_content = " ".join(all_content).lower()
+    combined_content = " ".join(combined_content.split())  # Normalize whitespace
+
+    # Check for each expected string (case-insensitive)
+    missing_strings = []
+    for expected in expected_strings:
+        if expected.lower() not in combined_content:
+            missing_strings.append(expected)
+
+    if missing_strings:
+        pytest.fail(
+            f"Content fidelity check failed. Missing expected strings: {missing_strings}\n"
+            f"Searched in {len(all_content)} content sources from {module_dir}"
+        )
+
+
+def _extract_text_content(data: Any) -> str:
+    """
+    Extract text content from JSON data structures.
+
+    Recursively searches for text content in common Foundry VTT fields like
+    name, title, label, content, and nested structures.
+
+    Args:
+        data: JSON data structure to extract text from
+
+    Returns:
+        Extracted text content as a single string
+    """
+    text_content = ""
+
+    if isinstance(data, dict):
+        # Extract from common text fields
+        text_fields = ["name", "title", "label", "description"]
+        for field in text_fields:
+            if field in data and isinstance(data[field], str):
+                text_content += data[field] + " "
+
+        # Extract from text content structures (Foundry VTT format)
+        if "text" in data and isinstance(data["text"], dict):
+            content = data["text"].get("content", "")
+            if content:
+                # Strip HTML tags from content
+                text_content += _strip_html_tags(content) + " "
+
+        # Recursively process nested structures
+        for value in data.values():
+            text_content += _extract_text_content(value)
+
+    elif isinstance(data, list):
+        for item in data:
+            text_content += _extract_text_content(item)
+
+    return text_content
+
+
+def _strip_html_tags(html_content: str) -> str:
+    """
+    Strip HTML tags from content and return plain text.
+
+    Args:
+        html_content: HTML content string
+
+    Returns:
+        Plain text with HTML tags removed
+    """
+    if not html_content:
+        return ""
+
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html_content, "html.parser")
+        return soup.get_text()
+    except ImportError:
+        # Fallback: simple regex-based tag removal
+        import re
+
+        clean_text = re.sub(r"<[^>]+>", "", html_content)
+        return clean_text
+
+
+def _test_negative_validation(module_dir: Path) -> None:
+    """
+    Test negative validation by temporarily removing module.json and ensuring validation fails.
+
+    Args:
+        module_dir: Path to the generated module directory
+
+    Raises:
+        AssertionError: If negative validation doesn't work as expected
+    """
+    module_json_path = module_dir / "module.json"
+    backup_path = module_dir / "module.json.bak"
+
+    if not module_json_path.exists():
+        pytest.fail(f"module.json not found for negative validation test: {module_json_path}")
+
+    try:
+        # Move module.json aside temporarily
+        shutil.move(str(module_json_path), str(backup_path))
+
+        # Validate that validation now fails
+        validation_errors = validate_module_json(module_json_path)
+
+        if not validation_errors:
+            pytest.fail(
+                "Negative validation failed: validate_module_json should have reported errors " "when module.json is missing"
+            )
+
+        # Check that the error mentions the missing file
+        error_text = " ".join(validation_errors).lower()
+        if "not found" not in error_text and "missing" not in error_text:
+            pytest.fail(f"Negative validation failed: error message should mention missing file. Got: {validation_errors}")
+
+    finally:
+        # Always restore the file
+        if backup_path.exists():
+            shutil.move(str(backup_path), str(module_json_path))
