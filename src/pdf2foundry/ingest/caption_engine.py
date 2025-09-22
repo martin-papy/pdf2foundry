@@ -73,7 +73,7 @@ class HFCaptionEngine:
         """Lazily load the transformers pipeline."""
         if self._pipeline is None:
             try:
-                import transformers  # type: ignore[import-untyped]
+                import transformers
 
                 logger.info(f"Loading VLM model: {self.model_id}")
 
@@ -91,7 +91,7 @@ class HFCaptionEngine:
 
                 # Use Any to avoid complex transformers typing issues
                 # Different mypy configurations may see different errors
-                self._pipeline = transformers.pipeline(
+                self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
                     task,
                     model=self.model_id,
                     device_map="auto",  # Use GPU if available

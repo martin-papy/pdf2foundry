@@ -172,10 +172,12 @@ def run_conversion_pipeline(
         else:
             typer.echo(f"\n✅ Wrote sources to {journals_src_dir} and assets to {assets_dir}")
             typer.echo("   Note: Pack compilation (packs/) is not performed automatically.")
-    except ModuleNotFoundError:  # pragma: no cover - environment dependent
-        typer.echo("\n⚠️  Docling not installed; skipping conversion steps.")
+    except ModuleNotFoundError as exc:  # pragma: no cover - environment dependent
+        typer.echo(f"\n❌ ERROR: DL-PDF001: Docling library not available: {exc}")
+        raise typer.Exit(1) from exc
     except Exception as exc:  # pragma: no cover - unexpected runtime errors
-        typer.echo(f"\n⚠️  Conversion failed: {exc}")
+        typer.echo(f"\n❌ ERROR: Conversion failed: {exc}")
+        raise typer.Exit(1) from exc
 
 
 def _slugify(text: str) -> str:

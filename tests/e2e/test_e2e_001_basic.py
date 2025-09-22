@@ -37,7 +37,7 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
 
     # Get input fixture
     try:
-        _input_pdf = get_fixture("basic.pdf")
+        input_pdf = get_fixture("basic.pdf")
     except FileNotFoundError as e:
         pytest.skip(f"Required fixture not found: {e}")
 
@@ -46,8 +46,46 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
     if not schema_path.exists():
         pytest.skip(f"Schema file not found: {schema_path}")
 
-    # Test will be implemented in subsequent subtasks
-    pytest.skip("Test implementation pending - scaffolding complete")
+    # Step 1: Execute CLI conversion
+    # Ensure output directory is clean
+    if tmp_output_dir.exists():
+        shutil.rmtree(tmp_output_dir)
+    tmp_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Run pdf2foundry CLI with basic.pdf using the convert command
+    cmd_args = [
+        "convert",
+        str(input_pdf),
+        "--mod-id",
+        "test-basic",
+        "--mod-title",
+        "Test Basic Module",
+        "--out-dir",
+        str(tmp_output_dir),
+    ]
+
+    try:
+        result = cli_runner(cmd_args)
+    except Exception as e:
+        pytest.fail(f"CLI execution failed with exception: {e}")
+
+    # Assert successful exit code
+    if result.returncode != 0:
+        # Create debug log file for troubleshooting
+        debug_log = tmp_output_dir / "debug.log"
+        debug_log.write_text(
+            f"Command: pdf2foundry {' '.join(cmd_args)}\n" f"Exit code: {result.returncode}\n" f"Output:\n{result.stdout}\n"
+        )
+        pytest.fail(
+            f"CLI conversion failed with exit code {result.returncode}. "
+            f"Output: {result.stdout}. Debug log saved to: {debug_log}"
+        )
+
+    # Subsequent validation steps will be implemented in following subtasks
+    # For now, just verify the command executed successfully
+    print("✓ CLI conversion completed successfully")
+    print(f"✓ Output directory: {tmp_output_dir}")
+    print(f"✓ Generated files: {list(tmp_output_dir.rglob('*'))}")
 
 
 def _check_prerequisites() -> None:

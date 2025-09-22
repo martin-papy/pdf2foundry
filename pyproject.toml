@@ -20,7 +20,7 @@ dependencies = [
   "docling-core>=2.48.1",
   "pytesseract>=0.3.13",
   # VLM dependencies for image captioning
-  "transformers>=4.44.2",
+  "transformers>=4.56.0",
   "huggingface_hub>=0.24.2",
   "torch>=2.3.1",
 ]
