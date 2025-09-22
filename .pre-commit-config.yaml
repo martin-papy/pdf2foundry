@@ -33,6 +33,7 @@ repos:
           - --cache-dir=.mypy_cache
           - --show-error-codes
           - --no-error-summary
+          - --skip-version-check
         # Only run on changed files for faster pre-commit
         pass_filenames: true
         # Only check source files, not tests (tests are excluded in pyproject.toml)

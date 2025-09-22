@@ -38,11 +38,11 @@ Homepage = "https://github.com/martin-papy/pdf2foundry"
 pdf2foundry = "pdf2foundry.cli:app"
 
 [tool.black]
-line-length = 100
+line-length = 125
 target-version = ["py312"]
 
 [tool.ruff]
-line-length = 100
+line-length = 125
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -72,6 +72,10 @@ disallow_any_generics = false
 follow_imports = "normal"
 # Reduce memory usage
 local_partial_types = true
+# Skip some expensive checks for better performance
+skip_version_check = true
+# Reduce output verbosity for speed
+show_error_context = false
 
 [[tool.mypy.overrides]]
 module = [
