@@ -62,7 +62,8 @@ pretty = true
 exclude = [
   "^tests/.*$"
 ]
-# Performance optimizations
+# Performance optimizations for local development
+# Note: CI uses --no-incremental and --cache-dir=/dev/null to avoid SQLite locks
 sqlite_cache = true
 cache_fine_grained = true
 incremental = true
@@ -79,11 +80,7 @@ show_error_context = false
 
 [[tool.mypy.overrides]]
 module = [
-  "docling",
   "docling.*",
-  "docling_core",
-  "docling_core.*",
-  "pytest",
   "jinja2",
   "pytesseract",
 ]

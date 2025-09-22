@@ -33,6 +33,12 @@ def test_cli_convert_help() -> None:
     assert result.exit_code == 0
     assert "Convert a born-digital PDF into a Foundry VTT v13 module" in result.stdout
 
+    # Verify OCR options are properly documented
+    assert "'auto'" in result.stdout
+    assert "'on'" in result.stdout
+    assert "'off'" in result.stdout
+    assert "disable OCR" in result.stdout
+
 
 def test_cli_convert_placeholder() -> None:
     """Test that convert command runs with placeholder implementation."""

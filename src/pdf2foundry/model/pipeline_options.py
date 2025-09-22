@@ -25,6 +25,7 @@ class OcrMode(Enum):
 
     AUTO = "auto"  # Run OCR only on pages with insufficient text coverage
     ON = "on"  # Always run OCR for all pages/images
+    OFF = "off"  # Never run OCR
 
 
 @dataclass
@@ -75,7 +76,7 @@ class PdfPipelineOptions:
 
         Args:
             tables: Table handling mode ("structured", "auto", "image-only")
-            ocr: OCR mode ("auto", "on")
+            ocr: OCR mode ("auto", "on", "off")
             picture_descriptions: Picture descriptions ("on", "off")
             vlm_repo_id: VLM repository ID for picture descriptions
             text_coverage_threshold: Text coverage threshold for AUTO OCR
