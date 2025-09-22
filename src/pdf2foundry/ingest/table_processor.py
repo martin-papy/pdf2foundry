@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from pdf2foundry.ingest.error_handling import ErrorContext, ErrorManager
 from pdf2foundry.ingest.feature_logger import log_feature_decision
 from pdf2foundry.ingest.structured_tables import _extract_structured_tables
 from pdf2foundry.model.content import TableContent
@@ -95,27 +96,55 @@ def _process_tables_with_options(
         )
         return _process_tables(html, page_no, assets_dir, "image-only", name_prefix)
 
+    # Set up error handling context
+    context = ErrorContext(
+        source_module="table_processor",
+        page=page_no,
+        object_kind="table",
+        flags={"tables_mode": options.tables_mode.value},
+    )
+    error_mgr = ErrorManager(context)
+
     # For AUTO and STRUCTURED modes, try structured extraction first
-    structured_tables = _extract_structured_tables(doc, page_no)
+    try:
+        structured_tables = _extract_structured_tables(doc, page_no)
+    except Exception as e:
+        # Structured table extraction failed
+        error_mgr.warn(
+            "DL-TB003",
+            f"Structured table extraction failed on page {page_no}: {e}",
+            extra={
+                "error_type": "extraction_failed",
+                "fallback_used": "html_processing",
+                "mode": options.tables_mode.value,
+            },
+            exception=e,
+        )
+        structured_tables = []
 
     if not structured_tables:
-        log_feature_decision(
-            "Tables", "fallback_to_html", {"page": page_no, "reason": "no_structured_tables"}
-        )
-        logger.debug(
-            "No structured tables found on page %d, falling back to HTML processing", page_no
-        )
-        # No structured tables available, fall back to HTML processing
-        if options.tables_mode == TableMode.AUTO:
-            return _process_tables(html, page_no, assets_dir, "auto", name_prefix)
-        else:  # STRUCTURED mode
+        if options.tables_mode == TableMode.STRUCTURED:
+            # STRUCTURED mode but no tables found - this is a warning
+            error_mgr.warn(
+                "DL-TB004",
+                f"STRUCTURED mode requested but no structured tables found on page {page_no}",
+                extra={
+                    "mode": "STRUCTURED",
+                    "fallback_used": "html_processing",
+                    "reason": "no_structured_tables",
+                },
+            )
+        else:
+            # AUTO mode - this is expected, just log decision
             log_feature_decision(
-                "Tables", "structured_mode_fallback", {"page": page_no, "mode": "STRUCTURED"}
+                "Tables", "fallback_to_html", {"page": page_no, "reason": "no_structured_tables"}
             )
-            logger.warning(
-                "STRUCTURED mode requested but no structured tables found on page %d", page_no
+            logger.debug(
+                "No structured tables found on page %d, falling back to HTML processing", page_no
             )
-            return _process_tables(html, page_no, assets_dir, "auto", name_prefix)
+
+        # Fall back to HTML processing for both modes
+        return _process_tables(html, page_no, assets_dir, "auto", name_prefix)
 
     # We have structured tables - process them based on mode
     confidence_threshold = getattr(options, "tables_confidence_threshold", 0.6)

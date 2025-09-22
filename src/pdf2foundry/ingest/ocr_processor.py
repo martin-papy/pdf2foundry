@@ -7,7 +7,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from pdf2foundry.ingest.feature_logger import log_error_policy
+from pdf2foundry.ingest.error_handling import ErrorContext, ErrorManager
 from pdf2foundry.ingest.ocr_engine import (
     OcrCache,
     OcrResult,
@@ -56,21 +56,55 @@ def apply_ocr_to_page(
     """
     # Check if OCR is needed for this page
     if not needs_ocr(html, options.ocr_mode.value, options.text_coverage_threshold):
+        # Log OCR auto decision when in auto mode
+        if options.ocr_mode.value == "auto":
+            context = ErrorContext(
+                source_module="ocr_processor",
+                page=page_no,
+                object_kind="ocr",
+                flags={"ocr_mode": options.ocr_mode.value},
+            )
+            error_mgr = ErrorManager(context)
+            error_mgr.decision(
+                "DL-OCR-DEC",
+                "ocr.auto",
+                "disabled",
+                extra={
+                    "reason": "sufficient_text_coverage",
+                    "coverage": compute_text_coverage(html),
+                    "threshold": options.text_coverage_threshold,
+                },
+            )
         logger.debug(f"Page {page_no}: OCR not needed (mode={options.ocr_mode.value})")
         return html
+
+    # Set up error handling context
+    context = ErrorContext(
+        source_module="ocr_processor",
+        page=page_no,
+        object_kind="ocr",
+        flags={"ocr_mode": options.ocr_mode.value},
+    )
+    error_mgr = ErrorManager(context)
 
     # Check if OCR engine is available
     if not ocr_engine.is_available():
         if options.ocr_mode.value == "on":
-            log_error_policy(
-                "OCR", "missing_dependency", "continue", "OCR mode 'on' but Tesseract not available"
+            error_mgr.error_policy(
+                "OCR",
+                "missing_dependency",
+                "continue",
+                details="OCR mode 'on' but Tesseract not available",
+                event_code="DL-OCR001",
             )
-            logger.error(f"Page {page_no}: OCR requested but Tesseract not available")
         else:
-            log_error_policy(
-                "OCR", "missing_dependency", "skip", "OCR mode 'auto' but Tesseract not available"
+            error_mgr.error_policy(
+                "OCR",
+                "missing_dependency",
+                "skip",
+                details="OCR mode 'auto' but Tesseract not available",
+                event_code="DL-OCR002",
             )
-            logger.warning(f"Page {page_no}: OCR auto-triggered but Tesseract not available")
         return html
 
     try:
@@ -92,6 +126,20 @@ def apply_ocr_to_page(
         # Check cache first
         ocr_results = ocr_cache.get(page_image)
         if ocr_results is None:
+            # Log OCR decision when actually running OCR
+            if options.ocr_mode.value == "auto":
+                error_mgr.decision(
+                    "DL-OCR-DEC",
+                    "ocr.auto",
+                    "enabled",
+                    extra={
+                        "reason": "low_text_coverage",
+                        "coverage": compute_text_coverage(html),
+                        "threshold": options.text_coverage_threshold,
+                        "engine": "tesseract",
+                    },
+                )
+
             # Run OCR
             logger.info(f"Page {page_no}: Running OCR (coverage={compute_text_coverage(html):.3f})")
             ocr_results = ocr_engine.run(page_image)
@@ -116,11 +164,21 @@ def apply_ocr_to_page(
 
     except Exception as e:
         if options.ocr_mode.value == "on":
-            log_error_policy("OCR", "processing_failed", "continue", f"OCR processing failed: {e}")
-            logger.error(f"Page {page_no}: OCR processing failed: {e}")
+            error_mgr.error_policy(
+                "OCR",
+                "processing_failed",
+                "continue",
+                details=f"OCR processing failed: {e}",
+                event_code="DL-OCR003",
+            )
         else:
-            log_error_policy("OCR", "processing_failed", "skip", f"OCR processing failed: {e}")
-            logger.warning(f"Page {page_no}: OCR processing failed: {e}")
+            error_mgr.error_policy(
+                "OCR",
+                "processing_failed",
+                "skip",
+                details=f"OCR processing failed: {e}",
+                event_code="DL-OCR004",
+            )
         return html
 
 

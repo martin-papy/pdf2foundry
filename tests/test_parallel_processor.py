@@ -388,12 +388,13 @@ class TestProcessPagesParallel:
                 mock_sequential.return_value = ([], [], [], [], 1.0)
 
                 # Process pages - should fallback due to worker exception
-                with caplog.at_level(logging.WARNING):
+                with caplog.at_level(logging.ERROR):  # Capture both ERROR and WARNING
                     process_pages_parallel(doc, selected_pages, tmp_path, options)
 
                 # Verify fallback was used
                 mock_sequential.assert_called_once()
-                assert "Parallel processing failed" in caplog.text
+                # The test should check for the actual error message that gets logged
+                assert "Page 2 failed: Worker failed" in caplog.text
 
     def test_deterministic_ordering(self, tmp_path: Path) -> None:
         """Test that results are returned in deterministic page order."""

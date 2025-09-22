@@ -11,6 +11,7 @@ import logging
 from collections.abc import Iterable
 from typing import Any
 
+from pdf2foundry.ingest.error_handling import ErrorContext, ErrorManager
 from pdf2foundry.model.content import BBox, StructuredTable, TableCell
 from pdf2foundry.model.id_utils import sha1_16_hex
 from pdf2foundry.model.pipeline_options import PdfPipelineOptions
@@ -26,8 +27,6 @@ def _iter_structured_tables(doc: Any, page_index: int | None = None) -> Iterable
     Yields:
         Dict with table information: page_no, table_id, bbox, confidence, cells
     """
-    logger = logging.getLogger(__name__)
-
     try:
         pages = getattr(doc, "pages", [])
         table_store = getattr(doc, "table_store", None) or getattr(doc, "tables", None)
@@ -83,7 +82,15 @@ def _iter_structured_tables(doc: Any, page_index: int | None = None) -> Iterable
                 }
 
     except Exception as e:
-        logger.warning("Failed to extract structured tables from Docling document: %s", e)
+        # Use centralized error handling
+        context = ErrorContext(source_module="structured_tables", page=page_index)
+        error_mgr = ErrorManager(context)
+        error_mgr.warn(
+            "DL-TB001",
+            f"Failed to extract structured tables from Docling document: {e}",
+            extra={"error_type": "extraction_failed"},
+            exception=e,
+        )
 
 
 def _extract_structured_tables(
@@ -235,7 +242,15 @@ def _extract_structured_tables(
             )
 
     except Exception as e:
-        logger.warning("Failed to extract structured tables from page %d: %s", page_index, e)
+        # Use centralized error handling
+        context = ErrorContext(source_module="structured_tables", page=page_index)
+        error_mgr = ErrorManager(context)
+        error_mgr.warn(
+            "DL-TB002",
+            f"Failed to extract structured tables from page {page_index}: {e}",
+            extra={"error_type": "page_extraction_failed"},
+            exception=e,
+        )
 
     return structured_tables
 

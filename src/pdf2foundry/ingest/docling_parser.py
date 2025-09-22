@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 
+from pdf2foundry.ingest.error_handling import ErrorContext, ErrorManager
 from pdf2foundry.model.document import OutlineNode, ParsedDocument
+
+logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[str, dict[str, int | str]], None] | None
 
@@ -67,6 +71,11 @@ def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> Parse
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
     _safe_emit(on_progress, "parse_structure:start", {"page_count": page_count})
+
+    # Set up error handling context
+    context = ErrorContext(source_module="docling_parser", page=None)
+    error_mgr = ErrorManager(context)
+
     outline_nodes = _outline_from_docling(doc, page_count)
     if outline_nodes:
         chapters, sections = _count_chapters_sections(outline_nodes)
@@ -75,13 +84,31 @@ def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> Parse
             "parse_structure:bookmarks_found",
             {"page_count": page_count, "chapters": chapters, "sections": sections},
         )
+        logger.info(
+            "Successfully extracted %d chapters and %d sections from bookmarks", chapters, sections
+        )
     else:
+        # Missing bookmarks - log warning and use fallback
+        error_mgr.warn(
+            "DL-MB001",
+            "No bookmarks found in PDF, falling back to heading heuristics",
+            extra={
+                "page_count": page_count,
+                "fallback_used": "heading_heuristics",
+                "reason": "missing_bookmarks",
+            },
+        )
+
         _safe_emit(on_progress, "parse_structure:no_bookmarks", {"page_count": page_count})
         _safe_emit(on_progress, "parse_structure:heuristics_start", {"page_count": page_count})
+
         from pdf2foundry.ingest.heuristics import build_outline_from_headings
 
         outline_nodes = build_outline_from_headings(doc, page_count)
         chapters, sections = _count_chapters_sections(outline_nodes)
+
+        logger.info("Heading heuristics generated %d chapters and %d sections", chapters, sections)
+
         _safe_emit(
             on_progress,
             "parse_structure:heuristics_complete",

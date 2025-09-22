@@ -89,7 +89,7 @@ class TestOcrErrorHandling:
 
         assert result == ""  # Original HTML returned
         assert "OCR error policy: missing_dependency -> continue" in caplog.text
-        assert "OCR requested but Tesseract not available" in caplog.text
+        assert "OCR mode 'on' but Tesseract not available" in caplog.text
 
     def test_ocr_missing_dependency_auto_mode(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test OCR error handling when Tesseract is missing in AUTO mode."""
@@ -109,7 +109,7 @@ class TestOcrErrorHandling:
         assert result == "<p>some text</p>"  # Original HTML returned
         # The error policy logging happens in the content extractor, not the processor
         # So we just check that the warning is logged and the function continues gracefully
-        assert "OCR auto-triggered but Tesseract not available" in caplog.text
+        assert "OCR mode 'auto' but Tesseract not available" in caplog.text
 
     @patch("pdf2foundry.ingest.ocr_processor._rasterize_page")
     def test_ocr_processing_failure_on_mode(

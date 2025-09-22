@@ -62,6 +62,9 @@ pretty = true
 exclude = [
   "^tests/.*$"
 ]
+# Performance optimizations
+sqlite_cache = true
+cache_fine_grained = true
 
 [[tool.mypy.overrides]]
 module = [

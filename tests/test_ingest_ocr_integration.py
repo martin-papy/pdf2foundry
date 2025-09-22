@@ -37,13 +37,14 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        with patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger:
+        # Now we use structured error handling, so we need to check for the structured log messages
+        with patch("pdf2foundry.ingest.error_handling.log_error_policy") as mock_log_policy:
             result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             engine.is_available.assert_called_once()
-            # Should log error in ON mode
-            mock_logger.error.assert_called()
+            # Should log error policy in ON mode
+            mock_log_policy.assert_called()
 
     def test_ocr_needed_but_engine_unavailable_auto_mode(self) -> None:
         """Test OCR needed but engine unavailable in AUTO mode."""
@@ -54,13 +55,14 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        with patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger:
+        # Now we use structured error handling, so we need to check for the structured log messages
+        with patch("pdf2foundry.ingest.error_handling.log_error_policy") as mock_log_policy:
             result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
             engine.is_available.assert_called_once()
-            # Should log warning in AUTO mode
-            mock_logger.warning.assert_called()
+            # Should log error policy in AUTO mode
+            mock_log_policy.assert_called()
 
     def test_ocr_page_rasterization_fails(self) -> None:
         """Test OCR when page rasterization fails."""
@@ -176,14 +178,14 @@ class TestApplyOcrToPage:
 
         with (
             patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger,
+            patch("pdf2foundry.ingest.error_handling.log_error_policy") as mock_log_policy,
         ):
             engine.run.side_effect = Exception("OCR failed")
 
             result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
-            mock_logger.error.assert_called()
+            mock_log_policy.assert_called()
 
     def test_ocr_processing_exception_auto_mode(self) -> None:
         """Test OCR processing exception in AUTO mode."""
@@ -198,14 +200,14 @@ class TestApplyOcrToPage:
 
         with (
             patch("pdf2foundry.ingest.ocr_processor._rasterize_page", return_value=mock_image),
-            patch("pdf2foundry.ingest.ocr_processor.logger") as mock_logger,
+            patch("pdf2foundry.ingest.error_handling.log_error_policy") as mock_log_policy,
         ):
             engine.run.side_effect = Exception("OCR failed")
 
             result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
             assert result == html
-            mock_logger.warning.assert_called()
+            mock_log_policy.assert_called()
 
 
 class TestRasterizePage:

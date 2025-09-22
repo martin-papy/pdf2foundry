@@ -187,6 +187,18 @@ def convert(
             ),
         ),
     ] = False,
+    verbose: Annotated[
+        int,
+        typer.Option(
+            "--verbose",
+            "-v",
+            count=True,
+            help=(
+                "Increase verbosity. Use -v for info messages (decisions, summaries), "
+                "-vv for debug messages (detailed processing). Default: warnings and errors only."
+            ),
+        ),
+    ] = 0,
 ) -> None:
     """
     Convert a born-digital PDF into a Foundry VTT v13 module.
@@ -223,6 +235,11 @@ def convert(
         pdf2foundry convert "Academic.pdf" --mod-id "paper" --mod-title "Research Paper" \\
             --reflow-columns
     """
+    # Configure logging based on verbosity level
+    from pdf2foundry.ingest.logging_config import configure_logging
+
+    configure_logging(verbose)
+
     # Interactive prompts when minimal args are provided
     if mod_id is None or mod_title is None:
         (
@@ -348,6 +365,7 @@ def convert(
         pages=parsed_pages,
         workers=workers,
         reflow_columns=reflow_columns,
+        verbose=verbose,
     )
 
 

@@ -28,6 +28,8 @@ repos:
         types: [python]
         args:
           - --config-file=pyproject.toml
+        # Only run on changed files for faster pre-commit
+        pass_filenames: true
 
   - repo: local
     hooks:

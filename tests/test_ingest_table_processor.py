@@ -185,15 +185,13 @@ def test_process_tables_with_options_structured_mode_no_tables() -> None:
         with patch("pdf2foundry.ingest.table_processor._extract_structured_tables") as mock_extract:
             mock_extract.return_value = []  # No structured tables
 
-            with patch("pdf2foundry.ingest.table_processor.log_feature_decision") as mock_log:
+            with patch("pdf2foundry.ingest.error_handling.ErrorManager.warn") as mock_warn:
                 updated_html, tables = _process_tables_with_options(
                     doc, html, page_no, assets_dir, options, name_prefix
                 )
 
-                # Should call log_feature_decision for structured mode fallback
-                mock_log.assert_called_with(
-                    "Tables", "structured_mode_fallback", {"page": page_no, "mode": "STRUCTURED"}
-                )
+                # Should call ErrorManager.warn for structured mode fallback
+                mock_warn.assert_called()
 
         # Should fall back to HTML processing
         assert len(tables) == 1

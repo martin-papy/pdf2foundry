@@ -40,6 +40,7 @@ def run_conversion_pipeline(
     pages: list[int] | None = None,
     workers: int = 1,
     reflow_columns: bool = False,
+    verbose: int = 0,
 ) -> None:
     """Run the main conversion pipeline."""
     # Keep placeholder path for minimal PDFs used in unit tests
