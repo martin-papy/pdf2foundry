@@ -145,8 +145,7 @@ def initialize_caption_components(
                 "Picture descriptions enabled but no VLM repository ID provided",
             )
             logger.warning(
-                "Picture descriptions enabled but no VLM repository ID provided. "
-                "Image captions will be skipped."
+                "Picture descriptions enabled but no VLM repository ID provided. " "Image captions will be skipped."
             )
             _safe_emit(on_progress, "caption:no_model", {"reason": "no_vlm_repo_id"})
         else:

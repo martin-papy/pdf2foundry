@@ -47,9 +47,7 @@ class PageProcessingResult:
     processing_time: float
 
 
-def _extract_images_from_html(
-    html: str, page_no: int, out_assets: Path, name_prefix: str
-) -> tuple[str, list[ImageAsset]]:
+def _extract_images_from_html(html: str, page_no: int, out_assets: Path, name_prefix: str) -> tuple[str, list[ImageAsset]]:
     """Extract base64-encoded images from HTML and save to files.
 
     This is imported from the content_extractor module.
@@ -167,18 +165,12 @@ def process_page_content(
     images.extend(ref_images)
 
     # 5. Tables - use new structured processing if available, fall back to legacy
-    if pipeline_options.tables_mode in (TableMode.STRUCTURED, TableMode.AUTO) and hasattr(
-        doc, "pages"
-    ):
+    if pipeline_options.tables_mode in (TableMode.STRUCTURED, TableMode.AUTO) and hasattr(doc, "pages"):
         # Use new structured table processing
-        html, page_tables = _process_tables_with_options(
-            doc, html, page_no, out_assets, pipeline_options, name_prefix
-        )
+        html, page_tables = _process_tables_with_options(doc, html, page_no, out_assets, pipeline_options, name_prefix)
     else:
         # Fall back to legacy HTML-only processing
-        html, page_tables = _process_tables(
-            html, page_no, out_assets, pipeline_options.tables_mode.value, name_prefix
-        )
+        html, page_tables = _process_tables(html, page_no, out_assets, pipeline_options.tables_mode.value, name_prefix)
     tables = list(page_tables)
 
     # 6. Links
@@ -227,9 +219,7 @@ def process_pages_parallel(
 
     if workers <= 1:
         # Fall back to sequential processing
-        return _process_pages_sequential(
-            doc, selected_pages, out_assets, pipeline_options, include_layers, image_mode
-        )
+        return _process_pages_sequential(doc, selected_pages, out_assets, pipeline_options, include_layers, image_mode)
 
     logger.info(f"Processing {len(selected_pages)} pages using {workers} workers")
 
@@ -263,9 +253,7 @@ def process_pages_parallel(
                     future_to_page[future] = context.page_no
                 except Exception as e:
                     # Handle pickling/serialization errors at submission time
-                    logger.warning(
-                        f"Failed to submit page {context.page_no} for parallel processing: {e}"
-                    )
+                    logger.warning(f"Failed to submit page {context.page_no} for parallel processing: {e}")
                     raise
 
             # Collect results as they complete
@@ -292,9 +280,7 @@ def process_pages_parallel(
             type(e).__name__,
             e,
         )
-        return _process_pages_sequential(
-            doc, selected_pages, out_assets, pipeline_options, include_layers, image_mode
-        )
+        return _process_pages_sequential(doc, selected_pages, out_assets, pipeline_options, include_layers, image_mode)
 
     # Collect results in deterministic order (by page number)
     pages = []

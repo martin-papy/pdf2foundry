@@ -133,9 +133,7 @@ class TestRenderStructuredTableHtml:
         html = render_structured_table_html(table)
 
         # Should be properly escaped
-        assert (
-            "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt; &amp; &quot;quotes&quot;" in html
-        )
+        assert "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt; &amp; &quot;quotes&quot;" in html
         # Should not contain unescaped HTML
         assert "<script>" not in html
         assert 'alert("xss")' not in html
@@ -154,9 +152,7 @@ class TestRenderStructuredTableHtml:
 
         html = render_structured_table_html(table)
 
-        assert (
-            "<caption>&lt;b&gt;Bold&lt;/b&gt; &amp; &quot;Special&quot; Caption</caption>" in html
-        )
+        assert "<caption>&lt;b&gt;Bold&lt;/b&gt; &amp; &quot;Special&quot; Caption</caption>" in html
 
 
 class TestReplaceStructuredTablePlaceholders:

@@ -44,21 +44,13 @@ def parse_page_spec(spec: str) -> list[int]:
                 start = int(parts[0])
                 end = int(parts[1])
             except ValueError as exc:
-                raise ValueError(
-                    f"Invalid page specification '{spec}': non-numeric range '{token}'"
-                ) from exc
+                raise ValueError(f"Invalid page specification '{spec}': non-numeric range '{token}'") from exc
 
             if start <= 0 or end <= 0:
-                raise ValueError(
-                    f"Invalid page specification '{spec}': "
-                    f"page numbers must be positive, got '{token}'"
-                )
+                raise ValueError(f"Invalid page specification '{spec}': " f"page numbers must be positive, got '{token}'")
 
             if start > end:
-                raise ValueError(
-                    f"Invalid page specification '{spec}': "
-                    f"range start must be <= end, got '{token}'"
-                )
+                raise ValueError(f"Invalid page specification '{spec}': " f"range start must be <= end, got '{token}'")
 
             pages.update(range(start, end + 1))
         else:
@@ -66,15 +58,10 @@ def parse_page_spec(spec: str) -> list[int]:
             try:
                 page = int(token)
             except ValueError as exc:
-                raise ValueError(
-                    f"Invalid page specification '{spec}': non-numeric page '{token}'"
-                ) from exc
+                raise ValueError(f"Invalid page specification '{spec}': non-numeric page '{token}'") from exc
 
             if page <= 0:
-                raise ValueError(
-                    f"Invalid page specification '{spec}': "
-                    f"page numbers must be positive, got '{token}'"
-                )
+                raise ValueError(f"Invalid page specification '{spec}': " f"page numbers must be positive, got '{token}'")
 
             pages.add(page)
 

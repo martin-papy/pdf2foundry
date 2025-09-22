@@ -205,9 +205,7 @@ class ErrorManager:
 class PdfParseError(Exception):
     """Fatal PDF parsing error that should cause graceful exit."""
 
-    def __init__(
-        self, pdf_path: Path, cause: Exception | None = None, page: int | None = None
-    ) -> None:
+    def __init__(self, pdf_path: Path, cause: Exception | None = None, page: int | None = None) -> None:
         self.pdf_path = pdf_path
         self.cause = cause
         self.page = page
@@ -224,9 +222,7 @@ class PdfParseError(Exception):
 class TableExtractionError(Exception):
     """Non-fatal table extraction error - fallback should be used."""
 
-    def __init__(
-        self, page: int, table_index: int | None = None, cause: Exception | None = None
-    ) -> None:
+    def __init__(self, page: int, table_index: int | None = None, cause: Exception | None = None) -> None:
         self.page = page
         self.table_index = table_index
         self.cause = cause
@@ -249,17 +245,14 @@ class CrossRefResolutionWarning(Exception):
         self.target_anchor = target_anchor
 
         super().__init__(
-            f"Failed to resolve cross-reference '{link_text}' on page {source_page} "
-            f"to anchor '{target_anchor}'"
+            f"Failed to resolve cross-reference '{link_text}' on page {source_page} " f"to anchor '{target_anchor}'"
         )
 
 
 class CaptionAssociationWarning(Exception):
     """Non-fatal caption association warning."""
 
-    def __init__(
-        self, page: int, figure_id: str | None = None, caption_text: str | None = None
-    ) -> None:
+    def __init__(self, page: int, figure_id: str | None = None, caption_text: str | None = None) -> None:
         self.page = page
         self.figure_id = figure_id
         self.caption_text = caption_text

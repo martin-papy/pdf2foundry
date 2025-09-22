@@ -313,11 +313,7 @@ class TestMergeOcrResults:
     def test_merge_with_metadata(self) -> None:
         """Test merging OCR results with full metadata."""
         html = "<p>Original</p>"
-        ocr_results = [
-            OcrResult(
-                text="Test text", confidence=0.95, language="eng", bbox=(10.0, 20.0, 100.0, 50.0)
-            )
-        ]
+        ocr_results = [OcrResult(text="Test text", confidence=0.95, language="eng", bbox=(10.0, 20.0, 100.0, 50.0))]
 
         result = _merge_ocr_results(ocr_results, html)
 
@@ -367,9 +363,7 @@ class TestExtractSemanticContentOcrIntegration:
         mock_cache = Mock()
 
         with (
-            patch(
-                "pdf2foundry.ingest.content_extractor.TesseractOcrEngine", return_value=mock_engine
-            ),
+            patch("pdf2foundry.ingest.content_extractor.TesseractOcrEngine", return_value=mock_engine),
             patch("pdf2foundry.ingest.content_extractor.OcrCache", return_value=mock_cache),
             patch("pdf2foundry.ingest.content_extractor.apply_ocr_to_page") as mock_apply_ocr,
         ):
@@ -419,9 +413,7 @@ class TestExtractSemanticContentOcrIntegration:
         mock_cache = Mock()
 
         with (
-            patch(
-                "pdf2foundry.ingest.content_extractor.TesseractOcrEngine", return_value=mock_engine
-            ),
+            patch("pdf2foundry.ingest.content_extractor.TesseractOcrEngine", return_value=mock_engine),
             patch("pdf2foundry.ingest.content_extractor.OcrCache", return_value=mock_cache),
             patch("pdf2foundry.ingest.content_extractor.apply_ocr_to_page") as mock_apply_ocr,
         ):

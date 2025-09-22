@@ -145,10 +145,7 @@ def test_cli_convert_picture_descriptions_on_without_vlm_warns(temp_pdf: str) ->
         )
         assert result.exit_code == 0
         assert "Picture Descriptions: Yes" in result.stdout
-        assert (
-            "Warning: Picture descriptions enabled but no VLM repository ID provided"
-            in result.stdout
-        )
+        assert "Warning: Picture descriptions enabled but no VLM repository ID provided" in result.stdout
 
     finally:
         Path(temp_pdf).unlink(missing_ok=True)
@@ -174,10 +171,7 @@ def test_cli_convert_vlm_repo_id_without_picture_descriptions_warns(temp_pdf: st
         )
         assert result.exit_code == 0
         assert "Picture Descriptions: No" in result.stdout
-        assert (
-            "Warning: VLM repository ID provided but picture descriptions are disabled"
-            in result.stdout
-        )
+        assert "Warning: VLM repository ID provided but picture descriptions are disabled" in result.stdout
 
     finally:
         Path(temp_pdf).unlink(missing_ok=True)

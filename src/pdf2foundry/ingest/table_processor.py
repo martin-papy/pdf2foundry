@@ -22,8 +22,7 @@ def _rasterize_table_placeholder(dest_dir: Path, filename: str) -> str:
     """Create a tiny PNG placeholder for rasterized tables."""
     # 1x1 transparent PNG (43 bytes)
     data = bytes.fromhex(
-        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4"
-        "890000000a4944415478da6300010000050001"
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4" "890000000a4944415478da6300010000050001"
     )
 
     (dest_dir / filename).write_bytes(data)
@@ -88,12 +87,8 @@ def _process_tables_with_options(
 
     # Handle IMAGE_ONLY mode - skip structured extraction entirely
     if options.tables_mode == TableMode.IMAGE_ONLY:
-        log_feature_decision(
-            "Tables", "force_rasterization", {"page": page_no, "mode": "IMAGE_ONLY"}
-        )
-        logger.debug(
-            "Table mode IMAGE_ONLY: forcing rasterization for all tables on page %d", page_no
-        )
+        log_feature_decision("Tables", "force_rasterization", {"page": page_no, "mode": "IMAGE_ONLY"})
+        logger.debug("Table mode IMAGE_ONLY: forcing rasterization for all tables on page %d", page_no)
         return _process_tables(html, page_no, assets_dir, "image-only", name_prefix)
 
     # Set up error handling context
@@ -136,12 +131,8 @@ def _process_tables_with_options(
             )
         else:
             # AUTO mode - this is expected, just log decision
-            log_feature_decision(
-                "Tables", "fallback_to_html", {"page": page_no, "reason": "no_structured_tables"}
-            )
-            logger.debug(
-                "No structured tables found on page %d, falling back to HTML processing", page_no
-            )
+            log_feature_decision("Tables", "fallback_to_html", {"page": page_no, "reason": "no_structured_tables"})
+            logger.debug("No structured tables found on page %d, falling back to HTML processing", page_no)
 
         # Fall back to HTML processing for both modes
         return _process_tables(html, page_no, assets_dir, "auto", name_prefix)
@@ -190,8 +181,7 @@ def _process_tables_with_options(
                     fname = f"{name_prefix}_table_{counter:04d}_fallback.png"
                     _rasterize_table_placeholder(assets_dir, fname)
                     logger.warning(
-                        "Low confidence structured table on page %d (%.3f), "
-                        "including raster fallback: %s",
+                        "Low confidence structured table on page %d (%.3f), " "including raster fallback: %s",
                         page_no,
                         table_confidence,
                         fname,
@@ -223,16 +213,13 @@ def _process_tables_with_options(
                     return f"<!-- structured table {counter} -->"
                 else:
                     logger.debug(
-                        "AUTO mode: structured table confidence too low on page %d "
-                        "(%.3f < %.3f), falling back to HTML",
+                        "AUTO mode: structured table confidence too low on page %d " "(%.3f < %.3f), falling back to HTML",
                         page_no,
                         table_confidence,
                         confidence_threshold,
                     )
                     # Fall back to HTML table
-                    tables.append(
-                        TableContent(kind="html", page_no=page_no, html=block, image_name=None)
-                    )
+                    tables.append(TableContent(kind="html", page_no=page_no, html=block, image_name=None))
                     current_structured = next(structured_iter, None)
                     return block
 

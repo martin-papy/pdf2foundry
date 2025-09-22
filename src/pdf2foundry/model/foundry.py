@@ -41,9 +41,7 @@ class JournalPageText:
             raise ValueError("JournalPageText.title.level must be >= 1")
 
 
-def make_text_page(
-    _id: str, name: str, level: int, text_html: str, sort: int = 0
-) -> JournalPageText:
+def make_text_page(_id: str, name: str, level: int, text_html: str, sort: int = 0) -> JournalPageText:
     """Factory for a text page with HTML content and visible title."""
 
     return JournalPageText(

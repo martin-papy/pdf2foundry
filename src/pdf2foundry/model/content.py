@@ -94,10 +94,7 @@ class StructuredTable:
             for i, row in enumerate(self.rows[1:], 1):
                 row_cols = sum(cell.col_span for cell in row)
                 if row_cols != first_row_cols:
-                    raise ValueError(
-                        f"Row {i} has {row_cols} logical columns, "
-                        f"but first row has {first_row_cols}"
-                    )
+                    raise ValueError(f"Row {i} has {row_cols} logical columns, " f"but first row has {first_row_cols}")
 
     @classmethod
     def from_detector(
@@ -213,10 +210,7 @@ class StructuredTable:
         return cls(
             id=data["id"],
             bbox=BBox.from_dict(data["bbox"]),
-            rows=[
-                [TableCell.from_dict(cell_data) for cell_data in row_data]
-                for row_data in data["rows"]
-            ],
+            rows=[[TableCell.from_dict(cell_data) for cell_data in row_data] for row_data in data["rows"]],
             caption=data.get("caption"),
             meta=data.get("meta", {}),
         )
@@ -377,9 +371,7 @@ class ParsedContent:
 
         structured_tables = []
         if "structured_tables" in data:
-            structured_tables = [
-                StructuredTable.from_dict(table_data) for table_data in data["structured_tables"]
-            ]
+            structured_tables = [StructuredTable.from_dict(table_data) for table_data in data["structured_tables"]]
 
         assets_dir = None
         if "assets_dir" in data:

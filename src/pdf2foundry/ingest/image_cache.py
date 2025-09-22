@@ -344,9 +344,7 @@ class SharedImageCache:
 
         return cached_region
 
-    def _rasterize_page_impl(
-        self, doc: Any, page_index: int, dpi: int = 150, color_mode: str = "RGB"
-    ) -> Image.Image | None:
+    def _rasterize_page_impl(self, doc: Any, page_index: int, dpi: int = 150, color_mode: str = "RGB") -> Image.Image | None:
         """Internal implementation of page rasterization.
 
         Args:
@@ -391,9 +389,7 @@ class SharedImageCache:
                 "page_hit_rate": (self._page_hits / max(1, self._page_hits + self._page_misses)),
                 "region_hits": self._region_hits,
                 "region_misses": self._region_misses,
-                "region_hit_rate": (
-                    self._region_hits / max(1, self._region_hits + self._region_misses)
-                ),
+                "region_hit_rate": (self._region_hits / max(1, self._region_hits + self._region_misses)),
                 "rasterize_calls": self._rasterize_calls,
                 "page_cache_size": len(self._page_cache),
                 "region_cache_size": len(self._region_cache),

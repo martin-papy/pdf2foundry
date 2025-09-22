@@ -22,10 +22,7 @@ class _Doc:
     def export_to_html(self, **_: Any) -> str:
         # include one embedded image, one table, and one link
         # Use a valid 1x1 pixel PNG in base64
-        valid_png_b64 = (
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJ"
-            "TYQAAAAASUVORK5CYII="
-        )
+        valid_png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJ" "TYQAAAAASUVORK5CYII="
         return (
             '<div class="p">Hello'
             f'<img src="data:image/png;base64,{valid_png_b64}">'
@@ -43,9 +40,7 @@ def test_extract_semantic_content(tmp_path: Path) -> None:
     def on_progress(event: str, payload: dict[str, Any]) -> None:
         events.append({"event": event, **payload})
 
-    out = extract_semantic_content(
-        doc, tmp_path / "assets", PdfPipelineOptions(), on_progress=on_progress
-    )
+    out = extract_semantic_content(doc, tmp_path / "assets", PdfPipelineOptions(), on_progress=on_progress)
     # two pages created
     assert len(out.pages) == 2
     # at least one image extracted
@@ -67,9 +62,7 @@ def test_extract_semantic_content_no_contentlayer(monkeypatch: Any, tmp_path: Pa
     doc = _Doc(1)
     from pdf2foundry.model.pipeline_options import PdfPipelineOptions, TableMode
 
-    out = extract_semantic_content(
-        doc, tmp_path / "assets2", PdfPipelineOptions(tables_mode=TableMode.IMAGE_ONLY)
-    )
+    out = extract_semantic_content(doc, tmp_path / "assets2", PdfPipelineOptions(tables_mode=TableMode.IMAGE_ONLY))
     assert len(out.pages) == 1
     # in image-only mode, tables become images
     assert out.tables and out.tables[0].kind == "image"
@@ -125,9 +118,7 @@ class TestCaptionIntegration:
         assert caption_events[0]["reason"] == "no_vlm_repo_id"
 
     @patch("pdf2foundry.ingest.caption_processor.HFCaptionEngine")
-    def test_extract_content_with_captions_engine_unavailable(
-        self, mock_engine_class: Mock, tmp_path: Path
-    ) -> None:
+    def test_extract_content_with_captions_engine_unavailable(self, mock_engine_class: Mock, tmp_path: Path) -> None:
         """Test content extraction when caption engine is unavailable."""
         # Mock engine to be unavailable
         mock_engine = Mock()
@@ -135,9 +126,7 @@ class TestCaptionIntegration:
         mock_engine_class.return_value = mock_engine
 
         doc = _Doc(1)
-        options = PdfPipelineOptions(
-            picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base"
-        )
+        options = PdfPipelineOptions(picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base")
 
         events: list[dict[str, Any]] = []
 
@@ -159,9 +148,7 @@ class TestCaptionIntegration:
         assert caption_events[0]["model_id"] == "microsoft/Florence-2-base"
 
     @patch("pdf2foundry.ingest.caption_processor.HFCaptionEngine")
-    def test_extract_content_with_captions_init_failure(
-        self, mock_engine_class: Mock, tmp_path: Path
-    ) -> None:
+    def test_extract_content_with_captions_init_failure(self, mock_engine_class: Mock, tmp_path: Path) -> None:
         """Test content extraction when caption engine initialization fails."""
         # Mock engine initialization to fail
         mock_engine_class.side_effect = RuntimeError("Model not found")
@@ -207,9 +194,7 @@ class TestCaptionIntegration:
         mock_cache_class.return_value = mock_cache
 
         doc = _Doc(1)
-        options = PdfPipelineOptions(
-            picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base"
-        )
+        options = PdfPipelineOptions(picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base")
 
         events: list[dict[str, Any]] = []
 
@@ -256,9 +241,7 @@ class TestCaptionIntegration:
         mock_cache_class.return_value = mock_cache
 
         doc = _Doc(1)
-        options = PdfPipelineOptions(
-            picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base"
-        )
+        options = PdfPipelineOptions(picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base")
 
         out = extract_semantic_content(doc, tmp_path / "assets", options)
 
@@ -289,9 +272,7 @@ class TestCaptionIntegration:
         mock_cache_class.return_value = mock_cache
 
         doc = _Doc(1)
-        options = PdfPipelineOptions(
-            picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base"
-        )
+        options = PdfPipelineOptions(picture_descriptions=True, vlm_repo_id="microsoft/Florence-2-base")
 
         out = extract_semantic_content(doc, tmp_path / "assets", options)
 

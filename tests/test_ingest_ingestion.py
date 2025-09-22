@@ -227,9 +227,7 @@ def test_load_json_file_permission_error(tmp_path: Path, monkeypatch: pytest.Mon
 
     monkeypatch.setattr(Path, "read_text", mock_read_text)
 
-    with pytest.raises(
-        JsonLoadError, match="Failed to load JSON from.*test.json.*Permission denied"
-    ):
+    with pytest.raises(JsonLoadError, match="Failed to load JSON from.*test.json.*Permission denied"):
         load_json_file(json_file)
 
 
@@ -269,9 +267,7 @@ def test_try_load_doc_from_json_fallback_disabled(tmp_path: Path) -> None:
         try_load_doc_from_json(json_file, fallback_on_failure=False)
 
 
-def test_try_load_doc_from_json_validation_error_fallback_enabled(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_try_load_doc_from_json_validation_error_fallback_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that validation errors trigger fallback when enabled."""
     json_file = tmp_path / "invalid_doc.json"
     json_file.write_text('{"num_pages": 3}', encoding="utf-8")
@@ -288,9 +284,7 @@ def test_try_load_doc_from_json_validation_error_fallback_enabled(
     assert "Failed to load DoclingDocument from" in warnings[0]
 
 
-def test_try_load_doc_from_json_validation_error_fallback_disabled(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_try_load_doc_from_json_validation_error_fallback_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that validation errors raise when fallback disabled."""
     json_file = tmp_path / "invalid_doc.json"
     json_file.write_text('{"num_pages": 3}', encoding="utf-8")

@@ -36,9 +36,7 @@ def _slugify(text: str) -> str:
     return s or "untitled"
 
 
-def _unique_path(
-    segments: list[str], seen_at_level: dict[int, dict[str, int]], level: int
-) -> list[str]:
+def _unique_path(segments: list[str], seen_at_level: dict[int, dict[str, int]], level: int) -> list[str]:
     # Ensure stable uniqueness per hierarchy level using ordinal suffixes
     base = segments[-1]
     level_seen = seen_at_level.setdefault(level, {})
@@ -141,9 +139,7 @@ def build_document_ir(
     total_sections = sum(len(c.sections) for c in chapters)
     _safe_emit(on_progress, "ir:finalized", {"chapters": len(chapters), "sections": total_sections})
 
-    return DocumentIR(
-        mod_id=mod_id, title=doc_title, chapters=chapters, assets_dir=parsed_content.assets_dir
-    )
+    return DocumentIR(mod_id=mod_id, title=doc_title, chapters=chapters, assets_dir=parsed_content.assets_dir)
 
 
 # --- Foundry mapping (Task 4.2): Map IR to Foundry Journal models ---
@@ -168,10 +164,7 @@ def map_ir_to_foundry_entries(
 
     for chapter_index, chapter in enumerate(ir.chapters, start=1):
         entry_canonical: list[str] = [*chapter.id_path]
-        if deterministic_ids:
-            entry_id = make_entry_id(ir.mod_id, entry_canonical)
-        else:
-            entry_id = "-".join(chapter.id_path)
+        entry_id = make_entry_id(ir.mod_id, entry_canonical) if deterministic_ids else "-".join(chapter.id_path)
         pages: list[JournalPageText] = []
 
         # Derive deterministic display name for chapter
@@ -186,11 +179,7 @@ def map_ir_to_foundry_entries(
             sort = sort_base * (i + 1)
             # Deterministic page display name with sibling de-duplication
             raw_name = (sec.title or "").strip() or f"Untitled Section {i + 1}"
-            page_id = (
-                make_page_id(ir.mod_id, entry_canonical, raw_name)
-                if deterministic_ids
-                else "-".join(sec.id_path)
-            )
+            page_id = make_page_id(ir.mod_id, entry_canonical, raw_name) if deterministic_ids else "-".join(sec.id_path)
             count = seen_page_names.get(raw_name, 0)
             seen_page_names[raw_name] = count + 1
             page_name = raw_name if count == 0 else f"{raw_name} ({count + 1})"
@@ -225,9 +214,7 @@ def map_ir_to_foundry_entries(
 
             token_to_pageid = build_anchor_lookup([(n, pid) for (n, pid, _, _) in temp_pages])
             for _n, _pid, idx, html_in in temp_pages:
-                pages[idx].text["content"] = rewrite_internal_anchors_to_uuid(
-                    html_in, entry_id, token_to_pageid
-                )
+                pages[idx].text["content"] = rewrite_internal_anchors_to_uuid(html_in, entry_id, token_to_pageid)
         except Exception:
             # If link rewriting fails for any reason, keep original HTML
             pass

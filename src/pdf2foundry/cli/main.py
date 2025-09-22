@@ -86,31 +86,26 @@ def convert(
                 "'auto' (try structured, fallback to image), or 'image-only' (always rasterize)"
             ),
         ),
-    ] = "auto",
+    ] = "auto",  # Default: intelligent table processing with fallback
     ocr: Annotated[
         str,
         typer.Option(
             "--ocr",
-            help=(
-                "OCR mode: 'auto' (OCR pages with low text coverage, default), " "'on' (always OCR)"
-            ),
+            help=("OCR mode: 'auto' (OCR pages with low text coverage, default), " "'on' (always OCR)"),
         ),
-    ] = "auto",
+    ] = "auto",  # Default: intelligent OCR only when needed
     picture_descriptions: Annotated[
         str,
         typer.Option(
             "--picture-descriptions",
             help="Generate image captions: 'on' (enable with VLM) or 'off' (disable, default)",
         ),
-    ] = "off",
+    ] = "off",  # Default: disabled (requires VLM model and additional processing time)
     vlm_repo_id: Annotated[
         str | None,
         typer.Option(
             "--vlm-repo-id",
-            help=(
-                "Hugging Face VLM repository ID for picture descriptions "
-                "(e.g., 'microsoft/Florence-2-base')"
-            ),
+            help=("Hugging Face VLM repository ID for picture descriptions " "(e.g., 'microsoft/Florence-2-base')"),
         ),
     ] = None,
     deterministic_ids: Annotated[
@@ -154,20 +149,14 @@ def convert(
         bool,
         typer.Option(
             "--fallback-on-json-failure/--no-fallback-on-json-failure",
-            help=(
-                "If loading from JSON fails, fall back to conversion "
-                "(and overwrite when applicable)."
-            ),
+            help=("If loading from JSON fails, fall back to conversion " "(and overwrite when applicable)."),
         ),
     ] = False,
     pages: Annotated[
         str | None,
         typer.Option(
             "--pages",
-            help=(
-                "Comma-separated list of 1-based page indices and ranges "
-                "(e.g., '1,3,5-10'). Default: all pages."
-            ),
+            help=("Comma-separated list of 1-based page indices and ranges " "(e.g., '1,3,5-10'). Default: all pages."),
         ),
     ] = None,
     workers: Annotated[
@@ -176,7 +165,7 @@ def convert(
             "--workers",
             help="Number of worker processes for CPU-bound page-level steps. Default: 1.",
         ),
-    ] = 1,
+    ] = 1,  # Default: single-threaded (safe on all platforms)
     reflow_columns: Annotated[
         bool,
         typer.Option(
@@ -186,7 +175,7 @@ def convert(
                 "Off by default. Use with caution on multi-column PDFs."
             ),
         ),
-    ] = False,
+    ] = False,  # Default: disabled (experimental feature, may affect text order)
     verbose: Annotated[
         int,
         typer.Option(
@@ -339,9 +328,7 @@ def convert(
     )
 
     # Summarize Docling JSON cache behavior
-    display_docling_cache_behavior(
-        docling_json, write_docling_json, fallback_on_json_failure, out_dir, mod_id
-    )
+    display_docling_cache_behavior(docling_json, write_docling_json, fallback_on_json_failure, out_dir, mod_id)
 
     # Execute single-pass ingestion pipeline
     run_conversion_pipeline(

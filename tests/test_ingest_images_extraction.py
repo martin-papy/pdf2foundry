@@ -12,10 +12,7 @@ class _FakeDocEmbedded:
 
     def export_to_html(self, **kwargs: object) -> str:
         # Minimal HTML with an embedded base64 PNG image
-        png_b64 = (
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJ"
-            "TYQAAAAASUVORK5CYII="
-        )
+        png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJ" "TYQAAAAASUVORK5CYII="
         return f'<div><img src="data:image/png;base64,{png_b64}"></div>'
 
 

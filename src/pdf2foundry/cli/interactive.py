@@ -57,9 +57,7 @@ def prompt_for_missing_args(
     toc = typer.confirm("Generate TOC?", default=toc)
     tables = typer.prompt("Table handling (structured/auto/image-only)", default=tables)
     ocr = typer.prompt("OCR mode (auto/on/off)", default=ocr)
-    picture_descriptions = typer.prompt(
-        "Picture descriptions (on/off)", default=picture_descriptions
-    )
+    picture_descriptions = typer.prompt("Picture descriptions (on/off)", default=picture_descriptions)
     if picture_descriptions == "on":
         vlm_repo_id = typer.prompt("VLM repository ID (optional)", default=vlm_repo_id or "")
         vlm_repo_id = vlm_repo_id or None

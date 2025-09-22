@@ -9,9 +9,7 @@ from typer.testing import CliRunner
 from pdf2foundry.cli import app
 
 
-def test_cli_single_pass_uses_docling_json_default_path(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_single_pass_uses_docling_json_default_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     runner = CliRunner()
 
     # Minimal PDF placeholder content used by CLI to short-circuit heavy work

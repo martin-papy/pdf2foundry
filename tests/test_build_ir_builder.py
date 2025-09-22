@@ -9,12 +9,8 @@ from pdf2foundry.model.document import OutlineNode, ParsedDocument
 
 def test_build_document_ir_basic() -> None:
     # Outline: Chapter (1..3) with two sections: 1..1 and 2..3
-    section1 = OutlineNode(
-        title="Intro", level=2, page_start=1, page_end=1, children=[], path=["chapter", "intro"]
-    )
-    section2 = OutlineNode(
-        title="Usage", level=2, page_start=2, page_end=3, children=[], path=["chapter", "usage"]
-    )
+    section1 = OutlineNode(title="Intro", level=2, page_start=1, page_end=1, children=[], path=["chapter", "intro"])
+    section2 = OutlineNode(title="Usage", level=2, page_start=2, page_end=3, children=[], path=["chapter", "usage"])
     chapter = OutlineNode(
         title="Chapter",
         level=1,
@@ -33,9 +29,7 @@ def test_build_document_ir_basic() -> None:
     def on_progress(event: str, payload: dict[str, Any]) -> None:
         events.append({"event": event, **payload})
 
-    ir = build_document_ir(
-        parsed_doc, parsed_content, mod_id="mod", doc_title="Doc", on_progress=on_progress
-    )
+    ir = build_document_ir(parsed_doc, parsed_content, mod_id="mod", doc_title="Doc", on_progress=on_progress)
     assert ir.mod_id == "mod"
     assert ir.title == "Doc"
     assert len(ir.chapters) == 1
@@ -50,15 +44,9 @@ def test_build_document_ir_basic() -> None:
 
 def test_build_document_ir_duplicate_section_titles() -> None:
     # Two sections with the same title at same level under one chapter
-    s1 = OutlineNode(
-        title="Intro", level=2, page_start=1, page_end=1, children=[], path=["chapter", "intro"]
-    )
-    s2 = OutlineNode(
-        title="Intro", level=2, page_start=2, page_end=2, children=[], path=["chapter", "intro"]
-    )
-    ch = OutlineNode(
-        title="Chapter", level=1, page_start=1, page_end=2, children=[s1, s2], path=["chapter"]
-    )
+    s1 = OutlineNode(title="Intro", level=2, page_start=1, page_end=1, children=[], path=["chapter", "intro"])
+    s2 = OutlineNode(title="Intro", level=2, page_start=2, page_end=2, children=[], path=["chapter", "intro"])
+    ch = OutlineNode(title="Chapter", level=1, page_start=1, page_end=2, children=[s1, s2], path=["chapter"])
     parsed_doc = ParsedDocument(page_count=2, outline=[ch])
     pages = [HtmlPage(html=f"<p>p{n}</p>", page_no=n) for n in range(1, 3)]
     ir = build_document_ir(parsed_doc, ParsedContent(pages=pages), mod_id="m", doc_title="D")

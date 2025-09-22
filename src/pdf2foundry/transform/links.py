@@ -26,9 +26,7 @@ def build_anchor_lookup(pages: list[tuple[str, str]]) -> dict[str, str]:
     return mapping
 
 
-def rewrite_internal_anchors_to_uuid(
-    html: str, entry_id: str, token_to_pageid: dict[str, str]
-) -> str:
+def rewrite_internal_anchors_to_uuid(html: str, entry_id: str, token_to_pageid: dict[str, str]) -> str:
     """Replace <a href="#token">label</a> with @UUID link notation.
 
     Only transforms anchors with href starting with "#" and resolvable tokens.

@@ -65,6 +65,13 @@ exclude = [
 # Performance optimizations
 sqlite_cache = true
 cache_fine_grained = true
+incremental = true
+# Skip checking the contents of functions with at least one `Any` parameter
+disallow_any_generics = false
+# Faster imports
+follow_imports = "normal"
+# Reduce memory usage
+local_partial_types = true
 
 [[tool.mypy.overrides]]
 module = [

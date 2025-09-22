@@ -50,9 +50,7 @@ def collect_toc_metadata(entries: Iterable[JournalEntry]) -> list[TocEntryRef]:
     for entry in entries:
         # Defensive sort: ensure stable page order by `sort`
         pages_sorted: list[JournalPageText] = sorted(entry.pages, key=lambda p: p.sort)
-        page_refs: list[TocPageRef] = [
-            TocPageRef(entry_id=entry._id, page_id=p._id, label=p.name) for p in pages_sorted
-        ]
+        page_refs: list[TocPageRef] = [TocPageRef(entry_id=entry._id, page_id=p._id, label=p.name) for p in pages_sorted]
         toc.append(TocEntryRef(entry_id=entry._id, entry_name=entry.name, pages=page_refs))
     return toc
 

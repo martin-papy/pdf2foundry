@@ -57,9 +57,7 @@ def image_cache() -> SharedImageCache:
 class TestImageCachePerformance:
     """Test cache performance and effectiveness."""
 
-    def test_page_cache_hit_performance(
-        self, mock_doc: Mock, image_cache: SharedImageCache
-    ) -> None:
+    def test_page_cache_hit_performance(self, mock_doc: Mock, image_cache: SharedImageCache) -> None:
         """Test that page cache hits are significantly faster than misses."""
         page_index = 0
         dpi = 150
@@ -84,9 +82,7 @@ class TestImageCachePerformance:
 
         # Cache hit should be significantly faster
         # Allow some tolerance for timing variations
-        assert (
-            hit_time < miss_time * 0.5
-        ), f"Hit time {hit_time:.6f}s should be much faster than miss time {miss_time:.6f}s"
+        assert hit_time < miss_time * 0.5, f"Hit time {hit_time:.6f}s should be much faster than miss time {miss_time:.6f}s"
 
         # Verify metrics
         metrics = image_cache.get_metrics()
@@ -94,9 +90,7 @@ class TestImageCachePerformance:
         assert metrics["page_misses"] == 1
         assert metrics["rasterize_calls"] == 1
 
-    def test_region_cache_reuses_page_cache(
-        self, mock_doc: Mock, image_cache: SharedImageCache
-    ) -> None:
+    def test_region_cache_reuses_page_cache(self, mock_doc: Mock, image_cache: SharedImageCache) -> None:
         """Test that region cache reuses page cache entries."""
         page_index = 0
         bbox = BBox(100, 100, 300, 300)
@@ -167,9 +161,7 @@ class TestImageCachePerformance:
         final_metrics = image_cache.get_metrics()
         assert final_metrics["rasterize_calls"] > pages_to_cache
 
-    def test_different_dpi_creates_separate_cache_entries(
-        self, mock_doc: Mock, image_cache: SharedImageCache
-    ) -> None:
+    def test_different_dpi_creates_separate_cache_entries(self, mock_doc: Mock, image_cache: SharedImageCache) -> None:
         """Test that different DPI values create separate cache entries."""
         page_index = 0
 
@@ -191,9 +183,7 @@ class TestImageCachePerformance:
         assert metrics["page_hits"] == 0
         assert metrics["rasterize_calls"] == 2
 
-    def test_bbox_normalization_cache_consistency(
-        self, mock_doc: Mock, image_cache: SharedImageCache
-    ) -> None:
+    def test_bbox_normalization_cache_consistency(self, mock_doc: Mock, image_cache: SharedImageCache) -> None:
         """Test that equivalent bboxes (after normalization) hit the same cache entry."""
         page_index = 0
 

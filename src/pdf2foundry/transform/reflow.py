@@ -84,9 +84,7 @@ def _block_type(block: object) -> str:
     return "text"
 
 
-def _simple_kmeans(
-    points: list[float], k: int, max_iterations: int = 100
-) -> tuple[list[int], list[float]]:
+def _simple_kmeans(points: list[float], k: int, max_iterations: int = 100) -> tuple[list[int], list[float]]:
     """Simple k-means clustering implementation.
 
     Args:
@@ -162,9 +160,7 @@ def _silhouette_score(points: list[float], assignments: list[int], centroids: li
         cluster = assignments[i]
 
         # Calculate average distance to points in same cluster (a)
-        same_cluster_points = [
-            points[j] for j in range(len(points)) if assignments[j] == cluster and j != i
-        ]
+        same_cluster_points = [points[j] for j in range(len(points)) if assignments[j] == cluster and j != i]
         if same_cluster_points:
             a = sum(abs(point - other) for other in same_cluster_points) / len(same_cluster_points)
         else:
@@ -178,13 +174,9 @@ def _silhouette_score(points: list[float], assignments: list[int], centroids: li
 
         min_b = float("inf")
         for other_cluster in other_clusters:
-            other_cluster_points = [
-                points[j] for j in range(len(points)) if assignments[j] == other_cluster
-            ]
+            other_cluster_points = [points[j] for j in range(len(points)) if assignments[j] == other_cluster]
             if other_cluster_points:
-                avg_dist = sum(abs(point - other) for other in other_cluster_points) / len(
-                    other_cluster_points
-                )
+                avg_dist = sum(abs(point - other) for other in other_cluster_points) / len(other_cluster_points)
                 min_b = min(min_b, avg_dist)
 
         b = min_b if min_b != float("inf") else 0.0
@@ -232,9 +224,7 @@ def _detect_columns_kmeans(x_centers: list[float]) -> tuple[int, list[int], list
     return None
 
 
-def _detect_columns_histogram(
-    x_centers: list[float], page_width: float
-) -> tuple[int, list[float]] | None:
+def _detect_columns_histogram(x_centers: list[float], page_width: float) -> tuple[int, list[float]] | None:
     """Detect columns using histogram valley detection.
 
     Args:
@@ -343,18 +333,14 @@ def reflow_columns(page_blocks: list[Any], page_width: float) -> list[Any]:
             min_gap = min(min_gap, gap)
 
         if min_gap < 0.08 * page_width:
-            logger.debug(
-                "Column gap too small (%.1f < %.1f), skipping reflow", min_gap, 0.08 * page_width
-            )
+            logger.debug("Column gap too small (%.1f < %.1f), skipping reflow", min_gap, 0.08 * page_width)
             return page_blocks
 
         # Check column width uniformity
         if num_columns >= 2:
             widths = []
             for i, _centroid in enumerate(sorted_centroids):
-                cluster_points = [
-                    text_x_centers[j] for j in range(len(text_x_centers)) if assignments[j] == i
-                ]
+                cluster_points = [text_x_centers[j] for j in range(len(text_x_centers)) if assignments[j] == i]
                 if len(cluster_points) >= 2:
                     width = max(cluster_points) - min(cluster_points)
                     widths.append(width)
@@ -365,9 +351,7 @@ def reflow_columns(page_blocks: list[Any], page_width: float) -> list[Any]:
                     std_dev = math.sqrt(sum((w - mean_width) ** 2 for w in widths) / len(widths))
                     uniformity = std_dev / mean_width
                     if uniformity > 0.25:
-                        logger.debug(
-                            "Column widths not uniform (%.2f > 0.25), skipping reflow", uniformity
-                        )
+                        logger.debug("Column widths not uniform (%.2f > 0.25), skipping reflow", uniformity)
                         return page_blocks
 
         # Assign all blocks to columns based on x-center

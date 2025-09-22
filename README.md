@@ -1,30 +1,99 @@
 # PDF2Foundry
 
-Convert born-digital PDFs into a Foundry VTT v13 module compendium.
+Convert born-digital PDFs into a Foundry VTT v13 module compendium with rich content extraction, structured tables, optional OCR, and image descriptions.
 
-## Installation (dev)
+## Quick Start
 
 ```bash
+# Install and convert a PDF
+pip install pdf2foundry
+pdf2foundry convert "My Book.pdf" --mod-id "my-book" --mod-title "My Book"
+```
+
+## Features
+
+- **Structure Preservation**: PDF chapters → Journal Entries, sections → Journal Pages
+- **Rich Content**: Images, tables, links, and text with proper formatting
+- **Structured Tables**: Extract semantic table structure when possible
+- **OCR Support**: Optional OCR for scanned pages or low-text-coverage areas
+- **Image Descriptions**: AI-powered image captions using Vision-Language Models
+- **Performance**: Multi-worker processing and page selection for large documents
+- **Caching**: Single-pass ingestion with optional JSON caching for faster re-runs
+- **Deterministic IDs**: Stable UUIDs for reliable cross-references across runs
+- **Foundry Integration**: Native v13 compendium folders and pack compilation
+
+## Installation
+
+### Production Install
+
+```bash
+pip install pdf2foundry
+```
+
+### Development Install
+
+```bash
+git clone https://github.com/your-org/pdf2foundry.git
+cd pdf2foundry
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python -m pip install -U pip
 python -m pip install -e .[dev]
 ```
 
-Enable pre-commit hooks:
+Enable pre-commit hooks for development:
 
 ```bash
 pre-commit install
 ```
 
+### Optional Dependencies
+
+Some advanced features require additional system dependencies:
+
+#### OCR Features (`--ocr on|auto`)
+
+Requires Tesseract OCR:
+
+```bash
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian
+sudo apt-get install tesseract-ocr
+
+# Windows
+# Download from https://github.com/UB-Mannheim/tesseract/wiki
+```
+
+#### Image Descriptions (`--picture-descriptions on`)
+
+Requires transformers library and a Vision-Language Model:
+
+- Models are downloaded automatically from Hugging Face
+- Popular models: `microsoft/Florence-2-base`, `Salesforce/blip-image-captioning-base`
+- First run may take time to download models (~1-2GB)
+
 ## Development
+
+### Architecture
+
+PDF2Foundry uses a unified single-pass architecture powered by [Docling](https://github.com/DS4SD/docling):
+
+1. **Single Conversion**: Each PDF is processed exactly once using Docling's DocumentConverter
+1. **Structure Extraction**: Parse PDF bookmarks/outline with heuristic fallbacks
+1. **Content Extraction**: Extract semantic content (HTML, images, tables) from the same document
+1. **Foundry Mapping**: Build Intermediate Representation and map to Journal Entries/Pages
+1. **Output Generation**: Write module.json, sources, assets, and optionally compile packs
+
+For detailed technical information, see [docs/docling_refactor_unified_plan.md](docs/docling_refactor_unified_plan.md).
 
 ### Continuous Integration
 
 The project uses GitHub Actions for CI/CD with the following checks:
 
-- **Linting & Formatting**: Ruff, Black, and MyPy
-- **Testing**: pytest with coverage reporting
+- **Linting & Formatting**: Ruff, Black, and MyPy (strict mode)
+- **Testing**: pytest with 90%+ coverage requirement
 - **Build**: Package building and installation testing
 - **Cross-platform**: Testing on Ubuntu, Windows, and macOS
 
@@ -32,16 +101,18 @@ All checks must pass before merging. The CI runs on Python 3.12 and 3.13.
 
 ## CLI Usage
 
+### Basic Command
+
 ```bash
-pdf2foundry --help
+pdf2foundry convert <PDF_FILE> --mod-id <MODULE_ID> --mod-title <MODULE_TITLE> [OPTIONS]
 ```
 
-### Command
+### Full Command Reference
 
 ```bash
 pdf2foundry convert \
-  --pdf "My Book.pdf" \
-  --mod-id "pdf2foundry-my-book" \
+  "My Book.pdf" \
+  --mod-id "my-book" \
   --mod-title "My Book (PDF Import)" \
   --author "ACME" \
   --license "OGL" \
@@ -56,181 +127,279 @@ pdf2foundry convert \
   --compile-pack/--no-compile-pack \
   --docling-json cache.json \
   --write-docling-json/--no-write-docling-json \
-  --fallback-on-json-failure/--no-fallback-on-json-failure
+  --fallback-on-json-failure/--no-fallback-on-json-failure \
+  --pages "1,5-10,15" \
+  --workers 4 \
+  --reflow-columns \
+  --verbose
 ```
 
-- `--pdf` (required): Path to source PDF
+### Command Options
 
-- `--mod-id` (required): Module ID
+#### Required Options
 
-- `--mod-title` (required): Module title
+- `<PDF_FILE>`: Path to source PDF file
+- `--mod-id`: Unique module identifier (lowercase, hyphens, no spaces)
+- `--mod-title`: Display name for the module
 
-- `--author`: Author name
+#### Content Processing Options
 
-- `--license`: License string
+- `--tables auto|structured|image-only`: Table handling mode (default: `auto`)
 
-- `--pack-name`: Pack name (default: `<mod-id>-journals`)
+  - `auto`: Try structured extraction, fallback to image if needed
+  - `structured`: Always extract semantic table structure
+  - `image-only`: Always rasterize tables as images
 
-- `--toc`: Generate TOC entry (default: enabled)
+- `--ocr auto|on|off`: OCR processing mode (default: `auto`)
 
-- `--tables`: Table processing mode - `auto` (default), `structured`, or `image-only`
+  - `auto`: OCR pages with low text coverage
+  - `on`: Always apply OCR to all pages
+  - `off`: Disable OCR completely
 
-- `--ocr`: OCR processing mode - `auto` (default), `on`, or `off`
+- `--picture-descriptions on|off`: Generate AI image captions (default: `off`)
 
-- `--picture-descriptions`: Enable image captions - `on` or `off` (default)
+- `--vlm-repo-id <model>`: Hugging Face VLM model ID (required with `--picture-descriptions on`)
 
-- `--vlm-repo-id`: Hugging Face model ID for image captions (required when `--picture-descriptions=on`)
+#### Performance Options
 
-- `--deterministic-ids`: Use deterministic IDs (default: enabled)
+- `--pages "<spec>"`: Process specific pages (e.g., `"1,5-10,15"`, default: all pages)
+- `--workers <n>`: Number of worker processes for CPU-bound operations (default: 1)
+- `--reflow-columns`: Experimental multi-column text reflow (default: disabled)
 
-  (compendium folders are native in v13)
+#### Caching Options (Single-Pass Ingestion)
 
-- `--out-dir`: Output directory (default: `dist`)
+- `--docling-json <path>`: JSON cache file path. Load if exists, otherwise save after conversion
+- `--write-docling-json`: Save to default cache location (`dist/<mod-id>/sources/docling.json`)
+- `--fallback-on-json-failure`: Fall back to conversion if JSON loading fails
 
-- `--compile-pack`: Compile JSON sources to LevelDB pack using Foundry CLI (default: disabled)
+#### Module Options
 
-- `--docling-json`: Path to JSON cache file. If exists and valid, load; otherwise convert and save to this path
+- `--author <name>`: Author name for module metadata
+- `--license <license>`: License string for module metadata
+- `--pack-name <name>`: Compendium pack name (default: `<mod-id>-journals`)
+- `--toc/--no-toc`: Generate Table of Contents entry (default: enabled)
+- `--deterministic-ids/--no-deterministic-ids`: Use SHA1-based stable IDs (default: enabled)
 
-- `--write-docling-json`: Save Docling JSON to default cache location (default: disabled)
+#### Output Options
 
-- `--fallback-on-json-failure`: If JSON loading fails, fall back to conversion (default: disabled)
+- `--out-dir <path>`: Output directory (default: `dist`)
+- `--compile-pack/--no-compile-pack`: Compile to LevelDB using Foundry CLI (default: disabled)
+- `--verbose`, `-v`: Increase verbosity (use `-vv` for debug output)
 
-### Feature Examples
+### Usage Examples
 
-**Basic conversion (default behavior):**
+#### Basic Conversion
 
 ```bash
-pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book"
+# Minimal command - uses all defaults
+pdf2foundry convert "My Book.pdf" --mod-id "my-book" --mod-title "My Book"
+
+# With author and license metadata
+pdf2foundry convert "Game Manual.pdf" --mod-id "game-manual" --mod-title "Game Manual" \
+  --author "John Doe" --license "OGL"
 ```
 
-**With structured table extraction:**
+#### Content Processing Features
 
 ```bash
-pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
+# Structured table extraction (best for data-heavy PDFs)
+pdf2foundry convert "Rulebook.pdf" --mod-id "rulebook" --mod-title "Player Rulebook" \
   --tables structured
-```
 
-**With OCR for scanned pages:**
-
-```bash
-pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
+# Force OCR on all pages (for scanned PDFs)
+pdf2foundry convert "Scanned Book.pdf" --mod-id "scanned-book" --mod-title "Scanned Book" \
   --ocr on
+
+# AI-powered image descriptions
+pdf2foundry convert "Bestiary.pdf" --mod-id "bestiary" --mod-title "Monster Manual" \
+  --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+
+# Disable TOC generation
+pdf2foundry convert "Simple Guide.pdf" --mod-id "guide" --mod-title "Quick Guide" \
+  --no-toc
 ```
 
-**With image captions:**
-
-```bash
-pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
-  --picture-descriptions on --vlm-repo-id "Salesforce/blip-image-captioning-base"
-```
-
-**All features enabled:**
-
-```bash
-pdf2foundry convert --pdf "book.pdf" --mod-id "my-book" --mod-title "My Book" \
-  --tables structured --ocr auto --picture-descriptions on \
-  --vlm-repo-id "Salesforce/blip-image-captioning-base"
-```
-
-### Optional Dependencies
-
-Some features require additional system dependencies:
-
-- **OCR features** (`--ocr on|auto`): Requires Tesseract OCR
-
-  ```bash
-  # macOS
-  brew install tesseract
-
-  # Ubuntu/Debian
-  sudo apt-get install tesseract-ocr
-
-  # Windows
-  # Download from https://github.com/UB-Mannheim/tesseract/wiki
-  ```
-
-- **Image captions** (`--picture-descriptions on`): Requires transformers library and a VLM model
-
-  - Models are downloaded automatically from Hugging Face
-  - Popular models: `Salesforce/blip-image-captioning-base`, `microsoft/DialoGPT-medium`
-  - First run may take time to download models
-
-## Output Layout
-
-```text
-<out-dir>/<mod-id>/
-  module.json
-  assets/
-  styles/pdf2foundry.css
-  sources/
-    journals/*.json
-    docling.json        # when JSON cache is written
-  packs/<pack-name>/
-```
-
-## Single-Pass Ingestion
-
-PDF2Foundry uses a single-pass ingestion design for efficiency:
-
-1. **One Conversion**: Each PDF is converted to a Docling document exactly once per run
-1. **JSON Caching**: Optionally cache the Docling document as JSON to avoid re-conversion
-1. **Reuse**: The same Docling document instance is used for both structure parsing and content extraction
-
-### Caching Examples
-
-```bash
-# Convert and cache for future runs
-pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
-  --docling-json book-cache.json
-
-# Subsequent runs load from cache (much faster)
-pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
-  --docling-json book-cache.json
-
-# Auto-save to default location
-pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
-  --write-docling-json
-```
-
-## Performance Features
-
-PDF2Foundry includes several performance and processing options:
-
-- **Page Selection** (`--pages`): Process specific pages or ranges (e.g., `--pages "1,5-10,15"`)
-- **Parallel Processing** (`--workers`): Use multiple workers for CPU-bound operations (e.g., `--workers 4`)
-- **Multi-Column Reflow** (`--reflow-columns`): Experimental reordering of multi-column text (use with caution)
-
-### Performance Examples
+#### Performance Optimization
 
 ```bash
 # Process specific pages with multiple workers
-pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" \
-  --pages "1-10" --workers 4
+pdf2foundry convert "Large Manual.pdf" --mod-id "manual" --mod-title "Game Manual" \
+  --pages "1-10,50-60" --workers 4
 
-# Enable experimental multi-column reflow for academic papers
-pdf2foundry convert paper.pdf --mod-id paper --mod-title "Research Paper" \
+# Experimental multi-column reflow for academic papers
+pdf2foundry convert "Research Paper.pdf" --mod-id "paper" --mod-title "Research Paper" \
   --reflow-columns
 
-# Combine all performance features
-pdf2foundry convert journal.pdf --mod-id journal --mod-title "Academic Journal" \
-  --pages "5-25" --workers 3 --reflow-columns
+# High-performance conversion with all optimizations
+pdf2foundry convert "Journal.pdf" --mod-id "journal" --mod-title "Academic Journal" \
+  --pages "5-25" --workers 3 --reflow-columns --verbose
 ```
 
-See [docs/performance.md](docs/performance.md) for detailed performance guidance, [docs/PRD.md](docs/PRD.md) and [docs/architecture_and_flow.md](docs/architecture_and_flow.md) for technical details.
-
-## Pack Compilation (Foundry CLI)
-
-- Requires Node.js (LTS) and the Foundry CLI as a devDependency (already configured in `package.json`).
-- You can compile during `convert` with `--compile-pack`, or manually via npm:
+#### Caching and Re-runs
 
 ```bash
-npm run compile:pack --modid=<mod-id> --packname=<mod-id>-journals
+# Convert and cache for future runs
+pdf2foundry convert "Book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --docling-json "book-cache.json"
+
+# Subsequent runs load from cache (much faster)
+pdf2foundry convert "Book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --docling-json "book-cache.json"
+
+# Auto-save to default cache location
+pdf2foundry convert "Book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --write-docling-json
+
+# Robust caching with fallback
+pdf2foundry convert "Book.pdf" --mod-id "my-book" --mod-title "My Book" \
+  --docling-json "cache.json" --fallback-on-json-failure
 ```
 
-Under the hood this runs:
+#### Advanced Workflows
 
 ```bash
+# All features enabled for maximum quality
+pdf2foundry convert "Complete Manual.pdf" --mod-id "complete-manual" --mod-title "Complete Manual" \
+  --tables structured --ocr auto --picture-descriptions on \
+  --vlm-repo-id "microsoft/Florence-2-base" --workers 2 --verbose
+
+# Production workflow with pack compilation
+pdf2foundry convert "Module.pdf" --mod-id "my-module" --mod-title "My Module" \
+  --author "Publisher" --license "OGL" --compile-pack --write-docling-json
+
+# Debug workflow with maximum verbosity
+pdf2foundry convert "Problem.pdf" --mod-id "debug" --mod-title "Debug Module" \
+  --verbose --verbose --no-compile-pack
+```
+
+## Output Structure
+
+PDF2Foundry generates a complete Foundry VTT module with the following structure:
+
+```text
+<out-dir>/<mod-id>/
+├── module.json                 # Module manifest
+├── assets/                     # Extracted images and media
+│   ├── image_001.png
+│   └── ...
+├── styles/
+│   └── pdf2foundry.css        # Module-specific styles
+├── sources/
+│   ├── journals/              # Journal Entry source files
+│   │   ├── chapter_001.json
+│   │   ├── chapter_002.json
+│   │   └── ...
+│   └── docling.json          # Cached Docling document (optional)
+└── packs/
+    └── <pack-name>/          # Compiled LevelDB pack (optional)
+        ├── 000001.ldb
+        └── ...
+```
+
+### Module Structure
+
+- **Journal Entries**: Each PDF chapter becomes a Journal Entry
+- **Journal Pages**: Each chapter section becomes a Journal Entry Page
+- **Table of Contents**: Optional TOC entry with navigation links
+- **Compendium Folders**: Native v13 folder organization
+- **Deterministic IDs**: Stable SHA1-based UUIDs for reliable cross-references
+
+## Technical Documentation
+
+For developers and advanced users:
+
+- **[Architecture Overview](docs/docling_refactor_unified_plan.md)**: Unified Docling workflow and capabilities
+- **[Performance Guide](docs/performance.md)**: Optimization strategies and benchmarks
+- **[Product Requirements](docs/PRD.md)**: Complete feature specification
+- **[Technical Feasibility](docs/technical_feasibility.md)**: Implementation details and constraints
+
+## Pack Compilation
+
+PDF2Foundry can compile JSON sources into LevelDB packs for Foundry VTT using the official Foundry CLI.
+
+### Requirements
+
+- Node.js (LTS version recommended)
+- Foundry CLI (included as devDependency in `package.json`)
+
+### Compilation Options
+
+```bash
+# Compile during conversion
+pdf2foundry convert "Book.pdf" --mod-id "my-book" --mod-title "My Book" --compile-pack
+
+# Manual compilation via npm
+npm run compile:pack --modid=my-book --packname=my-book-journals
+
+# Direct Foundry CLI usage
 npx @foundryvtt/foundryvtt-cli compilePack \
-  --input dist/<mod-id>/sources/journals \
-  --output dist/<mod-id>/packs/<mod-id>-journals
+  --input dist/my-book/sources/journals \
+  --output dist/my-book/packs/my-book-journals
 ```
+
+## Troubleshooting
+
+### Common Issues
+
+**OCR not working**: Ensure Tesseract is installed and available in PATH
+
+```bash
+tesseract --version  # Should show version info
+```
+
+**Image descriptions failing**: Check VLM model ID and internet connection
+
+```bash
+# Test with a well-known model
+pdf2foundry convert test.pdf --mod-id test --mod-title Test \
+  --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+```
+
+**Large files timing out**: Use page selection and multiple workers
+
+```bash
+pdf2foundry convert large.pdf --mod-id large --mod-title Large \
+  --pages "1-50" --workers 4
+```
+
+**JSON cache corruption**: Delete cache and regenerate
+
+```bash
+rm dist/my-book/sources/docling.json
+pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" --write-docling-json
+```
+
+### Performance Tips
+
+- Use `--pages` to process documents in chunks
+- Enable `--workers` for CPU-intensive operations
+- Cache Docling JSON for repeated runs with different settings
+- Use `--tables image-only` for faster processing if table structure isn't needed
+- Enable `--verbose` to monitor progress and identify bottlenecks
+
+### Getting Help
+
+```bash
+# Check environment and dependencies
+pdf2foundry doctor
+
+# Get detailed help
+pdf2foundry convert --help
+
+# Enable debug output
+pdf2foundry convert book.pdf --mod-id test --mod-title Test -vv
+```
+
+## Contributing
+
+We welcome contributions! Please see our development setup above and:
+
+1. Fork the repository
+1. Create a feature branch
+1. Make your changes with tests
+1. Ensure all CI checks pass (`pytest`, `pre-commit run --all-files`)
+1. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

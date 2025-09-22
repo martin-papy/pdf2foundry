@@ -73,9 +73,7 @@ def run_conversion_pipeline(
                 write=write_docling_json,
                 fallback_on_json_failure=fallback_on_json_failure,
                 default_path=(
-                    out_dir / mod_id / "sources" / "docling.json"
-                    if write_docling_json and docling_json is None
-                    else None
+                    out_dir / mod_id / "sources" / "docling.json" if write_docling_json and docling_json is None else None
                 ),
             )
 
@@ -103,9 +101,7 @@ def run_conversion_pipeline(
             )
 
             capabilities = detect_backend_capabilities()
-            total_pages = (
-                getattr(dl_doc, "page_count", None) if hasattr(dl_doc, "page_count") else None
-            )
+            total_pages = getattr(dl_doc, "page_count", None) if hasattr(dl_doc, "page_count") else None
             pages_to_process = len(pages) if pages else total_pages
 
             effective_workers, reasons = resolve_effective_workers(
@@ -245,8 +241,5 @@ def _write_css(styles_dir: Path) -> None:
     """Write minimal CSS file."""
     css_path = styles_dir / "pdf2foundry.css"
     if not css_path.exists():
-        css_text = (
-            ".pdf2foundry { line-height: 1.4; } "
-            ".pdf2foundry img { max-width: 100%; height: auto; }\n"
-        )
+        css_text = ".pdf2foundry { line-height: 1.4; } " ".pdf2foundry img { max-width: 100%; height: auto; }\n"
         css_path.write_text(css_text, encoding="utf-8")

@@ -61,25 +61,19 @@ def log_pipeline_configuration(options: PdfPipelineOptions) -> None:
     logger.info("Pipeline configuration:")
     logger.info("  Tables mode: %s", options.tables_mode.value)
     logger.info("  OCR mode: %s", options.ocr_mode.value)
-    logger.info(
-        "  Picture descriptions: %s", "enabled" if options.picture_descriptions else "disabled"
-    )
+    logger.info("  Picture descriptions: %s", "enabled" if options.picture_descriptions else "disabled")
     if options.picture_descriptions and options.vlm_repo_id:
         logger.info("  VLM model: %s", options.vlm_repo_id)
     logger.info("  Text coverage threshold: %.3f", options.text_coverage_threshold)
 
     # Log worker configuration
     if options.pages:
-        logger.info(
-            "  Pages: %s (%d selected)", _format_page_spec(options.pages), len(options.pages)
-        )
+        logger.info("  Pages: %s (%d selected)", _format_page_spec(options.pages), len(options.pages))
     else:
         logger.info("  Pages: all")
 
     if options.workers != options.workers_effective:
-        logger.info(
-            "  Workers: %d requested, %d effective", options.workers, options.workers_effective
-        )
+        logger.info("  Workers: %d requested, %d effective", options.workers, options.workers_effective)
     else:
         logger.info("  Workers: %d", options.workers_effective)
 
@@ -106,9 +100,7 @@ def log_feature_availability(feature: str, available: bool, reason: str | None =
             logger.warning("%s: Unavailable", feature)
 
 
-def log_feature_decision(
-    feature: str, decision: str, context: dict[str, Any] | None = None
-) -> None:
+def log_feature_decision(feature: str, decision: str, context: dict[str, Any] | None = None) -> None:
     """Log a feature processing decision.
 
     Args:
@@ -123,9 +115,7 @@ def log_feature_decision(
         logger.info("%s: %s", feature, decision)
 
 
-def log_error_policy(
-    feature: str, error_type: str, action: str, details: str | None = None
-) -> None:
+def log_error_policy(feature: str, error_type: str, action: str, details: str | None = None) -> None:
     """Log error handling policy decisions.
 
     Args:

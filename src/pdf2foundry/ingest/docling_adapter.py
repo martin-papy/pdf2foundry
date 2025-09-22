@@ -154,19 +154,14 @@ def _do_docling_convert_impl(
         # Note: pages, workers, tables_mode, vlm are accepted but may require
         # additional wiring based on Docling capabilities; kept in signature and
         # cache key for deterministic behavior across configurations.
-        conv = DocumentConverter(
-            format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)}
-        )
+        conv = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
 
         # Attempt the conversion with proper error handling
         result = conv.convert(str(pdf_path))
         doc: DoclingDocumentLike = cast(DoclingDocumentLike, result.document)
 
         logger.info(
-            (
-                "Converted PDF to Docling document: path=%s images=%s ocr=%s "
-                "tables_mode=%s vlm=%s pages=%s workers=%s"
-            ),
+            ("Converted PDF to Docling document: path=%s images=%s ocr=%s " "tables_mode=%s vlm=%s pages=%s workers=%s"),
             pdf_path,
             images,
             ocr,

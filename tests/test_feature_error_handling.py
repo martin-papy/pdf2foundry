@@ -102,9 +102,7 @@ class TestOcrErrorHandling:
         options = PdfPipelineOptions(ocr_mode=OcrMode.AUTO, text_coverage_threshold=1.0)
 
         with caplog.at_level(logging.WARNING):
-            result = apply_ocr_to_page(
-                mock_doc, "<p>some text</p>", 1, options, mock_engine, mock_cache
-            )
+            result = apply_ocr_to_page(mock_doc, "<p>some text</p>", 1, options, mock_engine, mock_cache)
 
         assert result == "<p>some text</p>"  # Original HTML returned
         # The error policy logging happens in the content extractor, not the processor
@@ -112,9 +110,7 @@ class TestOcrErrorHandling:
         assert "OCR mode 'auto' but Tesseract not available" in caplog.text
 
     @patch("pdf2foundry.ingest.ocr_processor._rasterize_page")
-    def test_ocr_processing_failure_on_mode(
-        self, mock_rasterize: Mock, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_ocr_processing_failure_on_mode(self, mock_rasterize: Mock, caplog: pytest.LogCaptureFixture) -> None:
         """Test OCR error handling when processing fails in ON mode."""
         mock_doc = Mock()
         mock_engine = Mock()
@@ -157,9 +153,7 @@ class TestCaptionErrorHandling:
         assert "Picture descriptions enabled but no VLM repository ID provided" in caplog.text
 
     @patch("pdf2foundry.ingest.caption_processor.HFCaptionEngine")
-    def test_caption_model_load_failure(
-        self, mock_engine_class: Mock, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_caption_model_load_failure(self, mock_engine_class: Mock, caplog: pytest.LogCaptureFixture) -> None:
         """Test caption error handling when VLM model fails to load."""
         mock_engine_class.side_effect = Exception("Model not found")
 

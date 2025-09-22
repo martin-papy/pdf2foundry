@@ -1,3 +1,20 @@
+"""JSON serialization and deserialization for Docling documents.
+
+This module provides utilities for converting Docling documents to/from JSON
+format for caching purposes. It handles both native Docling serialization
+(when available) and fallback serialization for compatibility.
+
+Key features:
+- Deterministic JSON serialization with sorted keys
+- Native Docling serialization support when available
+- Fallback serialization for minimal document structure
+- Atomic file writing to prevent corruption
+- Document reconstruction from JSON with validation
+
+The serialization strategy prioritizes native Docling methods but provides
+robust fallbacks to ensure caching works across different Docling versions.
+"""
+
 from __future__ import annotations
 
 import json
@@ -47,10 +64,7 @@ def doc_to_json(doc: object, *, pretty: bool = True) -> str:
     num_pages = 0
     try:
         num_pages_fn = getattr(doc, "num_pages", None)
-        if callable(num_pages_fn):
-            num_pages = int(num_pages_fn())
-        else:
-            num_pages = int(getattr(doc, "num_pages", 0) or 0)
+        num_pages = int(num_pages_fn()) if callable(num_pages_fn) else int(getattr(doc, "num_pages", 0) or 0)
     except Exception:
         num_pages = 0
 

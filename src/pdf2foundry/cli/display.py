@@ -36,9 +36,7 @@ def display_configuration(
     typer.echo(f"📋 Generate TOC: {'Yes' if toc else 'No'}")
     typer.echo(f"📊 Table Handling: {tables}")
     typer.echo(f"👁️  OCR Mode: {ocr}")
-    typer.echo(
-        f"🖼️  Picture Descriptions: {'Yes' if pipeline_options.picture_descriptions else 'No'}"
-    )
+    typer.echo(f"🖼️  Picture Descriptions: {'Yes' if pipeline_options.picture_descriptions else 'No'}")
     if pipeline_options.picture_descriptions and pipeline_options.vlm_repo_id:
         typer.echo(f"🤖 VLM Repository: {pipeline_options.vlm_repo_id}")
     typer.echo(f"🔗 Deterministic IDs: {'Yes' if deterministic_ids else 'No'}")
@@ -53,19 +51,12 @@ def display_docling_cache_behavior(
 ) -> None:
     """Display Docling JSON cache behavior summary."""
     if docling_json is not None and write_docling_json:
-        typer.echo(
-            "🗃️  Docling JSON: --docling-json provided; "
-            "--write-docling-json is ignored (PATH semantics apply)"
-        )
+        typer.echo("🗃️  Docling JSON: --docling-json provided; " "--write-docling-json is ignored (PATH semantics apply)")
     if docling_json is not None:
-        typer.echo(
-            f"🗃️  Docling JSON cache: {docling_json} (load if exists; else convert then save)"
-        )
+        typer.echo(f"🗃️  Docling JSON cache: {docling_json} (load if exists; else convert then save)")
     elif write_docling_json:
         default_json_path = out_dir / mod_id / "sources" / "docling.json"
-        typer.echo(
-            f"🗃️  Docling JSON cache: will write to default path {default_json_path} when converting"
-        )
+        typer.echo(f"🗃️  Docling JSON cache: will write to default path {default_json_path} when converting")
     else:
         typer.echo("🗃️  Docling JSON cache: disabled (no load/save)")
     if fallback_on_json_failure:

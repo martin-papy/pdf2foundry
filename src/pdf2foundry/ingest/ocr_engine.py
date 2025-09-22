@@ -148,9 +148,7 @@ class TesseractOcrEngine:
 
         try:
             # Extract text with confidence data
-            data = pytesseract.image_to_data(
-                pil_image, config=config, output_type=pytesseract.Output.DICT
-            )
+            data = pytesseract.image_to_data(pil_image, config=config, output_type=pytesseract.Output.DICT)
 
             # Extract text
             text = pytesseract.image_to_string(pil_image, config=config).strip()
@@ -163,9 +161,7 @@ class TesseractOcrEngine:
             detected_lang = language
             if not detected_lang:
                 try:
-                    lang_data = pytesseract.image_to_osd(
-                        pil_image, output_type=pytesseract.Output.DICT
-                    )
+                    lang_data = pytesseract.image_to_osd(pil_image, output_type=pytesseract.Output.DICT)
                     detected_lang = lang_data.get("script", "unknown")
                 except Exception:
                     detected_lang = "unknown"
@@ -221,9 +217,7 @@ class OcrCache:
         # For non-PIL images, use direct byte hashing
         return hashlib.sha256(image_bytes).hexdigest()[:16]
 
-    def get(
-        self, image: Image.Image | Path | bytes, language: str | None = None
-    ) -> list[OcrResult] | None:
+    def get(self, image: Image.Image | Path | bytes, language: str | None = None) -> list[OcrResult] | None:
         """Get cached OCR result if available."""
         key = f"{self._get_image_hash(image)}:{language or 'auto'}"
 
@@ -235,9 +229,7 @@ class OcrCache:
 
         return None
 
-    def set(
-        self, image: Image.Image | Path | bytes, language: str | None, results: list[OcrResult]
-    ) -> None:
+    def set(self, image: Image.Image | Path | bytes, language: str | None, results: list[OcrResult]) -> None:
         """Cache OCR results with LRU eviction."""
         key = f"{self._get_image_hash(image)}:{language or 'auto'}"
 

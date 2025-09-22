@@ -83,9 +83,7 @@ def compile_pack(module_dir: Path, pack_name: str) -> None:
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as exc:
-        raise PackCompileError(
-            f"Foundry CLI failed (exit {exc.returncode}): {exc.stderr or exc.stdout}"
-        ) from exc
+        raise PackCompileError(f"Foundry CLI failed (exit {exc.returncode}): {exc.stderr or exc.stdout}") from exc
     finally:
         with contextlib.suppress(Exception):
             script_path.unlink()

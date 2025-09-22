@@ -1,3 +1,17 @@
+"""Document structure parsing from Docling documents.
+
+This module provides functionality to parse PDF document structure (page count,
+outline/bookmarks) from pre-loaded Docling documents. It's part of the unified
+single-pass ingestion design where the same DoclingDocument instance is used
+for both structure parsing and content extraction.
+
+Key features:
+- Extract bookmarks/outline with fallback to heading heuristics
+- Handle missing or malformed outline data gracefully
+- Support for progress reporting during parsing
+- Error handling with structured logging
+"""
+
 from __future__ import annotations
 
 import logging
@@ -63,10 +77,7 @@ def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> Parse
     """
     try:
         num_pages_fn = getattr(doc, "num_pages", None)
-        if callable(num_pages_fn):
-            page_count = int(num_pages_fn())
-        else:
-            page_count = int(getattr(doc, "num_pages", 0) or 0)
+        page_count = int(num_pages_fn()) if callable(num_pages_fn) else int(getattr(doc, "num_pages", 0) or 0)
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
 
@@ -84,9 +95,7 @@ def parse_structure_from_doc(doc, on_progress: ProgressCallback = None) -> Parse
             "parse_structure:bookmarks_found",
             {"page_count": page_count, "chapters": chapters, "sections": sections},
         )
-        logger.info(
-            "Successfully extracted %d chapters and %d sections from bookmarks", chapters, sections
-        )
+        logger.info("Successfully extracted %d chapters and %d sections from bookmarks", chapters, sections)
     else:
         # Missing bookmarks - log warning and use fallback
         error_mgr.warn(
@@ -146,9 +155,7 @@ def _outline_from_docling(doc, page_count: int) -> list[OutlineNode]:  # type: i
     root_nodes: list[OutlineNode] = []
 
     def normalize(node_like, ancestors: list[OutlineNode]) -> OutlineNode | None:  # type: ignore[no-untyped-def]
-        title = (
-            getattr(node_like, "title", None) or getattr(node_like, "name", None) or str(node_like)
-        )
+        title = getattr(node_like, "title", None) or getattr(node_like, "name", None) or str(node_like)
         # Commonly, docling stores page numbers as 1-based
         page = getattr(node_like, "page", None) or getattr(node_like, "page_no", None) or 1
         try:
@@ -166,9 +173,7 @@ def _outline_from_docling(doc, page_count: int) -> list[OutlineNode]:  # type: i
             path=_compute_path_chain(ancestors, title),
         )
 
-        children_like = (
-            getattr(node_like, "children", None) or getattr(node_like, "items", None) or []
-        )
+        children_like = getattr(node_like, "children", None) or getattr(node_like, "items", None) or []
         for child_like in list(children_like or []):
             child = normalize(child_like, [*ancestors, node])
             if child is not None:

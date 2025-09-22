@@ -1,3 +1,21 @@
+"""Single-pass PDF ingestion with JSON caching support.
+
+This module implements the unified single-pass ingestion design for PDF2Foundry,
+where each PDF is converted to a Docling document exactly once per run, with
+optional JSON caching to avoid re-conversion on subsequent runs.
+
+Key features:
+- Single-pass conversion: PDF → DoclingDocument (once per run)
+- JSON caching: Save/load DoclingDocument to/from JSON for faster re-runs
+- Fallback handling: Graceful fallback to conversion if JSON loading fails
+- Validation: Ensure loaded documents have required methods and reasonable data
+- Progress reporting: Emit events during conversion and loading
+
+The main entry point is `ingest_docling()` which handles the complete workflow
+of loading from cache (if available) or converting from PDF, with optional
+cache writing for future runs.
+"""
+
 from __future__ import annotations
 
 import json
@@ -31,10 +49,7 @@ class JsonValidationError(Exception):
     def __init__(self, path: Path, reason: str) -> None:
         self.path = path
         self.reason = reason
-        msg = (
-            f"Invalid DoclingDocument JSON at {path}: {reason}. "
-            "Consider deleting the cache file and re-running."
-        )
+        msg = f"Invalid DoclingDocument JSON at {path}: {reason}. " "Consider deleting the cache file and re-running."
         super().__init__(msg)
 
 
@@ -62,10 +77,7 @@ def validate_doc(doc: DoclingDocumentLike) -> None:
     # Check that we have a non-zero page count
     try:
         num_pages_fn = getattr(doc, "num_pages", None)
-        if callable(num_pages_fn):
-            page_count = int(num_pages_fn())
-        else:
-            page_count = int(getattr(doc, "num_pages", 0) or 0)
+        page_count = int(num_pages_fn()) if callable(num_pages_fn) else int(getattr(doc, "num_pages", 0) or 0)
     except Exception as e:
         raise JsonValidationError(Path("<unknown>"), f"Cannot determine page count: {e}") from e
 
@@ -111,9 +123,7 @@ def load_json_file(path: Path) -> str:
     return text
 
 
-def try_load_doc_from_json(
-    path: Path, fallback_on_failure: bool
-) -> tuple[DoclingDocumentLike | None, list[str]]:
+def try_load_doc_from_json(path: Path, fallback_on_failure: bool) -> tuple[DoclingDocumentLike | None, list[str]]:
     """Attempt to load a DoclingDocument from JSON with optional fallback.
 
     Args:
@@ -147,9 +157,7 @@ def try_load_doc_from_json(
 
     except (JsonLoadError, JsonValidationError) as e:
         if fallback_on_failure:
-            warning_msg = (
-                f"Failed to load DoclingDocument from {path}: {e}. Will fall back to conversion."
-            )
+            warning_msg = f"Failed to load DoclingDocument from {path}: {e}. Will fall back to conversion."
             warnings.append(warning_msg)
             logger.warning(warning_msg)
             return None, warnings
@@ -222,10 +230,7 @@ def ingest_docling(
             # Emit loaded event with page count
             try:
                 num_pages_fn = getattr(doc, "num_pages", None)
-                if callable(num_pages_fn):
-                    page_count = int(num_pages_fn())
-                else:
-                    page_count = int(getattr(doc, "num_pages", 0) or 0)
+                page_count = int(num_pages_fn()) if callable(num_pages_fn) else int(getattr(doc, "num_pages", 0) or 0)
             except Exception:
                 page_count = int(getattr(doc, "num_pages", 0) or 0)
             _safe_emit(
@@ -249,10 +254,7 @@ def ingest_docling(
     page_count = 0
     try:
         num_pages_fn = getattr(doc, "num_pages", None)
-        if callable(num_pages_fn):
-            page_count = int(num_pages_fn())
-        else:
-            page_count = int(getattr(doc, "num_pages", 0) or 0)
+        page_count = int(num_pages_fn()) if callable(num_pages_fn) else int(getattr(doc, "num_pages", 0) or 0)
     except Exception:
         page_count = int(getattr(doc, "num_pages", 0) or 0)
     _safe_emit(on_progress, "ingest:converted", {"pdf": str(pdf_path), "page_count": page_count})

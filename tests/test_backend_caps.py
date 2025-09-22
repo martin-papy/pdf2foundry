@@ -53,9 +53,7 @@ class TestDetectBackendCapabilities:
     @patch("pdf2foundry.backend.caps.probe_docling")
     @patch("pdf2foundry.backend.caps.multiprocessing.get_start_method")
     @patch("pdf2foundry.backend.caps.os.cpu_count")
-    def test_linux_fork_supported(
-        self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock
-    ) -> None:
+    def test_linux_fork_supported(self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock) -> None:
         """Test Linux with fork support enables parallel processing."""
         # Setup mocks
         mock_cpu_count.return_value = 8
@@ -111,9 +109,7 @@ class TestDetectBackendCapabilities:
     @patch("pdf2foundry.backend.caps.probe_docling")
     @patch("pdf2foundry.backend.caps.multiprocessing.get_start_method")
     @patch("pdf2foundry.backend.caps.os.cpu_count")
-    def test_environment_override(
-        self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock
-    ) -> None:
+    def test_environment_override(self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock) -> None:
         """Test environment variable override for fork safety."""
         mock_cpu_count.return_value = 4
         mock_get_start_method.return_value = "spawn"
@@ -131,9 +127,7 @@ class TestDetectBackendCapabilities:
     @patch("pdf2foundry.backend.caps.probe_docling")
     @patch("pdf2foundry.backend.caps.multiprocessing.get_start_method")
     @patch("pdf2foundry.backend.caps.os.cpu_count")
-    def test_cpu_count_fallback(
-        self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock
-    ) -> None:
+    def test_cpu_count_fallback(self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock) -> None:
         """Test fallback when CPU count cannot be determined."""
         mock_cpu_count.side_effect = OSError("Cannot determine CPU count")
         mock_get_start_method.return_value = "fork"
@@ -152,9 +146,7 @@ class TestDetectBackendCapabilities:
     @patch("pdf2foundry.backend.caps.probe_docling")
     @patch("pdf2foundry.backend.caps.multiprocessing.get_start_method")
     @patch("pdf2foundry.backend.caps.os.cpu_count")
-    def test_max_workers_capped(
-        self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock
-    ) -> None:
+    def test_max_workers_capped(self, mock_cpu_count: Mock, mock_get_start_method: Mock, mock_probe: Mock) -> None:
         """Test max workers is capped at 8."""
         mock_cpu_count.return_value = 16
         mock_get_start_method.return_value = "fork"

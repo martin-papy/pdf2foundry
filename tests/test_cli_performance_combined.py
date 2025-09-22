@@ -177,9 +177,7 @@ class TestDefaultsBehavior:
             assert result_baseline.exit_code == 0
 
             # Key assertions about defaults - should show successful execution
-            assert (
-                "Conversion not yet implemented - this is a placeholder!" in result_baseline.stdout
-            )
+            assert "Conversion not yet implemented - this is a placeholder!" in result_baseline.stdout
             # The placeholder message indicates the CLI processed the arguments correctly
 
         finally:

@@ -15,9 +15,7 @@ def test_version() -> None:
     assert isinstance(__version__, str)
     # Check it follows semantic versioning (e.g., "0.1.0", "1.2.3", etc.)
     version_pattern = r"^\d+\.\d+\.\d+$"
-    assert re.match(
-        version_pattern, __version__
-    ), f"Version '{__version__}' doesn't follow semantic versioning"
+    assert re.match(version_pattern, __version__), f"Version '{__version__}' doesn't follow semantic versioning"
 
 
 def test_cli_help() -> None:
@@ -47,9 +45,7 @@ def test_cli_convert_placeholder() -> None:
         tmp_path = tmp.name
 
     try:
-        result = runner.invoke(
-            app, ["convert", tmp_path, "--mod-id", "test-module", "--mod-title", "Test Module"]
-        )
+        result = runner.invoke(app, ["convert", tmp_path, "--mod-id", "test-module", "--mod-title", "Test Module"])
         assert result.exit_code == 0
         assert "Converting" in result.stdout
         assert "test-module" in result.stdout
@@ -91,9 +87,7 @@ def test_cli_convert_validation() -> None:
         tmp_path = tmp.name
 
     try:
-        result = runner.invoke(
-            app, ["convert", tmp_path, "--mod-id", "invalid mod id", "--mod-title", "Test"]
-        )
+        result = runner.invoke(app, ["convert", tmp_path, "--mod-id", "invalid mod id", "--mod-title", "Test"])
         assert result.exit_code == 1
         assert "should contain only alphanumeric characters" in result.stdout
 
@@ -120,9 +114,7 @@ def test_cli_convert_defaults() -> None:
         tmp_path = tmp.name
 
     try:
-        result = runner.invoke(
-            app, ["convert", tmp_path, "--mod-id", "test-mod", "--mod-title", "Test Module"]
-        )
+        result = runner.invoke(app, ["convert", tmp_path, "--mod-id", "test-mod", "--mod-title", "Test Module"])
         assert result.exit_code == 0
         assert "test-mod-journals" in result.stdout  # Default pack name
         assert "Generate TOC: Yes" in result.stdout  # Default TOC

@@ -40,11 +40,7 @@ def configure_logging(verbosity: int = 0, *, disable_progress_interference: bool
         root_logger.removeHandler(handler)
 
     # Create console handler
-    if disable_progress_interference:
-        # Use stderr to avoid interfering with progress output on stdout
-        handler = logging.StreamHandler(sys.stderr)
-    else:
-        handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr) if disable_progress_interference else logging.StreamHandler(sys.stdout)
 
     handler.setLevel(log_level)
 
@@ -70,9 +66,7 @@ def configure_logging(verbosity: int = 0, *, disable_progress_interference: bool
 
     # Log the configuration
     logger = logging.getLogger(__name__)
-    logger.info(
-        "Logging configured: verbosity=%d, level=%s", verbosity, logging.getLevelName(log_level)
-    )
+    logger.info("Logging configured: verbosity=%d, level=%s", verbosity, logging.getLevelName(log_level))
 
 
 def _configure_module_loggers(verbosity: int) -> None:
@@ -133,9 +127,7 @@ class StructuredLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     def __init__(self, logger: logging.Logger, extra: dict[str, Any] | None = None) -> None:
         super().__init__(logger, extra or {})
 
-    def process(
-        self, msg: Any, kwargs: MutableMapping[str, Any]
-    ) -> tuple[Any, MutableMapping[str, Any]]:
+    def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> tuple[Any, MutableMapping[str, Any]]:
         """Process log message and add structured context."""
         # Add structured context to extra
         if "extra" not in kwargs:
@@ -147,9 +139,7 @@ class StructuredLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
         return msg, kwargs
 
 
-def get_structured_logger(
-    name: str, context: dict[str, Any] | None = None
-) -> StructuredLoggerAdapter:
+def get_structured_logger(name: str, context: dict[str, Any] | None = None) -> StructuredLoggerAdapter:
     """Get a structured logger with optional context.
 
     Args:

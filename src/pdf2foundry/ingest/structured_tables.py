@@ -93,9 +93,7 @@ def _iter_structured_tables(doc: Any, page_index: int | None = None) -> Iterable
         )
 
 
-def _extract_structured_tables(
-    doc: Any, page_index: int, region: BBox | None = None
-) -> list[StructuredTable]:
+def _extract_structured_tables(doc: Any, page_index: int, region: BBox | None = None) -> list[StructuredTable]:
     """Extract structured tables from a Docling document for a specific page.
 
     Args:
@@ -134,9 +132,7 @@ def _extract_structured_tables(
                     h=float(table_bbox[3] - table_bbox[1]),
                 )
             else:
-                logger.warning(
-                    "Unsupported bbox format for table on page %d: %s", page_index, table_bbox
-                )
+                logger.warning("Unsupported bbox format for table on page %d: %s", page_index, table_bbox)
                 continue
 
             # Apply region filter if specified
@@ -323,9 +319,7 @@ def try_structured_table(
                 # For now, use base confidence as fallback
                 cell_confidences.append(base_conf)
 
-        mean_cell_conf = (
-            sum(cell_confidences) / len(cell_confidences) if cell_confidences else base_conf
-        )
+        mean_cell_conf = sum(cell_confidences) / len(cell_confidences) if cell_confidences else base_conf
 
         # Combine confidences (70% table, 30% cells)
         combined_conf = 0.7 * base_conf + 0.3 * mean_cell_conf

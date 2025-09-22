@@ -162,9 +162,7 @@ def flatten_page_html(
 
                     reordered_blocks = reflow_columns(list(blocks), page_width)
                     if reordered_blocks != list(blocks):
-                        logger.debug(
-                            "Reordered %d blocks on page %d", len(reordered_blocks), page_no
-                        )
+                        logger.debug("Reordered %d blocks on page %d", len(reordered_blocks), page_no)
                         # Note: For now, we return the original HTML since we don't have
                         # a way to reconstruct HTML from reordered blocks. This sets up
                         # the infrastructure for future HTML reconstruction.

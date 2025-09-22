@@ -100,9 +100,7 @@ def probe_docling() -> DoclingProbeReport:
                 generate_picture_images=False,
                 generate_page_images=False,
             )
-            _ = DocumentConverter(
-                format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)}
-            )
+            _ = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
             can_construct_converter = True
         except Exception as exc:  # pragma: no cover - environmental or version issues
             notes.append(f"Failed to construct DocumentConverter: {exc}")
@@ -140,12 +138,7 @@ def probe_docling() -> DoclingProbeReport:
 def report_is_ok(report: DoclingProbeReport) -> bool:
     """Return True when the environment appears suitable for Docling usage."""
 
-    return (
-        report.has_docling
-        and report.has_docling_core
-        and report.can_construct_converter
-        and report.has_core_types
-    )
+    return report.has_docling and report.has_docling_core and report.can_construct_converter and report.has_core_types
 
 
 def format_report_lines(report: DoclingProbeReport) -> list[str]:

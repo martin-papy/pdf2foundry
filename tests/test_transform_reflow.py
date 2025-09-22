@@ -13,9 +13,7 @@ from pdf2foundry.transform.reflow import (
 class MockBlock:
     """Mock block for testing."""
 
-    def __init__(
-        self, x0: float, y0: float, x1: float, y1: float, block_type: str = "text"
-    ) -> None:
+    def __init__(self, x0: float, y0: float, x1: float, y1: float, block_type: str = "text") -> None:
         self.bbox = (x0, y0, x1, y1)
         self.type = block_type
 

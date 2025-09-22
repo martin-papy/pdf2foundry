@@ -85,9 +85,7 @@ class TestTesseractOcrEngine:
         """Test availability check when tesseract is available."""
         engine = TesseractOcrEngine()
 
-        with patch(
-            "pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version", return_value="5.0.0"
-        ):
+        with patch("pdf2foundry.ingest.ocr_engine.pytesseract.get_tesseract_version", return_value="5.0.0"):
             assert engine.is_available() is True
             assert engine._available is True
 
@@ -171,9 +169,7 @@ class TestTesseractOcrEngine:
                 return_value="5.0.0",
             ),
             patch("pdf2foundry.ingest.ocr_engine.pytesseract.image_to_string", return_value=""),
-            patch(
-                "pdf2foundry.ingest.ocr_engine.pytesseract.image_to_data", return_value={"conf": []}
-            ),
+            patch("pdf2foundry.ingest.ocr_engine.pytesseract.image_to_data", return_value={"conf": []}),
             patch("pdf2foundry.ingest.ocr_engine.pytesseract.Output.DICT", "dict"),
         ):
             results = engine.run(mock_image)

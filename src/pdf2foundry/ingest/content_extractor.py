@@ -100,9 +100,7 @@ def _write_base64_image(data_b64: str, dest_dir: Path, filename: str) -> str:
     return filename
 
 
-def _extract_images_from_html(
-    html: str, page_no: int, assets_dir: Path, name_prefix: str
-) -> tuple[str, list[ImageAsset]]:
+def _extract_images_from_html(html: str, page_no: int, assets_dir: Path, name_prefix: str) -> tuple[str, list[ImageAsset]]:
     pattern = re.compile(r'src="data:image/(?P<ext>[^;\"]+);base64,(?P<data>[^\"]+)"')
     images: list[ImageAsset] = []
     counter = {"n": 0}
@@ -282,9 +280,7 @@ def extract_semantic_content(
         ocr_cache = None
 
     # Initialize Caption components
-    caption_engine, caption_cache = initialize_caption_components(
-        pipeline_options, on_progress, shared_image_cache
-    )
+    caption_engine, caption_cache = initialize_caption_components(pipeline_options, on_progress, shared_image_cache)
 
     # Check if we should use parallel processing
     # Note: Parallel processing is disabled when OCR or captions are enabled
@@ -294,8 +290,7 @@ def extract_semantic_content(
 
     if workers_effective > 1 and not use_parallel:
         logger.info(
-            "Parallel processing disabled due to OCR or caption processing. "
-            "Using sequential mode for cache safety."
+            "Parallel processing disabled due to OCR or caption processing. " "Using sequential mode for cache safety."
         )
 
     if use_parallel:
@@ -373,22 +368,16 @@ def extract_semantic_content(
             try:
                 from pdf2foundry.transform.layout import flatten_page_html
 
-                html = flatten_page_html(
-                    html, doc, page_no, reflow_enabled=pipeline_options.reflow_columns
-                )
+                html = flatten_page_html(html, doc, page_no, reflow_enabled=pipeline_options.reflow_columns)
             except Exception:
                 # If transform fails for any reason, proceed with original HTML
                 pass
 
             # Extract images (embedded base64)
-            html, page_images = _extract_images_from_html(
-                html, page_no, out_assets, f"page-{page_no:04d}"
-            )
+            html, page_images = _extract_images_from_html(html, page_no, out_assets, f"page-{page_no:04d}")
             images.extend(page_images)
             # Copy referenced images (local paths)
-            html, ref_images = _rewrite_and_copy_referenced_images(
-                html, page_no, out_assets, f"page-{page_no:04d}"
-            )
+            html, ref_images = _rewrite_and_copy_referenced_images(html, page_no, out_assets, f"page-{page_no:04d}")
             images.extend(ref_images)
             if ref_images:
                 _safe_emit(
@@ -404,9 +393,7 @@ def extract_semantic_content(
                 )
 
             # Tables - use new structured processing if available, fall back to legacy
-            if pipeline_options.tables_mode in (TableMode.STRUCTURED, TableMode.AUTO) and hasattr(
-                doc, "pages"
-            ):
+            if pipeline_options.tables_mode in (TableMode.STRUCTURED, TableMode.AUTO) and hasattr(doc, "pages"):
                 # Use new structured table processing
                 html, page_tables = _process_tables_with_options(
                     doc, html, page_no, out_assets, pipeline_options, f"page-{page_no:04d}"
@@ -452,9 +439,7 @@ def extract_semantic_content(
 
     # Apply captions to images if picture descriptions are enabled
     if images and pipeline_options.picture_descriptions:
-        apply_captions_to_images(
-            images, out_assets, pipeline_options, caption_engine, caption_cache, on_progress
-        )
+        apply_captions_to_images(images, out_assets, pipeline_options, caption_engine, caption_cache, on_progress)
 
     # Log cache metrics if shared cache was used
     if shared_image_cache is not None:
@@ -477,6 +462,4 @@ def extract_semantic_content(
         {"pages": len(pages), "images": len(images), "tables": len(tables)},
     )
 
-    return ParsedContent(
-        pages=pages, images=images, tables=tables, links=links, assets_dir=out_assets
-    )
+    return ParsedContent(pages=pages, images=images, tables=tables, links=links, assets_dir=out_assets)

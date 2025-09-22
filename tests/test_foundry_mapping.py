@@ -17,9 +17,7 @@ def _sample_ir() -> tuple[Any, Any]:
         children=[],
         path=["chapter", "overview"],
     )
-    section2 = OutlineNode(
-        title="Usage", level=2, page_start=2, page_end=3, children=[], path=["chapter", "usage"]
-    )
+    section2 = OutlineNode(title="Usage", level=2, page_start=2, page_end=3, children=[], path=["chapter", "usage"])
     chapter = OutlineNode(
         title="Chapter",
         level=1,
@@ -85,15 +83,9 @@ def test_map_ir_to_foundry_entries_basic() -> None:
 
 def test_map_ir_name_fallbacks_and_dedup_levels() -> None:
     # Build outline with empty chapter title and duplicate/empty section titles
-    s1 = OutlineNode(
-        title="Intro", level=2, page_start=1, page_end=1, children=[], path=["c", "intro"]
-    )
-    s2 = OutlineNode(
-        title="Intro", level=3, page_start=2, page_end=2, children=[], path=["c", "intro-2"]
-    )
-    s3 = OutlineNode(
-        title="  ", level=5, page_start=3, page_end=3, children=[], path=["c", "untitled"]
-    )
+    s1 = OutlineNode(title="Intro", level=2, page_start=1, page_end=1, children=[], path=["c", "intro"])
+    s2 = OutlineNode(title="Intro", level=3, page_start=2, page_end=2, children=[], path=["c", "intro-2"])
+    s3 = OutlineNode(title="  ", level=5, page_start=3, page_end=3, children=[], path=["c", "untitled"])
     ch = OutlineNode(title="", level=1, page_start=1, page_end=3, children=[s1, s2, s3], path=["c"])
     parsed_doc = ParsedDocument(page_count=3, outline=[ch])
     pages = [HtmlPage(html=f"<p>p{n}</p>", page_no=n) for n in range(1, 4)]

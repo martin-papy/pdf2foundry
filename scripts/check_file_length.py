@@ -16,19 +16,14 @@ def iter_python_files(paths: Iterable[Path]) -> Iterable[Path]:
             continue
         for p in root.rglob("*.py"):
             # Skip common generated/third-party dirs if user passed a parent
-            if any(
-                part in {".git", ".venv", "node_modules", "dist", "build", ".taskmaster"}
-                for part in p.parts
-            ):
+            if any(part in {".git", ".venv", "node_modules", "dist", "build", ".taskmaster"} for part in p.parts):
                 continue
             yield p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Enforce maximum Python file length in lines")
-    parser.add_argument(
-        "--max-lines", type=int, default=500, help="Maximum allowed lines per file (default: 500)"
-    )
+    parser.add_argument("--max-lines", type=int, default=500, help="Maximum allowed lines per file (default: 500)")
     parser.add_argument(
         "--paths",
         nargs="+",
@@ -56,10 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         for path, count in sorted(violations, key=lambda x: x[1], reverse=True):
             rel = path.relative_to(Path.cwd()) if str(path).startswith(str(Path.cwd())) else path
             print(f" - {rel}: {count} lines")
-        print(
-            "\nPlease split large modules into smaller, focused modules per our"
-            " architecture guidelines."
-        )
+        print("\nPlease split large modules into smaller, focused modules per our" " architecture guidelines.")
         return 1
 
     return 0

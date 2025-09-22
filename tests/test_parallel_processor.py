@@ -79,12 +79,8 @@ class TestProcessPageContent:
 
         # Mock the imported functions
         with (
-            patch(
-                "pdf2foundry.ingest.parallel_processor._extract_images_from_html"
-            ) as mock_extract,
-            patch(
-                "pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images"
-            ) as mock_rewrite,
+            patch("pdf2foundry.ingest.parallel_processor._extract_images_from_html") as mock_extract,
+            patch("pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images") as mock_rewrite,
         ):
             with patch("pdf2foundry.ingest.parallel_processor._detect_links") as mock_links:
                 with patch("pdf2foundry.ingest.parallel_processor._process_tables") as mock_tables:
@@ -126,12 +122,8 @@ class TestProcessPageContent:
 
         # Mock the imported functions
         with (
-            patch(
-                "pdf2foundry.ingest.parallel_processor._extract_images_from_html"
-            ) as mock_extract,
-            patch(
-                "pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images"
-            ) as mock_rewrite,
+            patch("pdf2foundry.ingest.parallel_processor._extract_images_from_html") as mock_extract,
+            patch("pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images") as mock_rewrite,
         ):
             with patch("pdf2foundry.ingest.parallel_processor._detect_links") as mock_links:
                 with patch("pdf2foundry.ingest.parallel_processor._process_tables") as mock_tables:
@@ -168,12 +160,8 @@ class TestProcessPageContent:
 
         # Mock the imported functions
         with (
-            patch(
-                "pdf2foundry.ingest.parallel_processor._extract_images_from_html"
-            ) as mock_extract,
-            patch(
-                "pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images"
-            ) as mock_rewrite,
+            patch("pdf2foundry.ingest.parallel_processor._extract_images_from_html") as mock_extract,
+            patch("pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images") as mock_rewrite,
         ):
             with patch("pdf2foundry.ingest.parallel_processor._detect_links") as mock_links:
                 with patch("pdf2foundry.ingest.parallel_processor._process_tables") as mock_tables:
@@ -208,17 +196,11 @@ class TestProcessPageContent:
 
         # Mock the imported functions
         with (
-            patch(
-                "pdf2foundry.ingest.parallel_processor._extract_images_from_html"
-            ) as mock_extract,
-            patch(
-                "pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images"
-            ) as mock_rewrite,
+            patch("pdf2foundry.ingest.parallel_processor._extract_images_from_html") as mock_extract,
+            patch("pdf2foundry.ingest.parallel_processor._rewrite_and_copy_referenced_images") as mock_rewrite,
         ):
             with patch("pdf2foundry.ingest.parallel_processor._detect_links") as mock_links:
-                with patch(
-                    "pdf2foundry.ingest.parallel_processor._process_tables_with_options"
-                ) as mock_tables_structured:
+                with patch("pdf2foundry.ingest.parallel_processor._process_tables_with_options") as mock_tables_structured:
                     # Set up mocks
                     mock_extract.return_value = ("<p>Test content</p>", [])
                     mock_rewrite.return_value = ("<p>Test content</p>", [])
@@ -244,16 +226,12 @@ class TestProcessPagesParallel:
         options = PdfPipelineOptions()
         options.workers = 1
 
-        with patch(
-            "pdf2foundry.ingest.parallel_processor._process_pages_sequential"
-        ) as mock_sequential:
+        with patch("pdf2foundry.ingest.parallel_processor._process_pages_sequential") as mock_sequential:
             mock_sequential.return_value = ([], [], [], [], 1.0)
 
             result = process_pages_parallel(doc, selected_pages, tmp_path, options)
 
-            mock_sequential.assert_called_once_with(
-                doc, selected_pages, tmp_path, options, None, None
-            )
+            mock_sequential.assert_called_once_with(doc, selected_pages, tmp_path, options, None, None)
             assert result == ([], [], [], [], 1.0)
 
     @patch("pdf2foundry.ingest.parallel_processor.ProcessPoolExecutor")
@@ -300,9 +278,7 @@ class TestProcessPagesParallel:
             mock_as_completed.return_value = [future1, future2]
 
             # Process pages
-            pages, images, tables, links, total_time = process_pages_parallel(
-                doc, selected_pages, tmp_path, options
-            )
+            pages, images, tables, links, total_time = process_pages_parallel(doc, selected_pages, tmp_path, options)
 
             # Verify results
             assert len(pages) == 2
@@ -317,9 +293,7 @@ class TestProcessPagesParallel:
             assert mock_executor.submit.call_count == 2
 
     @patch("pdf2foundry.ingest.parallel_processor.ProcessPoolExecutor")
-    def test_parallel_processing_failure_fallback(
-        self, mock_executor_class: Mock, tmp_path: Path
-    ) -> None:
+    def test_parallel_processing_failure_fallback(self, mock_executor_class: Mock, tmp_path: Path) -> None:
         """Test fallback to sequential when parallel processing fails."""
         # Mock document
         doc = Mock()
@@ -330,9 +304,7 @@ class TestProcessPagesParallel:
         # Mock executor to raise exception
         mock_executor_class.side_effect = Exception("Process creation failed")
 
-        with patch(
-            "pdf2foundry.ingest.parallel_processor._process_pages_sequential"
-        ) as mock_sequential:
+        with patch("pdf2foundry.ingest.parallel_processor._process_pages_sequential") as mock_sequential:
             mock_sequential.return_value = ([], [], [], [], 1.0)
 
             # Process pages
@@ -382,9 +354,7 @@ class TestProcessPagesParallel:
         with patch("pdf2foundry.ingest.parallel_processor.as_completed") as mock_as_completed:
             mock_as_completed.return_value = [future2, future1]
 
-            with patch(
-                "pdf2foundry.ingest.parallel_processor._process_pages_sequential"
-            ) as mock_sequential:
+            with patch("pdf2foundry.ingest.parallel_processor._process_pages_sequential") as mock_sequential:
                 mock_sequential.return_value = ([], [], [], [], 1.0)
 
                 # Process pages - should fallback due to worker exception
@@ -406,9 +376,7 @@ class TestProcessPagesParallel:
         options = PdfPipelineOptions()
         options.workers_effective = 2
 
-        with patch(
-            "pdf2foundry.ingest.parallel_processor.ProcessPoolExecutor"
-        ) as mock_executor_class:
+        with patch("pdf2foundry.ingest.parallel_processor.ProcessPoolExecutor") as mock_executor_class:
             mock_executor = Mock()
             mock_executor_class.return_value.__enter__.return_value = mock_executor
 
@@ -474,9 +442,7 @@ class TestIntegrationWithContentExtractor:
         # to avoid optional dependency issues in tests
 
         # Simulate the condition from content_extractor.py
-        def should_use_parallel(
-            workers_effective: int, ocr_engine: Any, caption_engine: Any
-        ) -> bool:
+        def should_use_parallel(workers_effective: int, ocr_engine: Any, caption_engine: Any) -> bool:
             return workers_effective > 1 and ocr_engine is None and caption_engine is None
 
         # Test cases

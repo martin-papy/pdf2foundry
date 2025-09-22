@@ -131,9 +131,7 @@ def replace_structured_table_placeholders(html: str, tables: list[TableContent])
     - Preserves all other HTML content exactly
     """
     # Extract structured tables in order
-    structured_tables = [
-        t for t in tables if t.kind == "structured" and t.structured_table is not None
-    ]
+    structured_tables = [t for t in tables if t.kind == "structured" and t.structured_table is not None]
 
     if not structured_tables:
         # No structured tables to replace

@@ -94,9 +94,7 @@ class PdfPipelineOptions:
             tables_mode = TableMode(tables)
         except ValueError as exc:
             valid_values = [mode.value for mode in TableMode]
-            raise ValueError(
-                f"Invalid tables mode '{tables}'. Valid values: {valid_values}"
-            ) from exc
+            raise ValueError(f"Invalid tables mode '{tables}'. Valid values: {valid_values}") from exc
 
         # Map OCR string to enum
         try:
@@ -111,10 +109,7 @@ class PdfPipelineOptions:
         elif picture_descriptions == "off":
             picture_descriptions_bool = False
         else:
-            raise ValueError(
-                f"Invalid picture_descriptions '{picture_descriptions}'. "
-                f"Valid values: ['on', 'off']"
-            )
+            raise ValueError(f"Invalid picture_descriptions '{picture_descriptions}'. " f"Valid values: ['on', 'off']")
 
         # Validate workers parameter
         if workers < 1:
