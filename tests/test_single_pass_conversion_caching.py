@@ -125,6 +125,11 @@ class TestSinglePassConversion:
         monkeypatch.setattr(da, "_do_docling_convert_impl", mock_convert)
         monkeypatch.setattr("pdf2foundry.ingest.docling_parser.parse_structure_from_doc", mock_parse_structure)
         monkeypatch.setattr("pdf2foundry.ingest.content_extractor.extract_semantic_content", mock_extract_content)
+        # Also patch the imported references in this module
+        import sys
+
+        monkeypatch.setattr(sys.modules[__name__], "parse_structure_from_doc", mock_parse_structure)
+        monkeypatch.setattr(sys.modules[__name__], "extract_semantic_content", mock_extract_content)
         da._cached_convert.cache_clear()
 
         # Call ingest_docling and then both processing stages
