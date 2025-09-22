@@ -97,6 +97,56 @@ def test_cli_convert_ocr_auto(temp_pdf: str) -> None:
         Path(temp_pdf).unlink(missing_ok=True)
 
 
+def test_cli_convert_ocr_on(temp_pdf: str) -> None:
+    """Test CLI with OCR on option."""
+    runner = CliRunner()
+
+    try:
+        result = runner.invoke(
+            app,
+            [
+                "convert",
+                temp_pdf,
+                "--mod-id",
+                "test-mod",
+                "--mod-title",
+                "Test Title",
+                "--ocr",
+                "on",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "OCR Mode: on" in result.stdout
+
+    finally:
+        Path(temp_pdf).unlink(missing_ok=True)
+
+
+def test_cli_convert_ocr_off(temp_pdf: str) -> None:
+    """Test CLI with OCR off option."""
+    runner = CliRunner()
+
+    try:
+        result = runner.invoke(
+            app,
+            [
+                "convert",
+                temp_pdf,
+                "--mod-id",
+                "test-mod",
+                "--mod-title",
+                "Test Title",
+                "--ocr",
+                "off",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "OCR Mode: off" in result.stdout
+
+    finally:
+        Path(temp_pdf).unlink(missing_ok=True)
+
+
 def test_cli_convert_picture_descriptions_on_with_vlm(temp_pdf: str) -> None:
     """Test CLI with picture descriptions enabled and VLM repo ID."""
     runner = CliRunner()

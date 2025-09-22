@@ -2,6 +2,31 @@
 fail_fast: true
 
 repos:
+  # Debug hook for troubleshooting environment issues (can be disabled)
+  - repo: local
+    hooks:
+      - id: debug-env
+        name: Debug environment (for troubleshooting)
+        language: system
+        pass_filenames: false
+        stages: [manual]
+        entry: bash
+        args:
+          - -c
+          - |
+            echo "=== Pre-commit Environment Debug Info ===" > .git/precommit-debug.log
+            echo "Date: $(date)" >> .git/precommit-debug.log
+            echo "User: $(whoami)" >> .git/precommit-debug.log
+            echo "PWD: $(pwd)" >> .git/precommit-debug.log
+            echo "Git: $(command -v git) ($(git --version))" >> .git/precommit-debug.log
+            echo "Python: $(command -v python || echo none) $(python -V 2>&1 || echo none)" >> .git/precommit-debug.log
+            echo "Python3: $(command -v python3 || echo none) $(python3 -V 2>&1 || echo none)" >> .git/precommit-debug.log
+            echo "VIRTUAL_ENV: ${VIRTUAL_ENV:-none}" >> .git/precommit-debug.log
+            echo "PYENV_ROOT: ${PYENV_ROOT:-none}" >> .git/precommit-debug.log
+            echo "PATH: $PATH" >> .git/precommit-debug.log
+            echo "Git config:" >> .git/precommit-debug.log
+            git config --show-origin -l | grep -E "hooksPath|autocrlf|eol" >> .git/precommit-debug.log || echo "No relevant git config found" >> .git/precommit-debug.log
+            echo "Debug info written to .git/precommit-debug.log"
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.5.7
     hooks:

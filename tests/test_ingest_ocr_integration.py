@@ -28,6 +28,32 @@ class TestApplyOcrToPage:
         assert result == html
         engine.is_available.assert_not_called()
 
+    def test_ocr_never_needed_off_mode(self) -> None:
+        """Test that OCR is never invoked in OFF mode."""
+        doc = Mock()
+        # Test with various HTML content types
+        test_cases = [
+            "",  # Empty content
+            "<img src='test.png'>",  # Image-only content
+            "<p>Some text content</p>",  # Text content
+            "<div><img src='img1.png'><img src='img2.png'></div>",  # Multiple images
+        ]
+
+        for html in test_cases:
+            options = PdfPipelineOptions(ocr_mode=OcrMode.OFF)
+            engine = Mock()
+            cache = Mock()
+
+            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
+
+            # Should return original HTML unchanged
+            assert result == html
+            # OCR engine should never be checked or called
+            engine.is_available.assert_not_called()
+            engine.run.assert_not_called()
+            cache.get.assert_not_called()
+            cache.set.assert_not_called()
+
     def test_ocr_needed_but_engine_unavailable_on_mode(self) -> None:
         """Test OCR needed but engine unavailable in ON mode."""
         doc = Mock()

@@ -66,3 +66,6 @@ dev-debug.log
 # Task files
 tasks.json
 tasks/ 
+
+# Pre-commit debug logs
+.git/precommit-debug.log

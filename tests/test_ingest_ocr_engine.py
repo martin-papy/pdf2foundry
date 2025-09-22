@@ -360,6 +360,14 @@ class TestNeedsOcr:
         # With low threshold, should not need OCR
         assert needs_ocr(html, "auto", threshold=0.001) is False
 
+    def test_needs_ocr_off_mode(self) -> None:
+        """Test that OCR is never needed in OFF mode."""
+        assert needs_ocr("", "off") is False
+        assert needs_ocr("<img src='test.png'>", "off") is False
+        assert needs_ocr("<p>Some text content</p>", "off") is False
+        # Even with high threshold, OFF mode should never need OCR
+        assert needs_ocr("", "off", threshold=1.0) is False
+
     def test_needs_ocr_invalid_mode(self) -> None:
         """Test with invalid OCR mode."""
         assert needs_ocr("test", "invalid") is False

@@ -10,6 +10,10 @@ pip install pdf2foundry
 pdf2foundry convert "My Book.pdf" --mod-id "my-book" --mod-title "My Book"
 ```
 
+## Developer Setup
+
+For development setup, testing, and contribution guidelines, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
 ## Features
 
 - **Structure Preservation**: PDF chapters → Journal Entries, sections → Journal Pages

@@ -33,11 +33,13 @@ class TestOcrMode:
         """Test enum values match expected CLI strings."""
         assert OcrMode.AUTO.value == "auto"
         assert OcrMode.ON.value == "on"
+        assert OcrMode.OFF.value == "off"
 
     def test_enum_from_string(self) -> None:
         """Test creating enum from string values."""
         assert OcrMode("auto") == OcrMode.AUTO
         assert OcrMode("on") == OcrMode.ON
+        assert OcrMode("off") == OcrMode.OFF
 
     def test_invalid_string_raises_error(self) -> None:
         """Test invalid string raises ValueError."""
@@ -108,6 +110,20 @@ class TestPdfPipelineOptions:
         """Test from_cli with invalid OCR value raises error."""
         with pytest.raises(ValueError, match="Invalid OCR mode 'invalid'"):
             PdfPipelineOptions.from_cli(ocr="invalid")
+
+    def test_from_cli_all_ocr_modes(self) -> None:
+        """Test from_cli with all valid OCR modes."""
+        # Test auto mode
+        options_auto = PdfPipelineOptions.from_cli(ocr="auto")
+        assert options_auto.ocr_mode == OcrMode.AUTO
+
+        # Test on mode
+        options_on = PdfPipelineOptions.from_cli(ocr="on")
+        assert options_on.ocr_mode == OcrMode.ON
+
+        # Test off mode
+        options_off = PdfPipelineOptions.from_cli(ocr="off")
+        assert options_off.ocr_mode == OcrMode.OFF
 
     def test_from_cli_invalid_picture_descriptions(self) -> None:
         """Test from_cli with invalid picture_descriptions value raises error."""

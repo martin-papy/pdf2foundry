@@ -1,0 +1,26 @@
+# Ensure consistent line endings across platforms
+* text=auto eol=lf
+
+# Windows batch files should have CRLF line endings
+*.bat eol=crlf
+*.cmd eol=crlf
+
+# Binary files should not be modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.tar.gz binary
+*.tgz binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
