@@ -20,9 +20,10 @@ from pdf2foundry.model.pipeline_options import PdfPipelineOptions, TableMode
 
 def _rasterize_table_placeholder(dest_dir: Path, filename: str) -> str:
     """Create a tiny PNG placeholder for rasterized tables."""
-    # 1x1 transparent PNG (43 bytes)
+    # 1x1 transparent PNG (70 bytes) - properly formatted with all required chunks
     data = bytes.fromhex(
-        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4" "890000000a4944415478da6300010000050001"
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+        "0000000d49444154789c6360606060000000050001a5f645400000000049454e44ae426082"
     )
 
     (dest_dir / filename).write_bytes(data)

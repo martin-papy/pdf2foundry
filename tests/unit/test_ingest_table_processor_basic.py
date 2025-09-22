@@ -25,7 +25,15 @@ def test_rasterize_table_placeholder() -> None:
         assert result == filename
         placeholder_file = dest_dir / filename
         assert placeholder_file.exists()
-        assert placeholder_file.stat().st_size == 51  # Expected size of 1x1 transparent PNG
+        assert placeholder_file.stat().st_size == 70  # Expected size of 1x1 transparent PNG (proper format)
+
+        # Verify the PNG is valid and can be opened
+        from PIL import Image
+
+        with Image.open(placeholder_file) as img:
+            assert img.size == (1, 1)
+            assert img.mode == "RGBA"
+            img.verify()  # This should not raise an exception
 
 
 def test_process_tables_auto_mode() -> None:

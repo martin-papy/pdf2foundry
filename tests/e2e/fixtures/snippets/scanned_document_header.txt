@@ -1,0 +1,4 @@
+document
+page
+text
+content

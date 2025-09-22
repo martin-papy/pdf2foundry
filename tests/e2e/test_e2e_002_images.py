@@ -68,7 +68,7 @@ def test_images(tmp_output_dir: Path, cli_runner) -> None:
     validate_image_integrity_and_formats(extracted_images)
 
     # Step 5: Accessibility checks for alt text (subtask 19.5)
-    test_accessibility_features(tmp_output_dir, input_pdf, cli_runner)
+    test_accessibility_features(tmp_output_dir, cli_runner)
 
     print("✓ CLI conversion completed successfully")
     print(f"✓ Found and validated {len(extracted_images)} extracted images")
