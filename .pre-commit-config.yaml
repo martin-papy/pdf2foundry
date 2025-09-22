@@ -32,8 +32,10 @@ repos:
     hooks:
       - id: ruff
         args: ["--fix", "--line-length=125"]
+        stages: [pre-commit]
       - id: ruff-format
         args: ["--line-length=125"]
+        stages: [pre-commit]
 
   - repo: local
     hooks:
@@ -42,12 +44,14 @@ repos:
         entry: python scripts/check_file_length.py --max-lines 500 --paths src tests
         language: system
         pass_filenames: false
+        stages: [pre-commit]
 
   - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:
       - id: black
         args: ["--line-length=125"]
+        stages: [pre-commit]
 
   - repo: local
     hooks:
@@ -67,12 +71,13 @@ repos:
         pass_filenames: true
         # Only check source files, not tests (tests are excluded in pyproject.toml)
         files: ^src/
+        stages: [pre-commit]
 
   - repo: local
     hooks:
       - id: pytest
         name: Run test suite
-        entry: pytest tests/ -v
+        entry: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=90
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -84,15 +89,18 @@ repos:
         additional_dependencies:
           - mdformat-gfm
           - mdformat-frontmatter
+        stages: [pre-commit]
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.14.0
     hooks:
       - id: markdownlint-cli2
+        stages: [pre-commit]
       
   - repo: https://github.com/codespell-project/codespell
     rev: v2.3.0
     hooks:
       - id: codespell
         args: ["--config", ".codespellrc"]
+        stages: [pre-commit]
 
