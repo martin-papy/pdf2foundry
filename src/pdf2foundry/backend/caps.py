@@ -65,26 +65,31 @@ def detect_backend_capabilities(
         start_method = "unknown"
         notes.append("Could not determine multiprocessing start method")
 
-    # Auto-detect fork safety if not provided
+    # Determine multiprocessing safety if not provided
     if safe_fork is None:
-        # Fork is generally safe on POSIX systems and is the default start method
-        safe_fork = platform.startswith(("linux", "darwin")) and start_method == "fork"
+        # Support both fork and spawn on POSIX systems
+        # fork: Fast, shares memory, traditional Unix approach
+        # spawn: Safer, fresh interpreter, Python 3.8+ default on macOS
+        safe_multiprocessing = platform.startswith(("linux", "darwin")) and start_method in ("fork", "spawn", "forkserver")
 
         # Allow override from environment for testing
         env_override = os.environ.get("PDF2FOUNDRY_SAFE_FORK")
         if env_override is not None:
-            safe_fork = env_override.lower() in ("1", "true", "yes")
-            notes.append(f"Fork safety overridden by environment: {safe_fork}")
+            safe_multiprocessing = env_override.lower() in ("1", "true", "yes")
+            notes.append(f"Multiprocessing safety overridden by environment: {safe_multiprocessing}")
+
+        # For backward compatibility, keep the safe_fork variable name
+        safe_fork = safe_multiprocessing
 
     # Determine parallel processing support
     supports_parallel_extract = False
     max_workers = None
 
-    # Conservative approach: only enable parallel processing if we're confident it's safe
+    # Enable parallel processing if multiprocessing is safe and Docling is available
     if safe_fork and docling_version:
-        # For now, assume Docling supports parallel processing if fork is safe
-        # In the future, we could add version-specific checks here
+        # Docling supports parallel processing with both fork and spawn start methods
         supports_parallel_extract = True
+        notes.append(f"Parallel processing enabled with {start_method} start method")
 
         # Set a reasonable default max workers based on CPU count
         try:
@@ -95,7 +100,7 @@ def detect_backend_capabilities(
             notes.append("Could not determine CPU count, limiting to 1 worker")
     else:
         if not safe_fork:
-            notes.append(f"Fork not safe on platform {platform} with start method {start_method}")
+            notes.append(f"Multiprocessing not safe on platform {platform} with start method {start_method}")
         if not docling_version:
             notes.append("Docling version not available")
 

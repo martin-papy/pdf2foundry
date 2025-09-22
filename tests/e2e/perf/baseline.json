@@ -1,0 +1,62 @@
+{
+  "test_context": {
+    "timestamp": 1758534007.9680052,
+    "metrics": {
+      "execution_time": {
+        "latest": 0.012529667,
+        "min": 0.012529667,
+        "max": 0.012529667,
+        "avg": 0.012529667,
+        "runs": 1
+      }
+    }
+  },
+  "table_processing_image-only": {
+    "timestamp": 1758554579.043802,
+    "metrics": {
+      "conversion_time": {
+        "latest": 31.881638666,
+        "min": 30.47502025,
+        "max": 35.35440775,
+        "avg": 33.260353254099996,
+        "runs": 10
+      }
+    }
+  },
+  "table_processing_structured": {
+    "timestamp": 1758554512.806765,
+    "metrics": {
+      "conversion_time": {
+        "latest": 34.422527042,
+        "min": 30.694228458,
+        "max": 35.124990167,
+        "avg": 33.5642396876,
+        "runs": 10
+      }
+    }
+  },
+  "table_processing_auto": {
+    "timestamp": 1758554545.806773,
+    "metrics": {
+      "conversion_time": {
+        "latest": 31.6536755,
+        "min": 31.555395625,
+        "max": 33.731516541,
+        "avg": 32.892393775,
+        "runs": 10
+      }
+    }
+  },
+  "test_context_mgr": {
+    "timestamp": 1758554884.8615391,
+    "metrics": {
+      "execution_time": {
+        "latest": 0.012554334,
+        "min": 0.011131625,
+        "max": 0.012575292,
+        "avg": 0.012348862700000001,
+        "runs": 10
+      }
+    }
+  }
+}

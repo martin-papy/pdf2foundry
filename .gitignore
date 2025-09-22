@@ -26,6 +26,13 @@ venv/
 htmlcov/
 coverage.xml
 
+# Performance test results (keep baseline.json and baseline scenarios, ignore generated results)
+tests/e2e/perf/latest.json
+tests/e2e/perf/table_processing_*.json
+tests/e2e/perf/test_context*.json
+tests/e2e/perf/e2e_006_performance_*.json
+!tests/e2e/perf/e2e_006_performance_baseline_*.json
+
 # Node
 node_modules/
 npm-debug.log*
@@ -68,5 +75,4 @@ tasks.json
 tasks/ 
 
 # Pre-commit debug logs
-.git/precommit-debug.log
-tests/e2e/perf/*
+.git/precommit-debug.logs

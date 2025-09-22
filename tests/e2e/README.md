@@ -36,7 +36,15 @@ Configure these environment variables for testing:
 - `HF_HOME`: Hugging Face model cache directory (for VLM tests)
 - `HF_TOKEN`: Hugging Face API token (for rate-limited models)
 - `FOUNDRY_CLI_CMD`: Foundry CLI command (e.g., `fvtt` or `npx @foundryvtt/foundry-cli`)
+
+### Performance Environment Variables
+
 - `PERF_THRESHOLD`: Performance regression threshold (default: 0.2 = 20%)
+- `PERF_THRESHOLD_CI`: Relaxed threshold for CI environments (default: 1.5 × PERF_THRESHOLD)
+- `PERF_UPDATE_BASELINE`: Set to "1" to update performance baselines (default: "0")
+- `E2E_PERF`: Set to "1" to run performance tests in PR CI (default: "0", skipped)
+- `NIGHTLY`: Set to "1" to run performance tests in nightly builds (default: "0")
+- `CI`: Set to "1" to enable CI-specific behaviors (timeouts, thresholds) (default: "0")
 
 ## Test Markers
 
@@ -49,8 +57,8 @@ pytest tests/e2e/
 # Run only fast tests (exclude slow ones)
 pytest tests/e2e/ -m "not slow"
 
-# Run performance tests
-pytest tests/e2e/ -m "perf"
+# Run performance tests (normally skipped in PR CI)
+E2E_PERF=1 pytest tests/e2e/ -m "perf"
 
 # Run tests that require OCR
 pytest tests/e2e/ -m "ocr"
@@ -71,7 +79,7 @@ pytest tests/e2e/ -m "cache"
 pytest tests/e2e/ -m "pack"
 ```
 
-## Available Markers
+## Marker Definitions
 
 - `slow`: Tests that take significant time to complete
 - `perf`: Performance benchmarking tests
@@ -81,6 +89,37 @@ pytest tests/e2e/ -m "pack"
 - `pack`: Tests involving Foundry pack compilation
 - `integration`: Integration tests with external tools
 - `errors`: Error handling and edge case tests
+
+## Performance Testing
+
+Performance tests (`test_e2e_006_performance.py`) benchmark conversion speed and validate functionality:
+
+### Test Scenarios
+
+- **Threading Performance**: Compare single-threaded vs multi-threaded processing
+- **Page Selection**: Validate `--pages` functionality and measure timing differences
+- **Baseline Comparison**: Track performance over time and detect regressions
+
+### CI Integration
+
+Performance tests are **skipped by default in PR CI** to avoid flakiness and long runtimes:
+
+```bash
+# Run performance tests locally
+E2E_PERF=1 pytest tests/e2e/test_e2e_006_performance.py -v
+
+# Run in nightly builds (CI)
+NIGHTLY=1 pytest tests/e2e/ -m "perf"
+
+# Update performance baselines (use with caution)
+PERF_UPDATE_BASELINE=1 pytest tests/e2e/ -m "perf"
+```
+
+### Performance Data
+
+- **Metrics**: Stored in `tests/e2e/perf/` as JSON files with timestamps
+- **Baselines**: Computed from historical averages for regression detection
+- **Thresholds**: Default 20% regression threshold, configurable via `PERF_THRESHOLD`
 
 ## Local Setup
 
@@ -122,23 +161,6 @@ pytest tests/e2e/ -n 4
 
 # Disable parallel execution
 pytest tests/e2e/ -n 0
-```
-
-## Performance Testing
-
-Performance tests automatically:
-
-- Measure execution time using high-precision timers
-- Write per-test metrics to `tests/e2e/perf/{testname}.json`
-- Aggregate results to `tests/e2e/perf/latest.json`
-- Check for regressions against previous runs
-- Fail if performance degrades beyond the threshold
-
-Configure performance testing:
-
-```bash
-export PERF_THRESHOLD=0.1  # 10% regression threshold
-pytest tests/e2e/ -m "perf" --benchmark-only
 ```
 
 ## Fixture Management

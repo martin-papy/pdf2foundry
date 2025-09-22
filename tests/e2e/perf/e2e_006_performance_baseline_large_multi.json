@@ -1,0 +1,16 @@
+{
+  "runs": [
+    {
+      "timestamp": 1758560002.747784,
+      "metrics": {
+        "conversion_time": 31.61551
+      }
+    },
+    {
+      "timestamp": 1758561178.363032,
+      "metrics": {
+        "conversion_time": 30.709946166
+      }
+    }
+  ]
+}

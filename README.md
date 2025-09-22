@@ -101,6 +101,28 @@ The project uses GitHub Actions for CI/CD with the following checks:
 - **Build**: Package building and installation testing
 - **Cross-platform**: Testing on Ubuntu, Windows, and macOS
 
+#### E2E & Performance Testing
+
+- **E2E Tests**: Comprehensive end-to-end testing on pull requests and main branch
+- **Performance Monitoring**: Automated performance regression detection with configurable thresholds (default: 20%)
+- **Artifact Collection**: Test reports, performance metrics, and cache data preserved
+- **PR Integration**: Automated performance summaries posted to pull requests
+
+#### Performance Baseline Management
+
+To update the performance baseline after improvements:
+
+```bash
+# Copy current results as new baseline
+cp tests/e2e/perf/latest.json tests/e2e/perf/baseline.json
+git add tests/e2e/perf/baseline.json
+git commit -m "Update performance baseline"
+```
+
+#### Manual Workflow Triggers
+
+You can manually trigger the E2E workflow using GitHub's workflow_dispatch feature in the Actions tab.
+
 All checks must pass before merging. The CI runs on Python 3.12 and 3.13.
 
 ## CLI Usage

@@ -88,7 +88,7 @@ class TestDetectBackendCapabilities:
         assert caps.supports_parallel_extract is False
         assert caps.start_method == "spawn"
         assert caps.platform == "win32"
-        assert "Fork not safe on platform win32" in " ".join(caps.notes or [])
+        assert "Multiprocessing not safe on platform win32" in " ".join(caps.notes or [])
 
     @patch("pdf2foundry.backend.caps.probe_docling")
     def test_no_docling_unsupported(self, mock_probe: Mock) -> None:
@@ -122,7 +122,7 @@ class TestDetectBackendCapabilities:
         caps = detect_backend_capabilities(platform="win32")
 
         assert caps.supports_parallel_extract is True
-        assert "Fork safety overridden by environment: True" in " ".join(caps.notes or [])
+        assert "Multiprocessing safety overridden by environment: True" in " ".join(caps.notes or [])
 
     @patch("pdf2foundry.backend.caps.probe_docling")
     @patch("pdf2foundry.backend.caps.multiprocessing.get_start_method")
