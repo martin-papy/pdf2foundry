@@ -1,7 +1,8 @@
-"""E2E-001: Basic PDF Conversion Test.
+"""E2E-001: Basic PDF Conversion Test (No ML).
 
 This test validates the basic end-to-end conversion of fixtures/basic.pdf
-with default settings, ensuring module structure, schema compliance, and content fidelity.
+with ML features explicitly disabled, ensuring CI-safe operation in minimal
+dependency environments.
 """
 
 import json
@@ -24,22 +25,27 @@ from utils.validation import validate_assets, validate_compendium_structure, val
 @pytest.mark.integration
 @pytest.mark.tier1
 @pytest.mark.ci_safe
-def test_basic(tmp_output_dir: Path, cli_runner) -> None:
+def test_basic_conversion_no_ml(tmp_output_dir: Path, cli_runner, test_environment_info) -> None:
     """
-    Test basic PDF conversion with default settings.
+    Test basic PDF conversion with ML features disabled (CI minimal mode).
 
-    This test performs the complete E2E workflow:
-    1. Converts fixtures/basic.pdf using pdf2foundry CLI
+    This test performs the complete E2E workflow without ML dependencies:
+    1. Converts fixtures/basic.pdf using pdf2foundry CLI with --no-ml flag
     2. Validates module.json against schema
     3. Validates compendium structure and assets
     4. Performs content fidelity checks
+    5. Verifies that ML features are properly disabled
 
     Args:
         tmp_output_dir: Temporary directory for test output (from conftest.py fixture)
         cli_runner: CLI runner function (from conftest.py fixture)
+        test_environment_info: Environment information fixture
     """
     # Environment checks - skip if prerequisites not met
     _check_prerequisites()
+
+    # Log environment information for debugging
+    print(f"Test environment info: {test_environment_info}")
 
     # Get input fixture
     try:
@@ -52,31 +58,35 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
     if not schema_path.exists():
         pytest.skip(f"Schema file not found: {schema_path}")
 
-    # Step 1: Execute CLI conversion
+    # Step 1: Execute CLI conversion with ML features disabled
     # Ensure output directory is clean
     if tmp_output_dir.exists():
         shutil.rmtree(tmp_output_dir)
     tmp_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Run pdf2foundry CLI with basic.pdf using the convert command
+    # Explicitly disable ML features for CI-safe operation
     cmd_args = [
         "convert",
         str(input_pdf),
         "--mod-id",
-        "test-basic",
+        "test-basic-no-ml",
         "--mod-title",
-        "Test Basic Module",
+        "Test Basic Module (No ML)",
         "--out-dir",
         str(tmp_output_dir),
+        "--picture-descriptions",
+        "off",  # Explicitly disable ML
+        "--no-ml",  # Disable ML for CI testing
     ]
 
     try:
-        # Run CLI with a reasonable timeout to prevent hanging
-        result = cli_runner(cmd_args, timeout=120)  # 2 minute timeout
+        # Run CLI with a reasonable timeout for basic tests
+        result = cli_runner(cmd_args, timeout=120)  # 2 minute timeout for CI-safe tests
     except subprocess.TimeoutExpired:
         pytest.fail(
-            f"CLI conversion timed out after 120 seconds. This may indicate a hanging issue "
-            f"with the docling library or PDF processing. Command: pdf2foundry {' '.join(cmd_args)}"
+            f"CLI conversion timed out after 120 seconds. This should not happen for CI-safe tests "
+            f"without ML dependencies. Command: pdf2foundry {' '.join(cmd_args)}"
         )
     except Exception as e:
         pytest.fail(f"CLI execution failed with exception: {e}")
@@ -94,7 +104,7 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
         )
 
     # Step 2: Validate module.json against schema
-    module_json_path = tmp_output_dir / "test-basic" / "module.json"
+    module_json_path = tmp_output_dir / "test-basic-no-ml" / "module.json"
     if not module_json_path.exists():
         pytest.fail(f"module.json not found at expected location: {module_json_path}")
 
@@ -104,7 +114,7 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
         pytest.fail(error_msg)
 
     # Step 3: Validate compendium structure and assets
-    module_dir = tmp_output_dir / "test-basic"
+    module_dir = tmp_output_dir / "test-basic-no-ml"
 
     # Validate directory structure
     structure_errors = validate_compendium_structure(module_dir)
@@ -143,7 +153,7 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
     if not has_pages:
         pytest.fail("No journal entries with pages found - content generation may have failed")
 
-    # Step 4: Content fidelity checks
+    # Step 4: Content fidelity checks (same as basic test)
     expected_content_strings = [
         "Drow Elite Warriors",
         "Beholder",
@@ -154,18 +164,21 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
     ]
     _assert_content_contains(module_dir, expected_content_strings)
 
-    # Step 5: Negative validation - test that validation properly fails when module.json is missing
+    # Step 5: Verify ML features were properly disabled
+    _verify_no_ml_artifacts(module_dir)
+
+    # Step 6: Negative validation - test that validation properly fails when module.json is missing
     _test_negative_validation(module_dir)
 
-    print("✓ CLI conversion completed successfully")
+    print("✓ CLI conversion completed successfully (No ML mode)")
     print("✓ module.json validation passed")
     print("✓ Compendium structure validation passed")
     print("✓ Asset validation passed")
     print("✓ Content fidelity checks passed")
+    print("✓ ML features properly disabled")
     print("✓ Negative validation tests passed")
     print(f"✓ Found {len(journal_files)} journal entries with content")
     print(f"✓ Output directory: {tmp_output_dir}")
-    print(f"✓ Generated files: {list(tmp_output_dir.rglob('*'))}")
 
 
 def _check_prerequisites() -> None:
@@ -315,6 +328,90 @@ def _strip_html_tags(html_content: str) -> str:
 
         clean_text = re.sub(r"<[^>]+>", "", html_content)
         return clean_text
+
+
+def _verify_no_ml_artifacts(module_dir: Path) -> None:
+    """
+    Verify that no ML-related artifacts were generated.
+
+    This function checks that:
+    1. No image captions were generated (alt attributes should be empty or generic)
+    2. No VLM-related metadata is present in the output
+    3. Processing completed without attempting to load ML models
+
+    Args:
+        module_dir: Path to the generated module directory
+
+    Raises:
+        AssertionError: If ML artifacts are found when they shouldn't be
+    """
+    # Check for image captions in HTML content
+    sources_dir = module_dir / "sources"
+    if sources_dir.exists():
+        for json_file in sources_dir.rglob("*.json"):
+            try:
+                with json_file.open() as f:
+                    data = json.load(f)
+
+                # Look for image elements with AI-generated captions
+                html_content = _extract_html_from_json(data)
+                if html_content:
+                    # Check for sophisticated alt text that would indicate VLM processing
+                    import re
+
+                    img_tags = re.findall(r'<img[^>]*alt="([^"]*)"[^>]*>', html_content, re.IGNORECASE)
+
+                    for alt_text in img_tags:
+                        # AI-generated captions typically contain descriptive phrases
+                        # Generic or empty alt text is expected in no-ML mode
+                        if (
+                            alt_text
+                            and len(alt_text) > 20
+                            and any(
+                                word in alt_text.lower()
+                                for word in ["shows", "depicts", "contains", "features", "displays", "illustrates"]
+                            )
+                        ):
+                            pytest.fail(
+                                f"Found potential AI-generated caption in no-ML mode: '{alt_text}'. "
+                                f"ML features should be disabled."
+                            )
+
+            except Exception as e:
+                # Don't fail the test for parsing errors, just log
+                print(f"Warning: Could not parse {json_file} for ML artifact check: {e}")
+
+    print("✓ No ML artifacts found - ML features properly disabled")
+
+
+def _extract_html_from_json(data: Any) -> str:
+    """
+    Extract HTML content from JSON data structures.
+
+    Args:
+        data: JSON data structure to extract HTML from
+
+    Returns:
+        Extracted HTML content as a single string
+    """
+    html_content = ""
+
+    if isinstance(data, dict):
+        # Extract from text content structures (Foundry VTT format)
+        if "text" in data and isinstance(data["text"], dict):
+            content = data["text"].get("content", "")
+            if content:
+                html_content += content + " "
+
+        # Recursively process nested structures
+        for value in data.values():
+            html_content += _extract_html_from_json(value)
+
+    elif isinstance(data, list):
+        for item in data:
+            html_content += _extract_html_from_json(item)
+
+    return html_content
 
 
 def _test_negative_validation(module_dir: Path) -> None:

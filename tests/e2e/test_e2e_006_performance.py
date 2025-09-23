@@ -275,6 +275,8 @@ def _run_conversion_with_timing(
 @pytest.mark.perf
 @pytest.mark.slow
 @pytest.mark.e2e
+@pytest.mark.tier2
+@pytest.mark.ci_safe
 def test_performance_setup_smoke(tmp_output_dir: Path, cli_runner) -> None:
     """
     Smoke test to validate performance harness and fixture availability.
@@ -328,6 +330,8 @@ def test_performance_setup_smoke(tmp_output_dir: Path, cli_runner) -> None:
 @pytest.mark.perf
 @pytest.mark.slow
 @pytest.mark.e2e
+@pytest.mark.tier2
+@pytest.mark.ci_safe
 @pytest.mark.parametrize("workers", [1, 4])
 def test_threading_performance(tmp_output_dir: Path, cli_runner, workers: int) -> None:
     """
@@ -381,6 +385,8 @@ def test_threading_performance(tmp_output_dir: Path, cli_runner, workers: int) -
 @pytest.mark.perf
 @pytest.mark.slow
 @pytest.mark.e2e
+@pytest.mark.tier2
+@pytest.mark.ci_safe
 @pytest.mark.parametrize("pages", [None, "1-10"])
 def test_page_selection_performance(tmp_output_dir: Path, cli_runner, pages: str | None) -> None:
     """
@@ -436,6 +442,8 @@ def test_page_selection_performance(tmp_output_dir: Path, cli_runner, pages: str
 @pytest.mark.perf
 @pytest.mark.slow
 @pytest.mark.e2e
+@pytest.mark.tier2
+@pytest.mark.ci_safe
 def test_performance_baseline_comparison(tmp_output_dir: Path, cli_runner) -> None:
     """
     Run a comprehensive performance comparison against baseline metrics.

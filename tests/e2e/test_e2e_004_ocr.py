@@ -33,6 +33,7 @@ from utils.ocr_test_helpers import (
 
 @pytest.mark.e2e
 @pytest.mark.ocr
+@pytest.mark.tier2
 @pytest.mark.parametrize("ocr_mode", OCR_MODES)
 def test_ocr_processing(tmp_output_dir: Path, cli_runner, ocr_mode: str) -> None:
     """
@@ -103,6 +104,7 @@ def test_ocr_processing(tmp_output_dir: Path, cli_runner, ocr_mode: str) -> None
 
 @pytest.mark.e2e
 @pytest.mark.ocr
+@pytest.mark.tier2
 def test_ocr_timing_comparison(tmp_output_dir: Path) -> None:
     """
     Compare timing across OCR modes after all parametrized tests complete.
@@ -149,6 +151,7 @@ def test_ocr_timing_comparison(tmp_output_dir: Path) -> None:
 
 @pytest.mark.e2e
 @pytest.mark.ocr
+@pytest.mark.tier2
 def test_ocr_tesseract_unavailable(tmp_output_dir: Path, cli_runner, monkeypatch) -> None:
     """
     Test behavior when Tesseract is unavailable.

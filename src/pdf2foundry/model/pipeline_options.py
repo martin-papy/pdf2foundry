@@ -112,6 +112,17 @@ class PdfPipelineOptions:
         else:
             raise ValueError(f"Invalid picture_descriptions '{picture_descriptions}'. " f"Valid values: ['on', 'off']")
 
+        # Use default VLM model if picture descriptions are enabled but no model specified
+        if picture_descriptions_bool and vlm_repo_id is None:
+            # Import here to avoid circular imports
+            try:
+                from pdf2foundry.models.registry import get_default_vlm_model
+
+                vlm_repo_id = get_default_vlm_model()
+            except ImportError:
+                # Fallback if models module not available (shouldn't happen in normal usage)
+                vlm_repo_id = "Salesforce/blip-image-captioning-base"
+
         # Validate workers parameter
         if workers < 1:
             raise ValueError(f"Workers must be >= 1, got {workers}")

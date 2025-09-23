@@ -11,23 +11,37 @@ requires-python = ">=3.12"
 authors = [
   { name = "Martin Papy", email = "martin.papy@gmail.com" }
 ]
+# Full-featured installation (all dependencies included for users)
 dependencies = [
+  # Core functionality
   "typer>=0.16.0",
-  "jinja2>=3.1.6",
+  "jinja2>=3.1.6", 
   "pillow>=11.3.0",
   "rich>=14.1.0",
   "docling>=2.53.0",
   "docling-core>=2.48.1",
-  "pytesseract>=0.3.13",
-  # VLM dependencies for image captioning
+  # ML features - always available for users
   "transformers>=4.46.0",
-  "huggingface_hub>=0.24.2",
+  "huggingface_hub>=0.24.2", 
   "torch>=2.8.0",
   "einops>=0.8.0",
   "timm>=1.0.0",
+  # OCR features - always available for users
+  "pytesseract>=0.3.13",
 ]
 
 [project.optional-dependencies]
+# Minimal installation for CI environments only
+ci-minimal = [
+  "typer>=0.16.0",
+  "jinja2>=3.1.6", 
+  "pillow>=11.3.0",
+  "rich>=14.1.0",
+  "docling>=2.53.0",
+  "docling-core>=2.48.1",
+]
+
+# Development dependencies
 dev = [
   "ruff>=0.13.1",
   "black>=25.9.0",

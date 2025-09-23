@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 
+@pytest.mark.tier1
+@pytest.mark.ci_safe
 def test_schema_loads():
     """Test that the module schema loads correctly."""
     schema_path = Path(__file__).parent / "schemas" / "module.schema.json"
@@ -21,6 +23,8 @@ def test_schema_loads():
     assert "title" in schema["properties"]
 
 
+@pytest.mark.tier1
+@pytest.mark.ci_safe
 def test_fixtures_manifest_loads():
     """Test that the fixtures manifest loads correctly."""
     manifest_path = Path(__file__).parent / "fixtures" / "manifest.json"
@@ -34,6 +38,8 @@ def test_fixtures_manifest_loads():
     assert isinstance(manifest["fixtures"], dict)
 
 
+@pytest.mark.tier1
+@pytest.mark.ci_safe
 def test_utils_package_imports():
     """Test that utils package imports work correctly."""
     # Test that the package structure is correct
@@ -54,6 +60,8 @@ def test_utils_package_imports():
 
 
 @pytest.mark.slow
+@pytest.mark.tier1
+@pytest.mark.ci_safe
 def test_readme_exists():
     """Test that README documentation exists."""
     readme_path = Path(__file__).parent / "README.md"

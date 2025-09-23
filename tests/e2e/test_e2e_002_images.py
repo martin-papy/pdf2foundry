@@ -26,6 +26,8 @@ from utils.validation import validate_module_json
 
 @pytest.mark.e2e
 @pytest.mark.integration
+@pytest.mark.tier2
+@pytest.mark.ci_safe
 def test_images(tmp_output_dir: Path, cli_runner) -> None:
     """
     Test image extraction and processing with illustrated-guide.pdf.

@@ -185,7 +185,15 @@ def setup_test_environment(tmp_output_dir: Path, tmp_cache_dir: Path):
 
 # Pytest configuration hooks
 def pytest_configure(config):
-    """Configure pytest with custom markers and settings."""
+    """Configure pytest with enhanced markers for tier-based testing."""
+    # Tier-based testing markers
+    config.addinivalue_line("markers", "tier1: Core functionality tests (always run)")
+    config.addinivalue_line("markers", "tier2: Feature integration tests (conditional)")
+    config.addinivalue_line("markers", "tier3: ML/VLM tests (scheduled only)")
+    config.addinivalue_line("markers", "requires_models: Tests requiring pre-cached models")
+    config.addinivalue_line("markers", "ci_safe: Tests safe to run in CI without external deps")
+
+    # Legacy markers (maintained for backward compatibility)
     config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
     config.addinivalue_line("markers", "perf: marks tests as performance tests")
     config.addinivalue_line("markers", "cache: marks tests that use caching functionality")
@@ -197,26 +205,46 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add markers based on test names and paths."""
+    """Auto-assign markers based on test characteristics for tier-based testing."""
     for item in items:
+        # Auto-assign tier markers based on test characteristics
+        test_name = item.name.lower()
+        test_path = str(item.fspath).lower()
+
+        # Tier 1: Core functionality tests (basic, smoke, fundamental operations)
+        if any(keyword in test_name for keyword in ["basic", "smoke", "fundamental", "core"]):
+            item.add_marker(pytest.mark.tier1)
+        # Tier 3: ML/VLM tests (vision models, captions, ML-heavy operations)
+        elif any(keyword in test_name for keyword in ["vlm", "vision", "caption", "multimodal", "ml_"]):
+            item.add_marker(pytest.mark.tier3)
+            item.add_marker(pytest.mark.requires_models)
+        # Tier 2: Everything else (feature integration, OCR, tables, etc.)
+        else:
+            item.add_marker(pytest.mark.tier2)
+
+        # Mark CI-safe tests (tests that don't require models or heavy ML dependencies)
+        if not any(marker.name in ["requires_models", "tier3"] for marker in item.iter_markers()):
+            item.add_marker(pytest.mark.ci_safe)
+
+        # Legacy marker assignments (maintained for backward compatibility)
         # Add slow marker to tests that are likely to be slow
-        if any(keyword in item.name.lower() for keyword in ["full", "complete", "large", "comprehensive"]):
+        if any(keyword in test_name for keyword in ["full", "complete", "large", "comprehensive"]):
             item.add_marker(pytest.mark.slow)
 
         # Add integration marker to tests in integration directories or with integration in name
-        if "integration" in str(item.fspath).lower() or "integration" in item.name.lower():
+        if "integration" in test_path or "integration" in test_name:
             item.add_marker(pytest.mark.integration)
 
         # Add performance marker to benchmark tests
-        if "perf" in item.name.lower() or "benchmark" in item.name.lower():
+        if "perf" in test_name or "benchmark" in test_name:
             item.add_marker(pytest.mark.perf)
 
         # Add OCR marker to tests that likely use OCR
-        if any(keyword in item.name.lower() for keyword in ["ocr", "tesseract", "scanned"]):
+        if any(keyword in test_name for keyword in ["ocr", "tesseract", "scanned"]):
             item.add_marker(pytest.mark.ocr)
 
         # Add VLM marker to tests that likely use vision models
-        if any(keyword in item.name.lower() for keyword in ["vlm", "vision", "multimodal"]):
+        if any(keyword in test_name for keyword in ["vlm", "vision", "multimodal"]):
             item.add_marker(pytest.mark.vlm)
 
 
@@ -235,6 +263,122 @@ def pytest_runtest_setup(item):
         cli_binary = os.getenv("PDF2FOUNDRY_CLI", "pdf2foundry")
         if shutil.which(cli_binary) is None:
             pytest.skip(f"PDF2Foundry CLI not found: {cli_binary}")
+
+
+# Model caching and environment detection utilities
+def _models_cached() -> bool:
+    """Check if BLIP model is cached.
+
+    Returns:
+        True if the default VLM model is cached locally, False otherwise
+    """
+    try:
+        from huggingface_hub import try_to_load_from_cache
+
+        from pdf2foundry.models.registry import get_default_vlm_model
+
+        model_id = get_default_vlm_model()
+        cached_path = try_to_load_from_cache(repo_id=model_id, filename="config.json")
+        return cached_path is not None
+    except Exception:
+        # If any error occurs (import, network, etc.), assume not cached
+        return False
+
+
+def _get_test_environment_info() -> dict[str, bool]:
+    """Get test environment information for diagnostics.
+
+    Returns:
+        Dictionary containing environment detection results
+    """
+    try:
+        from pdf2foundry.core.feature_detection import FeatureAvailability
+
+        return FeatureAvailability.get_available_features()
+    except ImportError:
+        # Fallback if feature detection is not available
+        return {
+            "ml": False,
+            "ocr": False,
+            "ci_minimal": os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1",
+            "environment": {
+                "ci": os.getenv("CI") == "1",
+                "ci_minimal": os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1",
+            },
+        }
+
+
+@pytest.fixture
+def models_cached() -> bool:
+    """Fixture that checks if models are cached."""
+    return _models_cached()
+
+
+@pytest.fixture
+def test_environment_info() -> dict[str, bool]:
+    """Fixture that provides test environment information."""
+    return _get_test_environment_info()
+
+
+# Additional fixtures from utility modules
+@pytest.fixture
+def environment_diagnostics():
+    """Fixture providing environment diagnostics."""
+    from utils.diagnostics import get_environment_diagnostics
+
+    return get_environment_diagnostics()
+
+
+@pytest.fixture
+def test_prerequisites():
+    """Fixture providing test prerequisite check results."""
+    from utils.diagnostics import check_test_prerequisites
+
+    return check_test_prerequisites()
+
+
+@pytest.fixture
+def feature_availability():
+    """Fixture providing feature availability summary."""
+    from utils.feature_checking import get_feature_availability_summary
+
+    return get_feature_availability_summary()
+
+
+@pytest.fixture
+def ml_available():
+    """Fixture providing ML availability status."""
+    from utils.feature_checking import check_ml_availability
+
+    available, _ = check_ml_availability()
+    return available
+
+
+@pytest.fixture
+def ocr_available():
+    """Fixture providing OCR availability status."""
+    from utils.feature_checking import check_ocr_availability
+
+    available, _ = check_ocr_availability()
+    return available
+
+
+@pytest.fixture
+def cli_available():
+    """Fixture providing CLI availability status."""
+    from utils.feature_checking import check_cli_availability
+
+    available, _ = check_cli_availability()
+    return available
+
+
+@pytest.fixture
+def fixtures_available():
+    """Fixture providing fixtures availability status."""
+    from utils.feature_checking import check_test_fixtures
+
+    available, _ = check_test_fixtures()
+    return available
 
 
 # Additional utility fixtures for common test patterns

@@ -30,6 +30,8 @@ pytest_plugins = ["utils.vlm_fixtures"]
 @pytest.mark.e2e
 @pytest.mark.vlm
 @pytest.mark.slow
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_cache_warmup(
     test_fixture: Path,
     tmp_output_dir: Path,
@@ -159,6 +161,8 @@ def test_vlm_cache_warmup(
 @pytest.mark.e2e
 @pytest.mark.vlm
 @pytest.mark.slow
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_caption_validation(
     test_fixture: Path,
     tmp_output_dir: Path,
@@ -345,6 +349,8 @@ def test_vlm_caption_validation(
 @pytest.mark.vlm
 @pytest.mark.perf
 @pytest.mark.slow
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_performance_comparison(
     test_fixture: Path,
     tmp_output_dir: Path,

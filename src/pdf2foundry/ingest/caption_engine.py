@@ -51,6 +51,14 @@ class HFCaptionEngine:
         """Check if transformers and the model are available."""
         if self._available is None:
             try:
+                # Check if ML features are available using our feature detection system
+                from pdf2foundry.core.feature_detection import FeatureAvailability
+
+                if not FeatureAvailability.has_ml_support():
+                    logger.debug("ML features disabled or not available")
+                    self._available = False
+                    return self._available
+
                 # Try to check if transformers is available using importlib
                 import importlib.util
 
@@ -70,21 +78,21 @@ class HFCaptionEngine:
         return self._available
 
     def _load_pipeline(self) -> None:
-        """Lazily load the transformers pipeline with timeout handling."""
+        """Lazily load the transformers pipeline with robust error handling and timeout."""
         if self._pipeline is None:
-            import concurrent.futures
-            import os
+            from pdf2foundry.core.exceptions import ModelNotAvailableError
+            from pdf2foundry.core.timeout import get_environment_timeout, timeout_context
 
             try:
                 import transformers
 
                 logger.info(f"Loading VLM model: {self.model_id}")
 
-                # Get timeout from environment (default: 5 minutes for model loading)
-                model_load_timeout = int(os.environ.get("PDF2FOUNDRY_VLM_LOAD_TIMEOUT", "300"))
+                # Get environment-appropriate timeout
+                model_load_timeout = get_environment_timeout("model_load", default_local=300, default_ci=60)
 
                 def _load_model() -> Any:
-                    """Load the model in a separate thread."""
+                    """Load the model with proper error handling."""
                     # Try to determine the task type based on model name
                     # Common VLM models and their tasks
                     if (
@@ -96,9 +104,6 @@ class HFCaptionEngine:
                     else:
                         # Default to image-to-text for most VLM models
                         task = "image-to-text"
-
-                    # Use Any to avoid complex transformers typing issues
-                    # Different mypy configurations may see different errors
 
                     # Special handling for Florence-2 models due to API differences
                     if "florence" in self.model_id.lower():
@@ -120,9 +125,11 @@ class HFCaptionEngine:
                             return {"model": model, "processor": processor, "type": "florence2"}
                         except Exception as florence_error:
                             logger.error(f"Failed to load Florence-2 model directly: {florence_error}")
-                            raise
+                            raise ModelNotAvailableError(
+                                f"Florence-2 model loading failed: {florence_error}", model_id=self.model_id
+                            ) from florence_error
                     else:
-                        # Standard pipeline creation for other models
+                        # Standard pipeline creation for other models (BLIP, etc.)
                         # Try with device_map first, fallback without it
                         try:
                             return transformers.pipeline(  # type: ignore[call-overload]
@@ -138,34 +145,36 @@ class HFCaptionEngine:
                                     model=self.model_id,
                                 )
                             else:
-                                raise
+                                raise ModelNotAvailableError(
+                                    f"Pipeline creation failed: {device_map_error}", model_id=self.model_id
+                                ) from device_map_error
 
-                # Use ThreadPoolExecutor to load model with timeout
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    logger.info("Starting VLM model loading with %d second timeout: %s", model_load_timeout, self.model_id)
-                    future = executor.submit(_load_model)
-
-                    try:
-                        # Wait for model loading with timeout
-                        self._pipeline = future.result(timeout=model_load_timeout)
+                # Use timeout context for model loading
+                try:
+                    with timeout_context(model_load_timeout, f"VLM model loading ({self.model_id})"):
+                        self._pipeline = _load_model()
                         logger.info(f"Successfully loaded VLM model: {self.model_id}")
 
-                    except concurrent.futures.TimeoutError:
-                        # Cancel the future and raise timeout error
-                        future.cancel()
-                        timeout_msg = (
-                            f"VLM model loading timed out after {model_load_timeout} seconds. "
-                            f"This may indicate network issues or missing model cache. "
-                            f"Model: {self.model_id}"
-                        )
-                        logger.error(timeout_msg)
-                        raise TimeoutError(timeout_msg) from None
+                except TimeoutError as timeout_error:
+                    timeout_msg = (
+                        f"VLM model loading timed out after {model_load_timeout} seconds. "
+                        f"This may indicate network issues or missing model cache. "
+                        f"Model: {self.model_id}"
+                    )
+                    logger.error(timeout_msg)
+                    # Mark as unavailable so future calls don't retry
+                    self._available = False
+                    raise ModelNotAvailableError(timeout_msg, model_id=self.model_id, timeout=True) from timeout_error
 
+            except ModelNotAvailableError:
+                # Re-raise our custom exceptions as-is
+                self._available = False
+                raise
             except Exception as e:
                 logger.error(f"Failed to load VLM model {self.model_id}: {e}")
                 # Mark as unavailable so future calls don't retry
                 self._available = False
-                raise
+                raise ModelNotAvailableError(f"VLM model loading failed: {e}", model_id=self.model_id) from e
 
     def generate(self, pil_image: Image.Image) -> str | None:
         """Generate a caption for the given PIL image.
@@ -262,7 +271,15 @@ class HFCaptionEngine:
             return caption if caption else None
 
         except Exception as e:
-            logger.error(f"Caption generation failed: {e}")
+            # Import here to avoid circular imports
+            from pdf2foundry.core.exceptions import ModelNotAvailableError
+
+            if isinstance(e, ModelNotAvailableError):
+                # Model loading failed - this is expected in CI minimal environments
+                logger.info(f"Caption generation skipped - model not available: {e}")
+            else:
+                # Other errors during caption generation
+                logger.error(f"Caption generation failed: {e}")
             return None
 
 

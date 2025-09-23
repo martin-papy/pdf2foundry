@@ -26,6 +26,8 @@ from utils.validation import validate_assets, validate_compendium_structure, val
 
 @pytest.mark.e2e
 @pytest.mark.integration
+@pytest.mark.tier2
+@pytest.mark.ci_safe
 @pytest.mark.parametrize("mode", ["structured", "auto", "image-only"])
 def test_table_processing_modes(tmp_output_dir: Path, cli_runner, mode: str) -> None:
     """

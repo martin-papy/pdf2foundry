@@ -20,6 +20,8 @@ pytest_plugins = ["utils.vlm_fixtures"]
 
 @pytest.mark.e2e
 @pytest.mark.vlm
+@pytest.mark.tier3
+@pytest.mark.requires_models
 @pytest.mark.parametrize(
     "scenario",
     [
@@ -38,9 +40,6 @@ def test_vlm_resilience_scenarios(
 ) -> None:
     """
     Test resilience and graceful skip/xfail scenarios for VLM functionality.
-
-    This test ensures the test suite handles missing dependencies, offline mode,
-    and model load failures by skipping or xfail with clear reasons.
 
     Args:
         scenario: Test scenario to simulate
@@ -217,6 +216,8 @@ def test_vlm_resilience_scenarios(
 
 @pytest.mark.e2e
 @pytest.mark.vlm
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_memory_pressure_simulation(
     test_fixture: Path,
     tmp_output_dir: Path,
@@ -225,9 +226,6 @@ def test_vlm_memory_pressure_simulation(
 ) -> None:
     """
     Test handling of memory pressure scenarios during VLM processing.
-
-    This test simulates OOM conditions and verifies that appropriate
-    xfail messages are generated with RAM guidance.
 
     Args:
         test_fixture: Selected PDF fixture for testing
@@ -291,6 +289,8 @@ def test_vlm_memory_pressure_simulation(
 
 @pytest.mark.e2e
 @pytest.mark.vlm
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_auth_failure_simulation(
     test_fixture: Path,
     tmp_output_dir: Path,
@@ -367,6 +367,8 @@ def test_vlm_auth_failure_simulation(
 
 @pytest.mark.e2e
 @pytest.mark.vlm
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_no_artifacts_cleanup(
     tmp_output_dir: Path,
     hf_cache_dir: Path,
@@ -427,6 +429,8 @@ def test_vlm_no_artifacts_cleanup(
 
 @pytest.mark.e2e
 @pytest.mark.vlm
+@pytest.mark.tier3
+@pytest.mark.requires_models
 def test_vlm_resilience_integration(
     test_fixture: Path,
     tmp_output_dir: Path,

@@ -178,6 +178,16 @@ def convert(
             ),
         ),
     ] = False,  # Default: disabled (experimental feature, may affect text order)
+    no_ml: Annotated[
+        bool,
+        typer.Option(
+            "--no-ml",
+            help=(
+                "Disable ML features (VLM, advanced OCR). Primarily for CI testing. "
+                "When enabled, picture descriptions are automatically disabled."
+            ),
+        ),
+    ] = False,  # Default: ML features enabled
     verbose: Annotated[
         int,
         typer.Option(
@@ -284,6 +294,19 @@ def convert(
         typer.echo("Error: --workers must be >= 1")
         raise typer.Exit(1)
 
+    # Handle --no-ml flag: disable ML features when requested
+    if no_ml:
+        # Force disable picture descriptions when ML is disabled
+        if picture_descriptions == "on":
+            typer.echo("Warning: --no-ml flag overrides --picture-descriptions=on, disabling ML features")
+        picture_descriptions = "off"
+        vlm_repo_id = None
+
+        # Set environment variable to indicate ML should be disabled
+        import os
+
+        os.environ["PDF2FOUNDRY_NO_ML"] = "1"
+
     # Validate CLI options using PdfPipelineOptions
     try:
         from pdf2foundry.model.pipeline_options import PdfPipelineOptions
@@ -355,6 +378,7 @@ def convert(
         workers=workers,
         reflow_columns=reflow_columns,
         verbose=verbose,
+        no_ml=no_ml,
     )
 
 
