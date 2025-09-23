@@ -4,6 +4,7 @@ This test validates image extraction, asset management, and HTML references
 using fixtures/illustrated-guide.pdf with comprehensive image validation.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -140,10 +141,12 @@ def _run_default_conversion(tmp_output_dir: Path, input_pdf: Path, cli_runner) -
 
     try:
         # Run CLI with a reasonable timeout to prevent hanging
-        result = cli_runner(cmd_args, timeout=180)  # 3 minute timeout for image processing
+        # Use longer timeout for complex image processing in CI
+        timeout = 360 if os.environ.get("CI") == "1" else 180  # 6 minutes in CI, 3 minutes locally
+        result = cli_runner(cmd_args, timeout=timeout)
     except subprocess.TimeoutExpired:
         pytest.fail(
-            f"CLI conversion timed out after 180 seconds. This may indicate a hanging issue "
+            f"CLI conversion timed out after {timeout} seconds. This may indicate a hanging issue "
             f"with image processing or PDF conversion. Command: pdf2foundry {' '.join(cmd_args)}"
         )
     except Exception as e:

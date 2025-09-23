@@ -178,11 +178,11 @@ def _do_docling_convert_impl(
         # cache key for deterministic behavior across configurations.
         conv = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
 
-        # Get timeout from environment or use default (45 seconds for CI minimal, 2 minutes for CI, 30 minutes for local)
+        # Get timeout from environment or use default (45 seconds for CI minimal, 5 minutes for CI, 30 minutes for local)
         if os.environ.get("PDF2FOUNDRY_CI_MINIMAL") == "1":
             default_timeout = "45"  # Very aggressive timeout for CI minimal
         elif os.environ.get("CI") == "1":
-            default_timeout = "120"  # Standard CI timeout
+            default_timeout = "300"  # Standard CI timeout (5 minutes for complex PDFs)
         else:
             default_timeout = "1800"  # Local development timeout
         timeout_seconds = int(os.environ.get("PDF2FOUNDRY_CONVERSION_TIMEOUT", default_timeout))

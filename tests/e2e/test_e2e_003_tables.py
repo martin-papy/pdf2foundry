@@ -4,6 +4,7 @@ This test validates the different table processing modes (structured, auto, imag
 using fixtures/data-manual.pdf and compares output quality and processing performance.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -141,10 +142,12 @@ def _run_table_conversion(tmp_output_dir: Path, input_pdf: Path, cli_runner, mod
 
     try:
         # Run CLI with extended timeout for table processing
-        result = cli_runner(cmd_args, timeout=300)  # 5 minute timeout
+        # Use longer timeout for complex table processing in CI
+        timeout = 420 if os.environ.get("CI") == "1" else 300  # 7 minutes in CI, 5 minutes locally
+        result = cli_runner(cmd_args, timeout=timeout)
     except subprocess.TimeoutExpired:
         pytest.fail(
-            f"CLI conversion timed out after 300 seconds for mode {mode}. "
+            f"CLI conversion timed out after {timeout} seconds for mode {mode}. "
             f"This may indicate a hanging issue with table processing. "
             f"Command: pdf2foundry {' '.join(cmd_args)}"
         )

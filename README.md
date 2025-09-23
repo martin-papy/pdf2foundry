@@ -75,7 +75,7 @@ sudo apt-get install tesseract-ocr
 Requires transformers library and a Vision-Language Model:
 
 - Models are downloaded automatically from Hugging Face
-- Popular models: `microsoft/Florence-2-base`, `Salesforce/blip-image-captioning-base`
+- Default model: `Salesforce/blip-image-captioning-base`
 - First run may take time to download models (~1-2GB)
 
 ## Development
@@ -89,8 +89,6 @@ PDF2Foundry uses a unified single-pass architecture powered by [Docling](https:/
 1. **Content Extraction**: Extract semantic content (HTML, images, tables) from the same document
 1. **Foundry Mapping**: Build Intermediate Representation and map to Journal Entries/Pages
 1. **Output Generation**: Write module.json, sources, assets, and optionally compile packs
-
-For detailed technical information, see [docs/docling_refactor_unified_plan.md](docs/docling_refactor_unified_plan.md).
 
 ### Continuous Integration
 
