@@ -5,9 +5,6 @@ import json
 from pathlib import Path
 from typing import BinaryIO
 
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-
 
 def get_fixture(name: str) -> Path:
     """
@@ -164,6 +161,9 @@ def generate_minimal_pdf(
         title: Title to display in the PDF
         body: Body text to include in the PDF
     """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
     # Ensure parent directory exists
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -206,6 +206,9 @@ def generate_complex_pdf(path: Path, title: str = "Complex Test PDF", num_pages:
         title: Title for the document
         num_pages: Number of pages to generate
     """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
     # Ensure parent directory exists
     path.parent.mkdir(parents=True, exist_ok=True)
 
