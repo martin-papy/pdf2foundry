@@ -146,17 +146,20 @@ def test_vlm_resilience_scenarios(
 
         monkeypatch.setattr(vlm_test_helpers, "check_internet_connectivity", mock_check_internet)
 
-        # Set shorter timeout for VLM model loading in test environment
-        monkeypatch.setenv("PDF2FOUNDRY_VLM_LOAD_TIMEOUT", "30")  # 30 seconds for test
+        # Set shorter timeouts for test environment
+        monkeypatch.setenv("PDF2FOUNDRY_VLM_LOAD_TIMEOUT", "10")
+        monkeypatch.setenv("PDF2FOUNDRY_CONVERSION_TIMEOUT", "60")
 
-        # Mock HuggingFace Hub model loading to simulate network failure
-        import huggingface_hub
+        # Mock transformers pipeline to simulate network failure
+        def mock_pipeline(*args, **kwargs):
+            import time
 
-        def mock_hf_hub_download(*args, **kwargs):
-            # Simulate network failure for model downloads
-            raise huggingface_hub.utils.RepositoryNotFoundError("Simulated offline mode - model not found")
+            time.sleep(2)
+            raise ConnectionError("Simulated offline mode - cannot download model")
 
-        monkeypatch.setattr(huggingface_hub, "hf_hub_download", mock_hf_hub_download)
+        import transformers
+
+        monkeypatch.setattr(transformers, "pipeline", mock_pipeline)
 
         # Run a minimal conversion that should xfail due to offline + no cache
         mod_id = "test-vlm-offline"

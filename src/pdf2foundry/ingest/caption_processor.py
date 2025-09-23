@@ -190,12 +190,30 @@ def initialize_caption_components(
                 caption_engine = None
                 caption_cache = None
             except Exception as e:
-                log_error_policy(
-                    "Captions",
-                    "model_load_failed",
-                    "continue",
-                    f"VLM model '{options.vlm_repo_id}' failed to load: {e}",
-                )
+                # Import here to avoid circular imports
+                from pdf2foundry.core.exceptions import ModelNotAvailableError
+
+                # Handle ModelNotAvailableError specifically for better logging
+                if isinstance(e, ModelNotAvailableError):
+                    log_error_policy(
+                        "Captions",
+                        "model_not_available",
+                        "continue",
+                        f"VLM model '{options.vlm_repo_id}' not available: {e}",
+                    )
+                    logger.warning(f"VLM model not available, continuing without captions: {e}")
+                    _safe_emit(
+                        on_progress,
+                        "caption:model_not_available",
+                        {"model_id": options.vlm_repo_id, "error": str(e)},
+                    )
+                else:
+                    log_error_policy(
+                        "Captions",
+                        "model_load_failed",
+                        "continue",
+                        f"VLM model '{options.vlm_repo_id}' failed to load: {e}",
+                    )
                 logger.error(f"Caption engine initialization failed: {e}")
                 _safe_emit(
                     on_progress,

@@ -251,8 +251,11 @@ class TestPerformanceUtils:
         metrics = {"execution_time": 1.5, "memory_usage": 100.0}
         write_performance_metrics("test_function", metrics, perf_dir)
 
-        # Check file was created
-        test_file = perf_dir / "test_function.json"
+        # Check file was created (with environment-specific naming)
+        from utils.environment_detection import get_environment_key
+
+        env_key = get_environment_key()
+        test_file = perf_dir / f"test_function_{env_key}.json"
         assert test_file.exists()
 
         # Check content

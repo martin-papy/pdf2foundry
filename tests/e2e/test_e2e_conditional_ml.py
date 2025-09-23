@@ -270,7 +270,7 @@ def test_model_caching_detection(models_cached: bool) -> None:
     assert isinstance(models_cached, bool), "models_cached should be a boolean"
 
     # Test the underlying function directly
-    from conftest import _models_cached
+    from .conftest import _models_cached
 
     direct_result = _models_cached()
 

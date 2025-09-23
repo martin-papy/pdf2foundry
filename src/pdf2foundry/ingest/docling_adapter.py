@@ -159,8 +159,9 @@ def _do_docling_convert_impl(
         # cache key for deterministic behavior across configurations.
         conv = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
 
-        # Get timeout from environment or use default (10 minutes for CI, 30 minutes for local)
-        timeout_seconds = int(os.environ.get("PDF2FOUNDRY_CONVERSION_TIMEOUT", "1800" if os.environ.get("CI") else "1800"))
+        # Get timeout from environment or use default (2 minutes for CI, 30 minutes for local)
+        default_timeout = "120" if os.environ.get("CI") == "1" else "1800"
+        timeout_seconds = int(os.environ.get("PDF2FOUNDRY_CONVERSION_TIMEOUT", default_timeout))
 
         def _convert_with_timeout() -> Any:
             """Perform the actual conversion in a separate thread."""
