@@ -1,0 +1,185 @@
+name: "Performance Analysis"
+
+on:
+  workflow_call:
+    inputs:
+      tier2_run_id:
+        description: "Run ID from Tier 2 tests for artifact download"
+        required: false
+        type: string
+      tier3_run_id:
+        description: "Run ID from Tier 3 tests for artifact download"
+        required: false
+        type: string
+    outputs:
+      baseline_missing:
+        description: "Whether baseline performance data is missing"
+        value: ${{ jobs.performance-check.outputs.baseline_missing }}
+      regression_detected:
+        description: "Whether performance regressions were detected"
+        value: ${{ jobs.performance-check.outputs.regression_detected }}
+      no_perf_data:
+        description: "Whether no performance data was available"
+        value: ${{ jobs.performance-check.outputs.no_perf_data }}
+      
+  workflow_dispatch:
+    inputs:
+      tier2_run_id:
+        description: "Run ID from Tier 2 tests for artifact download"
+        required: false
+        type: string
+      tier3_run_id:
+        description: "Run ID from Tier 3 tests for artifact download"
+        required: false
+        type: string
+
+env:
+  PYTHONUNBUFFERED: 1
+
+permissions:
+  contents: read
+
+jobs:
+  performance-check:
+    name: "Performance Regression Analysis"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    outputs:
+      baseline_missing: ${{ steps.perf-check.outputs.baseline_missing || 'false' }}
+      regression_detected: ${{ steps.perf-check.outputs.regression_detected || 'false' }}
+      no_perf_data: ${{ steps.perf-check.outputs.no_perf_data || 'true' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download Tier 2 artifacts
+        if: inputs.tier2_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: tier2-reports-${{ inputs.tier2_run_id }}
+          path: reports/tier2/
+          
+      - name: Download Tier 3 artifacts
+        if: inputs.tier3_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: tier3-reports-${{ inputs.tier3_run_id }}
+          path: reports/tier3/
+          
+      - name: Check performance regression
+        id: perf-check
+        run: |
+          python << 'EOF'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          
+          # Configuration
+          PERF_THRESHOLD = float(os.environ.get('PERF_THRESHOLD', '0.2'))
+          
+          # Look for performance files in both tier2 and tier3 reports
+          perf_files = []
+          for tier_dir in ['reports/tier2', 'reports/tier3']:
+              perf_dir = Path(tier_dir) / 'tests' / 'e2e' / 'perf'
+              if perf_dir.exists():
+                  perf_files.extend(perf_dir.glob('*.json'))
+          
+          current_file = None
+          for f in perf_files:
+              if f.name == 'latest.json':
+                  current_file = f
+                  break
+          
+          baseline_file = Path('tests/e2e/perf/baseline.json')
+          
+          # Check if current performance file exists
+          if not current_file or not current_file.exists():
+              print("❌ Current performance file not found")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write("baseline_missing=false\n")
+                  f.write("regression_detected=false\n")
+                  f.write("no_perf_data=true\n")
+              sys.exit(0)
+          
+          # Load current results
+          with open(current_file) as f:
+              current = json.load(f)
+          
+          # Check if baseline exists
+          if not baseline_file.exists():
+              print("⚠️  Baseline performance file not found - skipping regression check")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write("baseline_missing=true\n")
+                  f.write("regression_detected=false\n")
+                  f.write("no_perf_data=false\n")
+              sys.exit(0)
+          
+          # Load baseline results
+          with open(baseline_file) as f:
+              baseline = json.load(f)
+          
+          # Compare performance metrics
+          regressions = []
+          summary_data = []
+          
+          for test_name in current.keys():
+              if test_name not in baseline:
+                  continue
+                  
+              current_metrics = current[test_name].get('metrics', {})
+              baseline_metrics = baseline[test_name].get('metrics', {})
+              
+              for metric_name in current_metrics.keys():
+                  if metric_name not in baseline_metrics:
+                      continue
+                      
+                  current_val = current_metrics[metric_name].get('latest', 0)
+                  baseline_val = baseline_metrics[metric_name].get('latest', 0)
+                  
+                  if baseline_val > 0:
+                      delta = (current_val - baseline_val) / baseline_val
+                      summary_data.append({
+                          'test': test_name,
+                          'metric': metric_name,
+                          'baseline': baseline_val,
+                          'current': current_val,
+                          'delta': delta,
+                          'threshold': PERF_THRESHOLD
+                      })
+                      
+                      if delta > PERF_THRESHOLD:
+                          regressions.append(f"{test_name}.{metric_name}: {delta:.1%} regression (threshold: {PERF_THRESHOLD:.1%})")
+          
+          # Write summary data for PR comment
+          with open('perf_summary.json', 'w') as f:
+              json.dump(summary_data, f, indent=2)
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write("baseline_missing=false\n")
+              f.write(f"regression_detected={'true' if regressions else 'false'}\n")
+              f.write(f"regression_count={len(regressions)}\n")
+              f.write("no_perf_data=false\n")
+          
+          # Print results
+          if regressions:
+              print("❌ Performance regressions detected:")
+              for regression in regressions:
+                  print(f"  - {regression}")
+              # Don't fail the job for performance regressions, just report them
+          else:
+              print("✅ No performance regressions detected")
+          EOF
+          
+      - name: Upload performance summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-summary-${{ github.run_id }}
+          path: perf_summary.json
+          retention-days: 30

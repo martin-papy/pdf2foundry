@@ -11,6 +11,12 @@
       "metrics": {
         "conversion_time": 30.967189333
       }
+    },
+    {
+      "timestamp": 1758606031.431199,
+      "metrics": {
+        "conversion_time": 37.722310459
+      }
     }
   ]
 }

@@ -1,0 +1,287 @@
+name: "Tier 3: ML Tests"
+
+on:
+  workflow_call:
+    outputs:
+      success:
+        description: "Whether Tier 3 tests passed"
+        value: ${{ jobs.ml-tests.outputs.success }}
+      models_cached:
+        description: "Whether models were cached"
+        value: ${{ jobs.ml-tests.outputs.models_cached }}
+      
+  schedule:
+    - cron: '0 2 * * *'  # Nightly at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run ML tests'
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches: [main]
+
+env:
+  PYTHONUNBUFFERED: 1
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+  HF_HOME: ~/.cache/huggingface
+
+permissions:
+  contents: read
+
+jobs:
+  ml-tests:
+    name: "ML/VLM Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    
+    concurrency:
+      group: tier3-${{ github.ref }}
+      cancel-in-progress: true
+      
+    outputs:
+      success: ${{ steps.test-result.outputs.success }}
+      models_cached: ${{ steps.cache-check.outputs.models-cached }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install OS dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr libtesseract-dev poppler-utils
+          tesseract --version
+          
+      - name: Cache HuggingFace models
+        id: hf-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-models-v3-${{ hashFiles('src/pdf2foundry/models/registry.py') }}
+          restore-keys: |
+            hf-models-v3-
+            hf-models-v2-
+            hf-models-
+            
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-tier3-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-tier3-
+            ${{ runner.os }}-pip-
+            
+      - name: Install full dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          
+      - name: Check model cache status
+        id: cache-check
+        run: |
+          python << 'EOF'
+          import os
+          from pdf2foundry.models.registry import get_default_vlm_model
+          try:
+              from huggingface_hub import try_to_load_from_cache
+              model_id = get_default_vlm_model()
+              print(f"Checking cache for model: {model_id}")
+              
+              cached_path = try_to_load_from_cache(
+                  repo_id=model_id,
+                  filename="config.json"
+              )
+              
+              models_cached = cached_path is not None
+              print(f"Models cached: {models_cached}")
+              
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f"models-cached={str(models_cached).lower()}\n")
+                  
+          except Exception as e:
+              print(f"Cache check failed: {e}")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write("models-cached=false\n")
+          EOF
+          
+      - name: Manage HuggingFace cache size
+        run: |
+          python << 'EOF'
+          import os
+          import shutil
+          import json
+          from pathlib import Path
+          
+          cache_dir = Path.home() / ".cache" / "huggingface"
+          cache_report = {
+              "cache_exists": False,
+              "initial_size_gb": 0,
+              "final_size_gb": 0,
+              "cleanup_performed": False,
+              "models_found": [],
+              "models_removed": [],
+              "blip_model_cached": False
+          }
+          
+          if cache_dir.exists():
+              cache_report["cache_exists"] = True
+              
+              # Get initial cache size
+              total_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+              size_gb = total_size / (1024**3)
+              cache_report["initial_size_gb"] = round(size_gb, 2)
+              print(f"Current cache size: {size_gb:.2f} GB")
+              
+              # Check what models are cached
+              models_dir = cache_dir / "hub"
+              if models_dir.exists():
+                  from pdf2foundry.models.registry import get_default_vlm_model
+                  default_model = get_default_vlm_model()
+                  default_model_dir = default_model.replace("/", "--")
+                  
+                  for model_dir in models_dir.iterdir():
+                      if model_dir.is_dir():
+                          model_name = model_dir.name
+                          cache_report["models_found"].append(model_name)
+                          if default_model_dir in model_name:
+                              cache_report["blip_model_cached"] = True
+                              print(f"✅ BLIP model found in cache: {model_name}")
+                          else:
+                              print(f"📦 Other model found: {model_name}")
+              
+              # If cache > 8GB, clean old models (keep only BLIP)
+              if size_gb > 8:
+                  print("Cache too large, cleaning...")
+                  cache_report["cleanup_performed"] = True
+                  
+                  if models_dir.exists():
+                      for model_dir in models_dir.iterdir():
+                          if model_dir.is_dir() and default_model_dir not in model_dir.name:
+                              print(f"🗑️  Removing old model: {model_dir.name}")
+                              cache_report["models_removed"].append(model_dir.name)
+                              shutil.rmtree(model_dir, ignore_errors=True)
+                  
+                  # Recalculate size
+                  total_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+                  size_gb = total_size / (1024**3)
+                  cache_report["final_size_gb"] = round(size_gb, 2)
+                  print(f"Cache size after cleanup: {size_gb:.2f} GB")
+                  print(f"Space freed: {cache_report['initial_size_gb'] - cache_report['final_size_gb']:.2f} GB")
+              else:
+                  cache_report["final_size_gb"] = cache_report["initial_size_gb"]
+                  print("Cache size is acceptable")
+          else:
+              print("No HuggingFace cache directory found")
+          
+          # Save cache report for later analysis
+          with open("cache_report.json", "w") as f:
+              json.dump(cache_report, f, indent=2)
+          
+          # Print summary
+          print("\n=== Cache Management Summary ===")
+          print(f"Cache exists: {cache_report['cache_exists']}")
+          print(f"BLIP model cached: {cache_report['blip_model_cached']}")
+          print(f"Models found: {len(cache_report['models_found'])}")
+          print(f"Models removed: {len(cache_report['models_removed'])}")
+          print(f"Final cache size: {cache_report['final_size_gb']} GB")
+          EOF
+          
+      - name: Pre-cache BLIP model
+        if: steps.cache-check.outputs.models-cached == 'false'
+        timeout-minutes: 15
+        run: |
+          echo "Pre-caching BLIP model..."
+          python << 'EOF'
+          import os
+          from pdf2foundry.models.registry import get_default_vlm_model
+          from pdf2foundry.core.timeout_utils import timeout_context
+          
+          model_id = get_default_vlm_model()
+          print(f'Pre-caching model: {model_id}')
+          
+          try:
+              # Use timeout for model loading in CI
+              with timeout_context(600):  # 10 minutes timeout
+                  from transformers import pipeline
+                  pipeline('image-to-text', model=model_id)
+                  print(f'✅ Successfully cached model: {model_id}')
+          except Exception as e:
+              print(f'❌ Failed to cache model: {e}')
+              # Don't fail the job, just skip ML tests
+              exit(0)
+          EOF
+          
+      - name: System diagnostics
+        run: |
+          echo "=== Tier 3 Environment ==="
+          python --version
+          tesseract --version
+          echo "=== Disk Usage ==="
+          df -h
+          echo "=== Memory Usage ==="
+          free -h
+          echo "=== Python Packages (Full + ML) ==="
+          pip list | grep -E "(pytest|docling|pytesseract|transformers|torch|huggingface)"
+          echo "=== Feature Detection ==="
+          python -c "
+          from pdf2foundry.core.feature_detection import FeatureAvailability
+          features = FeatureAvailability.get_available_features()
+          for name, available in features.items():
+              status = '✅' if available else '❌'
+              print(f'{status} {name}: {available}')
+          "
+          echo "=== Model Cache Status ==="
+          echo "Models cached: ${{ steps.cache-check.outputs.models-cached }}"
+          
+      - name: Resolve PDF2FOUNDRY_CLI path
+        run: |
+          CLI_PATH=$(python -c "import shutil; print(shutil.which('pdf2foundry') or 'pdf2foundry')")
+          echo "PDF2FOUNDRY_CLI=$CLI_PATH" >> $GITHUB_ENV
+          echo "Resolved CLI path: $CLI_PATH"
+          
+      - name: Create reports directory
+        run: mkdir -p reports/tier3
+        
+      - name: Run Tier 3 tests
+        env:
+          PDF2FOUNDRY_CLI: ${{ env.PDF2FOUNDRY_CLI }}
+          CI: "1"
+        run: |
+          echo "Running Tier 3 tests with full ML stack..."
+          pytest tests/e2e -m "tier3" -v --tb=short \
+            --junitxml=reports/tier3/junit.xml \
+            --durations=20 \
+            --maxfail=3 \
+            -n 1  # Sequential execution for ML tests
+            
+      - name: Set test result
+        id: test-result
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "✅ Tier 3 tests passed"
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "❌ Tier 3 tests failed"
+          fi
+          
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier3-reports-${{ github.run_id }}
+          path: |
+            reports/tier3/**
+            tests/e2e/perf/*.json
+            cache_report.json
+            .pytest_cache/**
+          retention-days: 14  # Keep ML test results longer

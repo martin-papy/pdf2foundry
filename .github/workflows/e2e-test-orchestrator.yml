@@ -1,0 +1,234 @@
+name: "E2E Test Orchestrator"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'  # Nightly at 2 AM UTC for full ML tests
+  workflow_dispatch:
+    inputs:
+      run_tier3:
+        description: 'Run Tier 3 (ML) tests'
+        required: false
+        default: false
+        type: boolean
+      force_tier2:
+        description: 'Force Tier 2 even if Tier 1 fails'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  # Always run Tier 1 tests first
+  tier1:
+    name: "Tier 1: Core Tests"
+    uses: ./.github/workflows/e2e-tier1-core-tests.yml
+    
+  # Run Tier 2 tests if Tier 1 passes
+  tier2:
+    name: "Tier 2: Feature Tests"
+    needs: tier1
+    if: always()
+    uses: ./.github/workflows/e2e-tier2-feature-tests.yml
+    with:
+      tier1_success: ${{ needs.tier1.outputs.success == 'true' }}
+      
+  # Run Tier 3 tests on schedule, manual trigger, or main branch push
+  tier3:
+    name: "Tier 3: ML Tests"
+    if: |
+      (github.event_name == 'schedule') || 
+      (github.event_name == 'workflow_dispatch' && inputs.run_tier3) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    uses: ./.github/workflows/e2e-tier3-ml-tests.yml
+    
+  # Analyze performance after Tier 2 completes
+  performance:
+    name: "Performance Analysis"
+    needs: [tier2]
+    if: always() && (needs.tier2.result == 'success' || needs.tier2.result == 'failure')
+    uses: ./.github/workflows/e2e-performance-analysis.yml
+    with:
+      tier2_run_id: ${{ github.run_id }}
+      tier3_run_id: ${{ github.run_id }}
+
+  # Generate comprehensive test summary
+  summary:
+    name: "Test Summary"
+    runs-on: ubuntu-latest
+    needs: [tier1, tier2, tier3, performance]
+    if: always()
+    
+    steps:
+      - name: Generate test summary
+        run: |
+          echo "# 🧪 E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Tier 1 results
+          if [ "${{ needs.tier1.outputs.success }}" == "true" ]; then
+            echo "✅ **Tier 1 (Core)**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tier 1 (Core)**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Tier 2 results
+          if [ "${{ needs.tier1.outputs.success }}" == "true" ]; then
+            if [ "${{ needs.tier2.outputs.success }}" == "true" ]; then
+              echo "✅ **Tier 2 (Features)**: Passed" >> $GITHUB_STEP_SUMMARY
+            elif [ "${{ needs.tier2.result }}" == "skipped" ]; then
+              echo "⏭️ **Tier 2 (Features)**: Skipped (Tier 1 failed)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Tier 2 (Features)**: Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⏭️ **Tier 2 (Features)**: Skipped (Tier 1 failed)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Tier 3 results
+          if [ "${{ needs.tier3.result }}" == "success" ]; then
+            echo "✅ **Tier 3 (ML)**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.tier3.result }}" == "skipped" ]; then
+            echo "⏭️ **Tier 3 (ML)**: Skipped (not scheduled)" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.tier3.result }}" == "failure" ]; then
+            echo "❌ **Tier 3 (ML)**: Failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **Tier 3 (ML)**: Not run" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Execution Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tier 1**: Core functionality (always run, <15 min)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tier 2**: Feature integration (conditional, <30 min)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tier 3**: ML/VLM tests (scheduled/manual, <90 min)" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Set overall status
+        run: |
+          # Job succeeds if Tier 1 passes (minimum requirement)
+          if [ "${{ needs.tier1.outputs.success }}" == "true" ]; then
+            echo "✅ Overall status: PASS (Core functionality verified)"
+            exit 0
+          else
+            echo "❌ Overall status: FAIL (Core functionality broken)"
+            exit 1
+          fi
+
+  # Comment on PR with detailed results
+  comment-pr:
+    name: "Comment PR"
+    runs-on: ubuntu-latest
+    needs: [tier1, tier2, tier3, performance]
+    if: github.event_name == 'pull_request' && always()
+    
+    steps:
+      - name: Download performance summary
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: performance-summary-${{ github.run_id }}
+          path: .
+          
+      - name: Comment PR with test results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Build test results summary
+            let comment = '## 🧪 E2E Test Results\n\n';
+            
+            // Test tier results
+            const tier1Success = '${{ needs.tier1.outputs.success }}' === 'true';
+            const tier2Success = '${{ needs.tier2.outputs.success }}' === 'true';
+            const tier3Success = '${{ needs.tier3.outputs.success }}' === 'true';
+            const tier2Ran = '${{ needs.tier2.result }}' !== 'skipped';
+            const tier3Ran = '${{ needs.tier3.result }}' !== 'skipped';
+            
+            comment += '### Test Execution Summary\n\n';
+            comment += `| Tier | Scope | Status | Duration |\n`;
+            comment += `|------|-------|--------|----------|\n`;
+            comment += `| 1 | Core functionality | ${tier1Success ? '✅ Passed' : '❌ Failed'} | <15 min |\n`;
+            
+            if (tier2Ran) {
+              comment += `| 2 | Feature integration | ${tier2Success ? '✅ Passed' : '❌ Failed'} | <30 min |\n`;
+            } else {
+              comment += `| 2 | Feature integration | ⏭️ Skipped | - |\n`;
+            }
+            
+            if (tier3Ran) {
+              comment += `| 3 | ML/VLM tests | ${tier3Success ? '✅ Passed' : '❌ Failed'} | <90 min |\n`;
+            } else {
+              comment += `| 3 | ML/VLM tests | ⏭️ Not scheduled | - |\n`;
+            }
+            
+            // Performance results
+            const perfFile = 'perf_summary.json';
+            if (fs.existsSync(perfFile)) {
+              const perfData = JSON.parse(fs.readFileSync(perfFile, 'utf8'));
+              // Check performance results
+              const baselineMissing = '${{ needs.performance.outputs.baseline_missing }}' === 'true';
+              const regressionDetected = '${{ needs.performance.outputs.regression_detected }}' === 'true';
+              const noPerfData = '${{ needs.performance.outputs.no_perf_data }}' === 'true';
+              
+              comment += '\n### 🚀 Performance Analysis\n\n';
+              
+              if (noPerfData) {
+                comment += '📊 No performance data available\n\n';
+              } else if (baselineMissing) {
+                comment += '⚠️ **Baseline missing** - Performance comparison skipped\n\n';
+              } else if (perfData.length === 0) {
+                comment += '📊 No performance metrics to compare\n\n';
+              } else {
+                const status = regressionDetected ? '⚠️ **Performance concerns detected**' : '✅ **No performance regressions**';
+                comment += `${status}\n\n`;
+                
+                comment += '| Test | Metric | Baseline | Current | Delta | Status |\n';
+                comment += '|------|--------|----------|---------|-------|--------|\n';
+                
+                perfData.forEach(item => {
+                  const deltaPercent = (item.delta * 100).toFixed(1);
+                  const deltaSign = item.delta > 0 ? '+' : '';
+                  const status = item.delta > item.threshold ? '⚠️' : '✅';
+                  const baseline = item.baseline.toFixed(3);
+                  const current = item.current.toFixed(3);
+                  
+                  comment += `| ${item.test} | ${item.metric} | ${baseline}s | ${current}s | ${deltaSign}${deltaPercent}% | ${status} |\n`;
+                });
+                
+                comment += `\n**Threshold:** ${(perfData[0]?.threshold * 100 || 20).toFixed(0)}%\n`;
+              }
+            }
+            
+            // Overall status
+            comment += '\n### Overall Status\n\n';
+            if (tier1Success) {
+              comment += '✅ **PASS** - Core functionality verified\n\n';
+              comment += 'The essential features are working correctly. ';
+              if (!tier2Ran) {
+                comment += 'Feature tests will run when Tier 1 passes consistently.';
+              } else if (tier2Success) {
+                comment += 'All feature integration tests are also passing.';
+              } else {
+                comment += 'Some feature integration issues detected, but core functionality is solid.';
+              }
+            } else {
+              comment += '❌ **FAIL** - Core functionality broken\n\n';
+              comment += 'Essential features are not working. Please fix Tier 1 issues before proceeding.';
+            }
+            
+            comment += '\n\n---\n*E2E Testing uses a tiered approach: Core → Features → ML, ensuring reliable CI by running tests based on complexity and resource requirements.*';
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
