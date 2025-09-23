@@ -334,10 +334,11 @@ PDF2Foundry generates a complete Foundry VTT module with the following structure
 
 For developers and advanced users:
 
-- **[Architecture Overview](docs/docling_refactor_unified_plan.md)**: Unified Docling workflow and capabilities
 - **[Performance Guide](docs/performance.md)**: Optimization strategies and benchmarks
 - **[Product Requirements](docs/PRD.md)**: Complete feature specification
-- **[Technical Feasibility](docs/technical_feasibility.md)**: Implementation details and constraints
+- **[Development Guidelines](docs/development.md)**: Development Guidelines
+- **[Architecture and Flow](docs/architecture_and_flow.md)**: General Architecture documentation
+- **[E2E testing Strategy](docs/e2e-testing-strategy.md)**: E2e Strategy documentation
 
 ## Pack Compilation
 
