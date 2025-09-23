@@ -8,11 +8,15 @@ on:
 
   workflow_dispatch:
     inputs:
-      run_tier3:
-        description: 'Run Tier 3 (ML) tests'
+      test_scope:
+        description: 'Which tiers to run'
         required: false
-        default: false
-        type: boolean
+        default: 'tier1'
+        type: choice
+        options:
+          - 'tier1'
+          - 'tier1-tier2'
+          - 'all-tiers'
 
 permissions:
   contents: read
@@ -25,22 +29,26 @@ jobs:
     name: "Tier 1: Core Tests"
     uses: ./.github/workflows/e2e-tier1-core-tests.yml
     
-  # Run Tier 2 tests only on PRs when Tier 1 passes
+  # Run Tier 2 tests on PRs when Tier 1 passes, or manual trigger for tier1-tier2/all-tiers
   tier2:
     name: "Tier 2: Feature Tests"
     needs: tier1
-    if: github.event_name == 'pull_request' && needs.tier1.outputs.success == 'true'
+    if: |
+      (github.event_name == 'pull_request' && needs.tier1.outputs.success == 'true') ||
+      (github.event_name == 'workflow_dispatch' && needs.tier1.outputs.success == 'true' && 
+       (inputs.test_scope == 'tier1-tier2' || inputs.test_scope == 'all-tiers'))
     uses: ./.github/workflows/e2e-tier2-feature-tests.yml
     with:
       tier1_success: true
       
-  # Run Tier 3 tests only on PRs when Tier 2 passes, or manual trigger
+  # Run Tier 3 tests on PRs when Tier 2 passes, or manual trigger for all-tiers
   tier3:
     name: "Tier 3: ML Tests"
     needs: [tier1, tier2]
     if: |
       (github.event_name == 'pull_request' && needs.tier2.outputs.success == 'true') ||
-      (github.event_name == 'workflow_dispatch' && inputs.run_tier3)
+      (github.event_name == 'workflow_dispatch' && needs.tier2.outputs.success == 'true' && 
+       inputs.test_scope == 'all-tiers')
     uses: ./.github/workflows/e2e-tier3-ml-tests.yml
     
   # Analyze performance after Tier 2 completes
@@ -100,8 +108,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Test Execution Strategy" >> $GITHUB_STEP_SUMMARY
           echo "- **Tier 1**: Core functionality (always run, <15 min)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tier 2**: Feature integration (conditional, <30 min)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tier 3**: ML/VLM tests (scheduled/manual, <90 min)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tier 2**: Feature integration (PRs + manual tier1-tier2/all-tiers, <30 min)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tier 3**: ML/VLM tests (PRs + manual all-tiers, <90 min)" >> $GITHUB_STEP_SUMMARY
+          
+          # Show manual trigger scope if applicable
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Manual Trigger Scope**: ${{ inputs.test_scope }}" >> $GITHUB_STEP_SUMMARY
+          fi
           
       - name: Set overall status
         run: |
@@ -137,6 +151,11 @@ jobs:
             
             // Build test results summary
             let comment = '## 🧪 E2E Test Results\n\n';
+            
+            // Show manual trigger scope if applicable
+            if ('${{ github.event_name }}' === 'workflow_dispatch') {
+              comment += `**Manual Trigger Scope**: ${{ inputs.test_scope }}\n\n`;
+            }
             
             // Test tier results
             const tier1Success = '${{ needs.tier1.outputs.success }}' === 'true';
@@ -218,6 +237,7 @@ jobs:
             }
             
             comment += '\n\n---\n*E2E Testing uses a tiered approach: Core → Features → ML, ensuring reliable CI by running tests based on complexity and resource requirements.*';
+            comment += '\n*Manual triggers available: **tier1** (core only), **tier1-tier2** (core + features), **all-tiers** (complete suite).*';
             
             // Post comment
             github.rest.issues.createComment({
