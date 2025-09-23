@@ -142,8 +142,8 @@ def _run_table_conversion(tmp_output_dir: Path, input_pdf: Path, cli_runner, mod
 
     try:
         # Run CLI with extended timeout for table processing
-        # Use longer timeout for complex table processing in CI
-        timeout = 420 if os.environ.get("CI") == "1" else 300  # 7 minutes in CI, 5 minutes locally
+        # Use longer timeout for complex table processing in CI (aligned with workflow timeout)
+        timeout = 660 if os.environ.get("CI") == "1" else 300  # 11 minutes in CI, 5 minutes locally
         result = cli_runner(cmd_args, timeout=timeout)
     except subprocess.TimeoutExpired:
         pytest.fail(

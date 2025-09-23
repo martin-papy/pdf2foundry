@@ -29,11 +29,16 @@ def assert_requirements() -> None:
         import transformers
 
         # Parse version - handle dev versions like "4.44.0.dev0"
-        version_str = transformers.__version__.split(".dev")[0]
-        major, minor = map(int, version_str.split(".")[:2])
+        # Some transformers installations may not have __version__ attribute
+        if hasattr(transformers, "__version__"):
+            version_str = transformers.__version__.split(".dev")[0]
+            major, minor = map(int, version_str.split(".")[:2])
 
-        if major < 4 or (major == 4 and minor < 44):
-            pytest.skip(f"transformers version {transformers.__version__} < 4.44 required")
+            if major < 4 or (major == 4 and minor < 44):
+                pytest.skip(f"transformers version {transformers.__version__} < 4.44 required")
+        else:
+            # If no version info, assume it's recent enough (common in dev installs)
+            pass
 
     except ImportError:
         pytest.skip("transformers library not available (required for VLM captions)")

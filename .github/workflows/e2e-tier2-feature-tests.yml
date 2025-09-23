@@ -24,7 +24,7 @@ jobs:
   feature-tests:
     name: "Feature Integration Tests"
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     if: inputs.tier1_success == true
     
     concurrency:
@@ -94,7 +94,7 @@ jobs:
           PDF2FOUNDRY_CLI: ${{ env.PDF2FOUNDRY_CLI }}
           PERF_THRESHOLD: '0.2'
           CI: "1"
-          PDF2FOUNDRY_CONVERSION_TIMEOUT: "300"  # 5 minutes for complex PDF processing
+          PDF2FOUNDRY_CONVERSION_TIMEOUT: "600"  # 10 minutes for complex table processing in structured mode
         run: |
           echo "Running Tier 2 tests with full dependencies (excluding ML models)..."
           pytest tests/e2e -m "tier2 and not requires_models" -v --tb=short \

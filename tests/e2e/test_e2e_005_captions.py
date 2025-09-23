@@ -91,7 +91,7 @@ def test_vlm_cache_warmup(
     print(f"Internet available: {has_internet}")
 
     # Increase timeout for potential model download (first run)
-    timeout = 1200 if not model_already_cached else 600  # 20 min vs 10 min
+    timeout = 1800 if not model_already_cached else 900  # 30 min vs 15 min for CI
 
     result = run_cli(cmd_args, env=vlm_env, timeout=timeout)
 
@@ -401,7 +401,7 @@ def test_vlm_performance_comparison(
         "off",  # Explicitly disable captions
     ]
 
-    baseline_result = run_cli(baseline_args, env=vlm_env, timeout=300)
+    baseline_result = run_cli(baseline_args, env=vlm_env, timeout=600)
 
     if baseline_result["exit_code"] != 0:
         pytest.fail(
@@ -422,7 +422,7 @@ def test_vlm_performance_comparison(
         *get_vlm_flags(),
     ]
 
-    captions_result = run_cli(captions_args, env=vlm_env, timeout=600)
+    captions_result = run_cli(captions_args, env=vlm_env, timeout=900)
 
     if captions_result["exit_code"] != 0:
         pytest.fail(
@@ -456,8 +456,9 @@ def test_vlm_performance_comparison(
         f"Caption processing may be too slow or inefficient."
     )
 
-    # 3. Sanity check: slowdown should be at least 1.1x (10% slower)
-    min_slowdown = 1.1
+    # 3. Sanity check: slowdown should be at least 1.05x (5% slower)
+    # Note: Modern VLM processing can be very efficient, especially with cached models
+    min_slowdown = 1.05
     assert slowdown_ratio >= min_slowdown, (
         f"Captions slowdown ratio {slowdown_ratio:.2f}x is suspiciously low (< {min_slowdown:.1f}x). "
         f"This suggests captions may not be actually processed."

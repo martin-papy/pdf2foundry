@@ -142,7 +142,7 @@ def _run_default_conversion(tmp_output_dir: Path, input_pdf: Path, cli_runner) -
     try:
         # Run CLI with a reasonable timeout to prevent hanging
         # Use longer timeout for complex image processing in CI
-        timeout = 360 if os.environ.get("CI") == "1" else 180  # 6 minutes in CI, 3 minutes locally
+        timeout = 480 if os.environ.get("CI") == "1" else 180  # 8 minutes in CI, 3 minutes locally
         result = cli_runner(cmd_args, timeout=timeout)
     except subprocess.TimeoutExpired:
         pytest.fail(

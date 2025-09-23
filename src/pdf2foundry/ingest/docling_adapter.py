@@ -178,11 +178,13 @@ def _do_docling_convert_impl(
         # cache key for deterministic behavior across configurations.
         conv = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
 
-        # Get timeout from environment or use default (45 seconds for CI minimal, 5 minutes for CI, 30 minutes for local)
+        # Get timeout from environment or use default (45 seconds for CI minimal, 10 minutes for CI, 30 minutes for local)
+        # Structured table processing requires more time than basic conversion
         if os.environ.get("PDF2FOUNDRY_CI_MINIMAL") == "1":
             default_timeout = "45"  # Very aggressive timeout for CI minimal
         elif os.environ.get("CI") == "1":
-            default_timeout = "300"  # Standard CI timeout (5 minutes for complex PDFs)
+            # Increase CI timeout for structured table processing
+            default_timeout = "600" if tables_mode == "structured" else "300"
         else:
             default_timeout = "1800"  # Local development timeout
         timeout_seconds = int(os.environ.get("PDF2FOUNDRY_CONVERSION_TIMEOUT", default_timeout))
@@ -234,7 +236,8 @@ def _do_docling_convert_impl(
                 timeout_msg = (
                     f"PDF conversion timed out after {timeout_seconds} seconds. "
                     f"This may indicate a hanging issue with the Docling library or complex PDF processing. "
-                    f"PDF: {pdf_path}"
+                    f"PDF: {pdf_path}, Tables mode: {tables_mode}. "
+                    f"Consider increasing PDF2FOUNDRY_CONVERSION_TIMEOUT for complex table processing."
                 )
                 logger.error(timeout_msg)
                 error_mgr.error(

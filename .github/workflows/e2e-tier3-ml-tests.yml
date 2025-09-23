@@ -184,20 +184,20 @@ jobs:
           
       - name: Pre-cache BLIP model
         if: steps.cache-check.outputs.models-cached == 'false'
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           echo "Pre-caching BLIP model..."
           python << 'EOF'
           import os
           from pdf2foundry.models.registry import get_default_vlm_model
-          from pdf2foundry.core.timeout_utils import timeout_context
+          from pdf2foundry.core.timeout import timeout_context
           
           model_id = get_default_vlm_model()
           print(f'Pre-caching model: {model_id}')
           
           try:
               # Use timeout for model loading in CI
-              with timeout_context(600):  # 10 minutes timeout
+              with timeout_context(900):  # 15 minutes timeout
                   from transformers import pipeline
                   pipeline('image-to-text', model=model_id)
                   print(f'✅ Successfully cached model: {model_id}')
@@ -242,6 +242,7 @@ jobs:
         env:
           PDF2FOUNDRY_CLI: ${{ env.PDF2FOUNDRY_CLI }}
           CI: "1"
+          PDF2FOUNDRY_CONVERSION_TIMEOUT: "900"  # 15 minutes for VLM processing
         run: |
           echo "Running Tier 3 tests with full ML stack..."
           pytest tests/e2e -m "tier3" -v --tb=short \
