@@ -147,6 +147,9 @@ def test_vlm_resilience_scenarios(
 
         monkeypatch.setattr(vlm_test_helpers, "check_internet_connectivity", mock_check_internet)
 
+        # Set shorter timeout for VLM model loading in test environment
+        monkeypatch.setenv("PDF2FOUNDRY_VLM_LOAD_TIMEOUT", "30")  # 30 seconds for test
+
         # Mock HuggingFace Hub model loading to simulate network failure
         import huggingface_hub
 

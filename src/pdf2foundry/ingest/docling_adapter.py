@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import cache
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from pdf2foundry.ingest.error_handling import ErrorContext, ErrorManager, PdfParseError
 
@@ -121,6 +121,9 @@ def _do_docling_convert_impl(
     Raises:
         PdfParseError: If PDF conversion fails fatally
     """
+    import concurrent.futures
+    import os
+
     # Set up error handling context
     context = ErrorContext(
         pdf_path=pdf_path,
@@ -156,21 +159,59 @@ def _do_docling_convert_impl(
         # cache key for deterministic behavior across configurations.
         conv = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
 
-        # Attempt the conversion with proper error handling
-        result = conv.convert(str(pdf_path))
-        doc: DoclingDocumentLike = cast(DoclingDocumentLike, result.document)
+        # Get timeout from environment or use default (10 minutes for CI, 30 minutes for local)
+        timeout_seconds = int(os.environ.get("PDF2FOUNDRY_CONVERSION_TIMEOUT", "1800" if os.environ.get("CI") else "1800"))
 
-        logger.info(
-            ("Converted PDF to Docling document: path=%s images=%s ocr=%s " "tables_mode=%s vlm=%s pages=%s workers=%s"),
-            pdf_path,
-            images,
-            ocr,
-            tables_mode,
-            vlm,
-            pages,
-            workers,
-        )
-        return doc
+        def _convert_with_timeout() -> Any:
+            """Perform the actual conversion in a separate thread."""
+            return conv.convert(str(pdf_path))
+
+        # Use ThreadPoolExecutor to run conversion with timeout
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            logger.info("Starting PDF conversion with %d second timeout: %s", timeout_seconds, pdf_path)
+            future = executor.submit(_convert_with_timeout)
+
+            try:
+                # Wait for conversion with timeout
+                result = future.result(timeout=timeout_seconds)
+                doc: DoclingDocumentLike = cast(DoclingDocumentLike, result.document)
+
+                logger.info(
+                    (
+                        "Converted PDF to Docling document: path=%s images=%s ocr=%s "
+                        "tables_mode=%s vlm=%s pages=%s workers=%s"
+                    ),
+                    pdf_path,
+                    images,
+                    ocr,
+                    tables_mode,
+                    vlm,
+                    pages,
+                    workers,
+                )
+                return doc
+
+            except concurrent.futures.TimeoutError:
+                # Cancel the future and raise timeout error
+                future.cancel()
+                timeout_msg = (
+                    f"PDF conversion timed out after {timeout_seconds} seconds. "
+                    f"This may indicate a hanging issue with the Docling library or complex PDF processing. "
+                    f"PDF: {pdf_path}"
+                )
+                logger.error(timeout_msg)
+                error_mgr.error(
+                    "DL-PDF002",
+                    timeout_msg,
+                    extra={
+                        "error_type": "conversion_timeout",
+                        "timeout_seconds": timeout_seconds,
+                        "user_action": (
+                            "Try with a simpler PDF or increase PDF2FOUNDRY_CONVERSION_TIMEOUT environment variable"
+                        ),
+                    },
+                )
+                raise PdfParseError(pdf_path, cause=concurrent.futures.TimeoutError(timeout_msg)) from None
 
     except ImportError as e:
         # Docling not available
@@ -181,6 +222,10 @@ def _do_docling_convert_impl(
             exception=e,
         )
         raise PdfParseError(pdf_path, cause=e) from e
+
+    except PdfParseError:
+        # Re-raise PdfParseError as-is (including timeout errors)
+        raise
 
     except Exception as e:
         # Any other conversion error

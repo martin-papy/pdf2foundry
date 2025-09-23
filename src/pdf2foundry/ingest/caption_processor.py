@@ -171,6 +171,24 @@ def initialize_caption_components(
                         "caption:unavailable",
                         {"model_id": options.vlm_repo_id},
                     )
+            except (TimeoutError, ConnectionError, OSError) as e:
+                # Network/timeout errors should be handled gracefully
+                log_error_policy(
+                    "Captions",
+                    "model_load_timeout",
+                    "continue",
+                    f"VLM model '{options.vlm_repo_id}' failed to load due to network/timeout: {e}",
+                )
+                logger.warning(
+                    f"Caption engine initialization failed due to network/timeout, continuing without captions: {e}"
+                )
+                _safe_emit(
+                    on_progress,
+                    "caption:timeout",
+                    {"model_id": options.vlm_repo_id, "error": str(e)},
+                )
+                caption_engine = None
+                caption_cache = None
             except Exception as e:
                 log_error_policy(
                     "Captions",

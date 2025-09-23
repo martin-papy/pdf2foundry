@@ -70,71 +70,101 @@ class HFCaptionEngine:
         return self._available
 
     def _load_pipeline(self) -> None:
-        """Lazily load the transformers pipeline."""
+        """Lazily load the transformers pipeline with timeout handling."""
         if self._pipeline is None:
+            import concurrent.futures
+            import os
+
             try:
                 import transformers
 
                 logger.info(f"Loading VLM model: {self.model_id}")
 
-                # Try to determine the task type based on model name
-                # Common VLM models and their tasks
-                if (
-                    "florence" in self.model_id.lower()
-                    or "blip" in self.model_id.lower()
-                    or "llava" in self.model_id.lower()
-                ):
-                    task = "image-to-text"
-                else:
-                    # Default to image-to-text for most VLM models
-                    task = "image-to-text"
+                # Get timeout from environment (default: 5 minutes for model loading)
+                model_load_timeout = int(os.environ.get("PDF2FOUNDRY_VLM_LOAD_TIMEOUT", "300"))
 
-                # Use Any to avoid complex transformers typing issues
-                # Different mypy configurations may see different errors
+                def _load_model() -> Any:
+                    """Load the model in a separate thread."""
+                    # Try to determine the task type based on model name
+                    # Common VLM models and their tasks
+                    if (
+                        "florence" in self.model_id.lower()
+                        or "blip" in self.model_id.lower()
+                        or "llava" in self.model_id.lower()
+                    ):
+                        task = "image-to-text"
+                    else:
+                        # Default to image-to-text for most VLM models
+                        task = "image-to-text"
 
-                # Special handling for Florence-2 models due to API differences
-                if "florence" in self.model_id.lower():
-                    # Florence-2 requires direct model/processor usage, not pipeline
-                    try:
-                        from transformers import AutoModelForCausalLM, AutoProcessor
+                    # Use Any to avoid complex transformers typing issues
+                    # Different mypy configurations may see different errors
 
-                        logger.info("Loading Florence-2 model and processor directly")
-                        self._processor = AutoProcessor.from_pretrained(  # type: ignore[no-untyped-call]
-                            self.model_id, trust_remote_code=True
-                        )
-                        self._model = AutoModelForCausalLM.from_pretrained(
-                            self.model_id,
-                            trust_remote_code=True,
-                            torch_dtype="auto",
-                            attn_implementation="eager",  # Avoid flash_attn requirement
-                        )
-                        # Store as a custom object instead of pipeline
-                        self._pipeline = {"model": self._model, "processor": self._processor, "type": "florence2"}
-                        logger.info("Florence-2 model and processor loaded successfully")
-                    except Exception as florence_error:
-                        logger.error(f"Failed to load Florence-2 model directly: {florence_error}")
-                        raise
-                else:
-                    # Standard pipeline creation for other models
-                    # Try with device_map first, fallback without it
-                    try:
-                        self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
-                            task,
-                            model=self.model_id,
-                            device_map="auto",  # Use GPU if available
-                        )
-                    except ValueError as device_map_error:
-                        if "device_map" in str(device_map_error):
-                            logger.warning(f"Model doesn't support device_map, trying without: {device_map_error}")
-                            self._pipeline = transformers.pipeline(  # type: ignore[call-overload]
+                    # Special handling for Florence-2 models due to API differences
+                    if "florence" in self.model_id.lower():
+                        # Florence-2 requires direct model/processor usage, not pipeline
+                        try:
+                            from transformers import AutoModelForCausalLM, AutoProcessor
+
+                            logger.info("Loading Florence-2 model and processor directly")
+                            processor = AutoProcessor.from_pretrained(  # type: ignore[no-untyped-call]
+                                self.model_id, trust_remote_code=True
+                            )
+                            model = AutoModelForCausalLM.from_pretrained(
+                                self.model_id,
+                                trust_remote_code=True,
+                                torch_dtype="auto",
+                                attn_implementation="eager",  # Avoid flash_attn requirement
+                            )
+                            # Store as a custom object instead of pipeline
+                            return {"model": model, "processor": processor, "type": "florence2"}
+                        except Exception as florence_error:
+                            logger.error(f"Failed to load Florence-2 model directly: {florence_error}")
+                            raise
+                    else:
+                        # Standard pipeline creation for other models
+                        # Try with device_map first, fallback without it
+                        try:
+                            return transformers.pipeline(  # type: ignore[call-overload]
                                 task,
                                 model=self.model_id,
+                                device_map="auto",  # Use GPU if available
                             )
-                        else:
-                            raise
-                logger.info(f"Successfully loaded VLM model: {self.model_id}")
+                        except ValueError as device_map_error:
+                            if "device_map" in str(device_map_error):
+                                logger.warning(f"Model doesn't support device_map, trying without: {device_map_error}")
+                                return transformers.pipeline(  # type: ignore[call-overload]
+                                    task,
+                                    model=self.model_id,
+                                )
+                            else:
+                                raise
+
+                # Use ThreadPoolExecutor to load model with timeout
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    logger.info("Starting VLM model loading with %d second timeout: %s", model_load_timeout, self.model_id)
+                    future = executor.submit(_load_model)
+
+                    try:
+                        # Wait for model loading with timeout
+                        self._pipeline = future.result(timeout=model_load_timeout)
+                        logger.info(f"Successfully loaded VLM model: {self.model_id}")
+
+                    except concurrent.futures.TimeoutError:
+                        # Cancel the future and raise timeout error
+                        future.cancel()
+                        timeout_msg = (
+                            f"VLM model loading timed out after {model_load_timeout} seconds. "
+                            f"This may indicate network issues or missing model cache. "
+                            f"Model: {self.model_id}"
+                        )
+                        logger.error(timeout_msg)
+                        raise TimeoutError(timeout_msg) from None
+
             except Exception as e:
                 logger.error(f"Failed to load VLM model {self.model_id}: {e}")
+                # Mark as unavailable so future calls don't retry
+                self._available = False
                 raise
 
     def generate(self, pil_image: Image.Image) -> str | None:

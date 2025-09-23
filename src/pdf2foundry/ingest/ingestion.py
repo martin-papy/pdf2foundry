@@ -248,7 +248,13 @@ def ingest_docling(
 
     # Conversion branch
     _safe_emit(on_progress, "ingest:converting", {"pdf": str(pdf_path)})
-    doc = run_docling_conversion(pdf_path)
+
+    try:
+        doc = run_docling_conversion(pdf_path)
+    except Exception as e:
+        # Emit conversion failure event
+        _safe_emit(on_progress, "ingest:conversion_failed", {"pdf": str(pdf_path), "error": str(e)})
+        raise
 
     # Emit success with page_count if available
     page_count = 0

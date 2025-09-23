@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from pathlib import Path
 from typing import Any
 
 from rich.console import Console
@@ -153,6 +154,37 @@ class ProgressReporter:
         self._finalize_task("chapters")
         self._finalize_task("sections")
         self._finalize_task("ir")
+
+    # Event handlers (ingestion)
+    def _on_ingest_converting(self, payload: dict[str, Any]) -> None:
+        if "conversion" not in self._tasks:
+            pdf_name = Path(str(payload.get("pdf", "PDF"))).name
+            self._tasks["conversion"] = self.add_step(f"Converting {pdf_name}", total=None)
+
+    def _on_ingest_converted(self, payload: dict[str, Any]) -> None:
+        self._finalize_task("conversion")
+
+    def _on_ingest_conversion_failed(self, payload: dict[str, Any]) -> None:
+        self._finalize_task("conversion")
+
+    def _on_ingest_loaded_from_cache(self, payload: dict[str, Any]) -> None:
+        if "conversion" not in self._tasks:
+            cache_name = Path(str(payload.get("path", "cache"))).name
+            self._tasks["conversion"] = self.add_step(f"Loaded from {cache_name}", total=None)
+        self._finalize_task("conversion")
+
+    def _on_ingest_cache_load_failed(self, payload: dict[str, Any]) -> None:
+        # Show brief feedback that cache failed and we're falling back
+        if "conversion" not in self._tasks:
+            self._tasks["conversion"] = self.add_step("Cache failed, converting PDF", total=None)
+
+    def _on_ingest_saved_to_cache(self, payload: dict[str, Any]) -> None:
+        # Show brief feedback that cache was saved successfully
+        cache_name = Path(str(payload.get("path", "cache"))).name
+        if "cache_save" not in self._tasks:
+            task_id = self.add_step(f"Saved to {cache_name}", total=None)
+            # Immediately complete this task since save is done
+            self.finish_task(task_id)
 
     # Utilities
     def _finalize_task(self, key: str) -> None:
