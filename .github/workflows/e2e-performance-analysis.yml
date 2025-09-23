@@ -77,7 +77,8 @@ jobs:
           
       - name: Install dependencies for performance analysis
         run: |
-          pip install psutil
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
           
       - name: Check performance regression (Environment-Aware)
         id: perf-check
