@@ -175,8 +175,8 @@ def test_cli_convert_picture_descriptions_on_with_vlm(temp_pdf: str) -> None:
         Path(temp_pdf).unlink(missing_ok=True)
 
 
-def test_cli_convert_picture_descriptions_on_without_vlm_warns(temp_pdf: str) -> None:
-    """Test CLI with picture descriptions enabled but no VLM repo ID shows warning."""
+def test_cli_convert_picture_descriptions_on_without_vlm_uses_default(temp_pdf: str) -> None:
+    """Test CLI with picture descriptions enabled but no VLM repo ID uses default model."""
     runner = CliRunner()
 
     try:
@@ -195,7 +195,8 @@ def test_cli_convert_picture_descriptions_on_without_vlm_warns(temp_pdf: str) ->
         )
         assert result.exit_code == 0
         assert "Picture Descriptions: Yes" in result.stdout
-        assert "Warning: Picture descriptions enabled but no VLM repository ID provided" in result.stdout
+        # Should automatically use default VLM model (no warning needed)
+        assert "VLM Repository: Salesforce/blip-image-captioning-base" in result.stdout
 
     finally:
         Path(temp_pdf).unlink(missing_ok=True)
