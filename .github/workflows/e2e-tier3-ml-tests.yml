@@ -9,18 +9,7 @@ on:
       models_cached:
         description: "Whether models were cached"
         value: ${{ jobs.ml-tests.outputs.models_cached }}
-      
-  schedule:
-    - cron: '0 2 * * *'  # Nightly at 2 AM UTC
-  workflow_dispatch:
-    inputs:
-      force_run:
-        description: 'Force run ML tests'
-        required: false
-        default: true
-        type: boolean
-  push:
-    branches: [main]
+
 
 env:
   PYTHONUNBUFFERED: 1

@@ -6,12 +6,6 @@ on:
       success:
         description: "Whether Tier 1 tests passed"
         value: ${{ jobs.core-tests.outputs.success }}
-      
-  pull_request:
-    types: [opened, synchronize, reopened]
-  push:
-    branches: [main]
-  workflow_dispatch:
 
 env:
   PYTHONUNBUFFERED: 1

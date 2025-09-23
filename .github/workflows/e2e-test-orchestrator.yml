@@ -5,17 +5,11 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [main]
-  schedule:
-    - cron: '0 2 * * *'  # Nightly at 2 AM UTC for full ML tests
+
   workflow_dispatch:
     inputs:
       run_tier3:
         description: 'Run Tier 3 (ML) tests'
-        required: false
-        default: false
-        type: boolean
-      force_tier2:
-        description: 'Force Tier 2 even if Tier 1 fails'
         required: false
         default: false
         type: boolean
@@ -31,22 +25,22 @@ jobs:
     name: "Tier 1: Core Tests"
     uses: ./.github/workflows/e2e-tier1-core-tests.yml
     
-  # Run Tier 2 tests if Tier 1 passes
+  # Run Tier 2 tests only on PRs when Tier 1 passes
   tier2:
     name: "Tier 2: Feature Tests"
     needs: tier1
-    if: always()
+    if: github.event_name == 'pull_request' && needs.tier1.outputs.success == 'true'
     uses: ./.github/workflows/e2e-tier2-feature-tests.yml
     with:
-      tier1_success: ${{ needs.tier1.outputs.success == 'true' }}
+      tier1_success: true
       
-  # Run Tier 3 tests on schedule, manual trigger, or main branch push
+  # Run Tier 3 tests only on PRs when Tier 2 passes, or manual trigger
   tier3:
     name: "Tier 3: ML Tests"
+    needs: [tier1, tier2]
     if: |
-      (github.event_name == 'schedule') || 
-      (github.event_name == 'workflow_dispatch' && inputs.run_tier3) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      (github.event_name == 'pull_request' && needs.tier2.outputs.success == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_tier3)
     uses: ./.github/workflows/e2e-tier3-ml-tests.yml
     
   # Analyze performance after Tier 2 completes

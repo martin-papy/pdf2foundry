@@ -12,13 +12,6 @@ on:
         description: "Whether Tier 2 tests passed"
         value: ${{ jobs.feature-tests.outputs.success }}
       
-  workflow_dispatch:
-    inputs:
-      force_run:
-        description: 'Force run even without Tier 1 success'
-        required: false
-        default: false
-        type: boolean
 
 env:
   PYTHONUNBUFFERED: 1
@@ -32,7 +25,7 @@ jobs:
     name: "Feature Integration Tests"
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: inputs.tier1_success == true || inputs.force_run == true
+    if: inputs.tier1_success == true
     
     concurrency:
       group: tier2-${{ github.ref }}
