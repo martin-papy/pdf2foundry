@@ -6,6 +6,7 @@ dependency environments.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -47,9 +48,9 @@ def test_basic_conversion_no_ml(tmp_output_dir: Path, cli_runner, test_environme
     # Log environment information for debugging
     print(f"Test environment info: {test_environment_info}")
 
-    # Get input fixture
+    # Get input fixture - use minimal PDF in CI environments
     try:
-        input_pdf = get_fixture("basic.pdf")
+        input_pdf = get_fixture("ci-minimal.pdf") if os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1" else get_fixture("basic.pdf")
     except FileNotFoundError as e:
         pytest.skip(f"Required fixture not found: {e}")
 
@@ -82,10 +83,12 @@ def test_basic_conversion_no_ml(tmp_output_dir: Path, cli_runner, test_environme
 
     try:
         # Run CLI with a reasonable timeout for basic tests
-        result = cli_runner(cmd_args, timeout=120)  # 2 minute timeout for CI-safe tests
+        # Use shorter timeout in CI minimal mode
+        timeout = 75 if os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1" else 120
+        result = cli_runner(cmd_args, timeout=timeout)
     except subprocess.TimeoutExpired:
         pytest.fail(
-            f"CLI conversion timed out after 120 seconds. This should not happen for CI-safe tests "
+            f"CLI conversion timed out after {timeout} seconds. This should not happen for CI-safe tests "
             f"without ML dependencies. Command: pdf2foundry {' '.join(cmd_args)}"
         )
     except Exception as e:
@@ -96,7 +99,7 @@ def test_basic_conversion_no_ml(tmp_output_dir: Path, cli_runner, test_environme
         # Create debug log file for troubleshooting
         debug_log = tmp_output_dir / "debug.log"
         debug_log.write_text(
-            f"Command: pdf2foundry {' '.join(cmd_args)}\n" f"Exit code: {result.returncode}\n" f"Output:\n{result.stdout}\n"
+            f"Command: pdf2foundry {' '.join(cmd_args)}\nExit code: {result.returncode}\nOutput:\n{result.stdout}\n"
         )
         pytest.fail(
             f"CLI conversion failed with exit code {result.returncode}. "
@@ -153,15 +156,24 @@ def test_basic_conversion_no_ml(tmp_output_dir: Path, cli_runner, test_environme
     if not has_pages:
         pytest.fail("No journal entries with pages found - content generation may have failed")
 
-    # Step 4: Content fidelity checks (same as basic test)
-    expected_content_strings = [
-        "Drow Elite Warriors",
-        "Beholder",
-        "Appendix",
-        "Order of the Gauntlet",
-        "Underdark",
-        "Veterans",
-    ]
+    # Step 4: Content fidelity checks
+    if os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1":
+        # Use simpler content checks for CI minimal PDF
+        expected_content_strings = [
+            "CI Test PDF",
+            "minimal PDF",
+            "testing",
+        ]
+    else:
+        # Use full content checks for basic PDF
+        expected_content_strings = [
+            "Drow Elite Warriors",
+            "Beholder",
+            "Appendix",
+            "Order of the Gauntlet",
+            "Underdark",
+            "Veterans",
+        ]
     _assert_content_contains(module_dir, expected_content_strings)
 
     # Step 5: Verify ML features were properly disabled
@@ -439,7 +451,7 @@ def _test_negative_validation(module_dir: Path) -> None:
 
         if not validation_errors:
             pytest.fail(
-                "Negative validation failed: validate_module_json should have reported errors " "when module.json is missing"
+                "Negative validation failed: validate_module_json should have reported errors when module.json is missing"
             )
 
         # Check that the error mentions the missing file

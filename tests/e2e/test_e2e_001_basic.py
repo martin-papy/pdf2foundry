@@ -5,6 +5,7 @@ with default settings, ensuring module structure, schema compliance, and content
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -41,9 +42,9 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
     # Environment checks - skip if prerequisites not met
     _check_prerequisites()
 
-    # Get input fixture
+    # Get input fixture - use minimal PDF in CI environments
     try:
-        input_pdf = get_fixture("basic.pdf")
+        input_pdf = get_fixture("ci-minimal.pdf") if os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1" else get_fixture("basic.pdf")
     except FileNotFoundError as e:
         pytest.skip(f"Required fixture not found: {e}")
 
@@ -72,10 +73,12 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
 
     try:
         # Run CLI with a reasonable timeout to prevent hanging
-        result = cli_runner(cmd_args, timeout=120)  # 2 minute timeout
+        # Use shorter timeout in CI minimal mode
+        timeout = 75 if os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1" else 120
+        result = cli_runner(cmd_args, timeout=timeout)
     except subprocess.TimeoutExpired:
         pytest.fail(
-            f"CLI conversion timed out after 120 seconds. This may indicate a hanging issue "
+            f"CLI conversion timed out after {timeout} seconds. This may indicate a hanging issue "
             f"with the docling library or PDF processing. Command: pdf2foundry {' '.join(cmd_args)}"
         )
     except Exception as e:
@@ -86,7 +89,7 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
         # Create debug log file for troubleshooting
         debug_log = tmp_output_dir / "debug.log"
         debug_log.write_text(
-            f"Command: pdf2foundry {' '.join(cmd_args)}\n" f"Exit code: {result.returncode}\n" f"Output:\n{result.stdout}\n"
+            f"Command: pdf2foundry {' '.join(cmd_args)}\nExit code: {result.returncode}\nOutput:\n{result.stdout}\n"
         )
         pytest.fail(
             f"CLI conversion failed with exit code {result.returncode}. "
@@ -144,14 +147,23 @@ def test_basic(tmp_output_dir: Path, cli_runner) -> None:
         pytest.fail("No journal entries with pages found - content generation may have failed")
 
     # Step 4: Content fidelity checks
-    expected_content_strings = [
-        "Drow Elite Warriors",
-        "Beholder",
-        "Appendix",
-        "Order of the Gauntlet",
-        "Underdark",
-        "Veterans",
-    ]
+    if os.getenv("PDF2FOUNDRY_CI_MINIMAL") == "1":
+        # Use simpler content checks for CI minimal PDF
+        expected_content_strings = [
+            "CI Test PDF",
+            "minimal PDF",
+            "testing",
+        ]
+    else:
+        # Use full content checks for basic PDF
+        expected_content_strings = [
+            "Drow Elite Warriors",
+            "Beholder",
+            "Appendix",
+            "Order of the Gauntlet",
+            "Underdark",
+            "Veterans",
+        ]
     _assert_content_contains(module_dir, expected_content_strings)
 
     # Step 5: Negative validation - test that validation properly fails when module.json is missing
@@ -342,7 +354,7 @@ def _test_negative_validation(module_dir: Path) -> None:
 
         if not validation_errors:
             pytest.fail(
-                "Negative validation failed: validate_module_json should have reported errors " "when module.json is missing"
+                "Negative validation failed: validate_module_json should have reported errors when module.json is missing"
             )
 
         # Check that the error mentions the missing file

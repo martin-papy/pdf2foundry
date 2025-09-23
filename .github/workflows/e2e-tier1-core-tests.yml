@@ -83,7 +83,7 @@ jobs:
         env:
           PDF2FOUNDRY_CLI: ${{ env.PDF2FOUNDRY_CLI }}
           PDF2FOUNDRY_CI_MINIMAL: "1"
-          PDF2FOUNDRY_CONVERSION_TIMEOUT: "90"
+          PDF2FOUNDRY_CONVERSION_TIMEOUT: "45"
           CI: "1"
         run: |
           echo "Running Tier 1 tests with minimal dependencies..."

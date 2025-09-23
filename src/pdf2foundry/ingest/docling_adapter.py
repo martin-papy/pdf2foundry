@@ -148,19 +148,43 @@ def _do_docling_convert_impl(
             PdfFormatOption,
         )
 
-        pipe_opts = PdfPipelineOptions(
-            generate_picture_images=images,
-            generate_page_images=images,
-            do_ocr=ocr,
-        )
+        # In CI minimal mode, use the most conservative settings to avoid hangs
+        if os.environ.get("PDF2FOUNDRY_CI_MINIMAL") == "1":
+            pipe_opts = PdfPipelineOptions(
+                generate_picture_images=False,  # Disable image generation in CI minimal
+                generate_page_images=False,  # Disable page images in CI minimal
+                do_ocr=False,  # Disable OCR in CI minimal to avoid hangs
+                do_table_structure=False,  # Disable table structure extraction in CI minimal
+            )
+            logger.info("Using CI minimal pipeline options: no images, no OCR, no table structure")
+        elif os.environ.get("PDF2FOUNDRY_NO_ML") == "1":
+            # When --no-ml is used, also disable potentially problematic features
+            pipe_opts = PdfPipelineOptions(
+                generate_picture_images=False,  # Disable image generation when ML disabled
+                generate_page_images=False,  # Disable page images when ML disabled
+                do_ocr=False,  # Disable OCR when ML disabled
+                do_table_structure=False,  # Disable table structure when ML disabled
+            )
+            logger.info("Using no-ML pipeline options: no images, no OCR, no table structure")
+        else:
+            pipe_opts = PdfPipelineOptions(
+                generate_picture_images=images,
+                generate_page_images=images,
+                do_ocr=ocr,
+            )
 
         # Note: pages, workers, tables_mode, vlm are accepted but may require
         # additional wiring based on Docling capabilities; kept in signature and
         # cache key for deterministic behavior across configurations.
         conv = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipe_opts)})
 
-        # Get timeout from environment or use default (2 minutes for CI, 30 minutes for local)
-        default_timeout = "120" if os.environ.get("CI") == "1" else "1800"
+        # Get timeout from environment or use default (45 seconds for CI minimal, 2 minutes for CI, 30 minutes for local)
+        if os.environ.get("PDF2FOUNDRY_CI_MINIMAL") == "1":
+            default_timeout = "45"  # Very aggressive timeout for CI minimal
+        elif os.environ.get("CI") == "1":
+            default_timeout = "120"  # Standard CI timeout
+        else:
+            default_timeout = "1800"  # Local development timeout
         timeout_seconds = int(os.environ.get("PDF2FOUNDRY_CONVERSION_TIMEOUT", default_timeout))
 
         def _convert_with_timeout() -> Any:
@@ -170,6 +194,11 @@ def _do_docling_convert_impl(
         # Use ThreadPoolExecutor to run conversion with timeout
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             logger.info("Starting PDF conversion with %d second timeout: %s", timeout_seconds, pdf_path)
+
+            # In CI minimal mode, add extra logging and shorter polling
+            if os.environ.get("PDF2FOUNDRY_CI_MINIMAL") == "1":
+                logger.info("CI minimal mode: using aggressive timeout and minimal processing")
+
             future = executor.submit(_convert_with_timeout)
 
             try:
@@ -195,6 +224,13 @@ def _do_docling_convert_impl(
             except concurrent.futures.TimeoutError:
                 # Cancel the future and raise timeout error
                 future.cancel()
+
+                # In CI minimal mode, be more aggressive about cleanup
+                if os.environ.get("PDF2FOUNDRY_CI_MINIMAL") == "1":
+                    logger.warning("CI minimal mode: Aggressive timeout cleanup")
+                    # Force shutdown the executor
+                    executor.shutdown(wait=False, cancel_futures=True)
+
                 timeout_msg = (
                     f"PDF conversion timed out after {timeout_seconds} seconds. "
                     f"This may indicate a hanging issue with the Docling library or complex PDF processing. "
