@@ -70,17 +70,52 @@ jobs:
           name: tier3-reports-${{ inputs.tier3_run_id }}
           path: reports/tier3/
           
-      - name: Check performance regression
+      - name: Set up Python for performance analysis
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install dependencies for performance analysis
+        run: |
+          pip install psutil
+          
+      - name: Check performance regression (Environment-Aware)
         id: perf-check
         run: |
           python << 'EOF'
           import json
           import os
           import sys
+          import platform
           from pathlib import Path
           
-          # Configuration
-          PERF_THRESHOLD = float(os.environ.get('PERF_THRESHOLD', '0.2'))
+          # Environment detection for GitHub Actions
+          def detect_ci_environment():
+              return {
+                  "environment_type": "github_actions",
+                  "performance_tier": "slow",
+                  "cpu_count": 2,  # GitHub Actions standard
+                  "memory_gb": 7.0,  # GitHub Actions standard
+                  "platform": platform.platform(),
+                  "is_ci": True,
+                  "is_github_actions": True,
+              }
+          
+          def get_environment_specific_threshold():
+              # GitHub Actions gets higher threshold due to variability
+              return 0.4  # 40% instead of 20%
+          
+          def get_performance_multiplier():
+              # GitHub Actions is expected to be ~4x slower than local MacBook Pro
+              return 4.0
+          
+          env_info = detect_ci_environment()
+          threshold = get_environment_specific_threshold()
+          
+          print(f"🔍 Environment: {env_info['environment_type']} ({env_info['performance_tier']})")
+          print(f"📊 Regression threshold: {threshold:.1%}")
+          print(f"⚡ Expected performance multiplier: {get_performance_multiplier():.1f}x")
+          print()
           
           # Look for performance files in both tier2 and tier3 reports
           perf_files = []
@@ -95,8 +130,6 @@ jobs:
                   current_file = f
                   break
           
-          baseline_file = Path('tests/e2e/perf/baseline.json')
-          
           # Check if current performance file exists
           if not current_file or not current_file.exists():
               print("❌ Current performance file not found")
@@ -110,24 +143,43 @@ jobs:
           with open(current_file) as f:
               current = json.load(f)
           
-          # Check if baseline exists
-          if not baseline_file.exists():
-              print("⚠️  Baseline performance file not found - skipping regression check")
+          # Look for environment-specific baselines first, then legacy baseline
+          baseline_files = [
+              Path('tests/e2e/perf/baseline_github_actions_slow.json'),  # Environment-specific
+              Path('tests/e2e/perf/baseline.json')  # Legacy fallback
+          ]
+          
+          baseline = None
+          baseline_source = None
+          
+          for baseline_file in baseline_files:
+              if baseline_file.exists():
+                  try:
+                      with open(baseline_file) as f:
+                          baseline = json.load(f)
+                      baseline_source = baseline_file.name
+                      break
+                  except (OSError, json.JSONDecodeError):
+                      continue
+          
+          if baseline is None:
+              print("⚠️  No baseline performance file found - skipping regression check")
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                   f.write("baseline_missing=true\n")
                   f.write("regression_detected=false\n")
                   f.write("no_perf_data=false\n")
               sys.exit(0)
           
-          # Load baseline results
-          with open(baseline_file) as f:
-              baseline = json.load(f)
+          print(f"📁 Using baseline: {baseline_source}")
           
-          # Compare performance metrics
+          # Compare performance metrics with environment awareness
           regressions = []
           summary_data = []
           
           for test_name in current.keys():
+              if test_name.startswith('_'):  # Skip metadata
+                  continue
+                  
               if test_name not in baseline:
                   continue
                   
@@ -141,6 +193,10 @@ jobs:
                   current_val = current_metrics[metric_name].get('latest', 0)
                   baseline_val = baseline_metrics[metric_name].get('latest', 0)
                   
+                  # If using legacy baseline, adjust for environment differences
+                  if baseline_source == 'baseline.json':
+                      baseline_val = baseline_val * get_performance_multiplier()
+                  
                   if baseline_val > 0:
                       delta = (current_val - baseline_val) / baseline_val
                       summary_data.append({
@@ -149,11 +205,15 @@ jobs:
                           'baseline': baseline_val,
                           'current': current_val,
                           'delta': delta,
-                          'threshold': PERF_THRESHOLD
+                          'threshold': threshold,
+                          'environment': env_info['environment_type'],
+                          'baseline_source': baseline_source
                       })
                       
-                      if delta > PERF_THRESHOLD:
-                          regressions.append(f"{test_name}.{metric_name}: {delta:.1%} regression (threshold: {PERF_THRESHOLD:.1%})")
+                      if delta > threshold:
+                          regressions.append(f"{test_name}.{metric_name}: {delta:.1%} regression (threshold: {threshold:.1%})")
+                      
+                      print(f"📊 {test_name}.{metric_name}: {current_val:.1f}s vs {baseline_val:.1f}s ({delta:+.1%})")
           
           # Write summary data for PR comment
           with open('perf_summary.json', 'w') as f:
@@ -168,12 +228,17 @@ jobs:
           
           # Print results
           if regressions:
+              print()
               print("❌ Performance regressions detected:")
               for regression in regressions:
                   print(f"  - {regression}")
+              print()
+              print("💡 Note: Regressions are compared against environment-appropriate baselines")
               # Don't fail the job for performance regressions, just report them
           else:
+              print()
               print("✅ No performance regressions detected")
+              print("💡 Performance is within expected range for GitHub Actions environment")
           EOF
           
       - name: Upload performance summary

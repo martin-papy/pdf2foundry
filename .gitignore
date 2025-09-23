@@ -26,11 +26,21 @@ venv/
 htmlcov/
 coverage.xml
 
-# Performance test results (keep baseline.json and baseline scenarios, ignore generated results)
+# Performance test results (keep baseline files, ignore generated runtime artifacts)
 tests/e2e/perf/latest.json
+tests/e2e/perf/demo/
+tests/e2e/perf/temp/
+tests/e2e/perf/tmp/
+# Individual test run files (generated during execution)
+tests/e2e/perf/*_local_*.json
+tests/e2e/perf/*_github_actions_*.json
+tests/e2e/perf/*_ci_*.json
 tests/e2e/perf/table_processing_*.json
 tests/e2e/perf/test_context*.json
 tests/e2e/perf/e2e_006_performance_*.json
+# Keep baseline files for backward compatibility and environment-specific baselines
+!tests/e2e/perf/baseline.json
+!tests/e2e/perf/baseline_*.json
 !tests/e2e/perf/e2e_006_performance_baseline_*.json
 
 # Node

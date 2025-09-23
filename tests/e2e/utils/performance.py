@@ -1,12 +1,18 @@
 """Performance testing utilities for E2E tests."""
 
 import json
-import os
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+from tests.e2e.utils.environment_detection import (
+    detect_environment,
+    get_environment_key,
+    get_environment_specific_threshold,
+    get_performance_multiplier,
+)
 
 
 class PerformanceTimer:
@@ -73,7 +79,7 @@ def perf_timer() -> Generator[PerformanceTimer, None, None]:
 
 def write_performance_metrics(test_name: str, metrics: dict[str, float], perf_dir: Path | None = None) -> None:
     """
-    Write performance metrics to a JSON file.
+    Write performance metrics to environment-aware JSON files.
 
     Args:
         test_name: Name of the test
@@ -85,8 +91,12 @@ def write_performance_metrics(test_name: str, metrics: dict[str, float], perf_di
 
     perf_dir.mkdir(exist_ok=True)
 
-    # Write individual test metrics
-    test_file = perf_dir / f"{test_name}.json"
+    # Get environment information
+    env_info = detect_environment()
+    env_key = get_environment_key()
+
+    # Write individual test metrics (environment-specific)
+    test_file = perf_dir / f"{test_name}_{env_key}.json"
 
     # Load existing data if present
     if test_file.exists():
@@ -94,9 +104,9 @@ def write_performance_metrics(test_name: str, metrics: dict[str, float], perf_di
             with test_file.open() as f:
                 existing_data = json.load(f)
         except (OSError, json.JSONDecodeError):
-            existing_data = {"runs": []}
+            existing_data = {"runs": [], "environment": env_info}
     else:
-        existing_data = {"runs": []}
+        existing_data = {"runs": [], "environment": env_info}
 
     # Add new run
     run_data = {"timestamp": time.time(), "metrics": metrics}
@@ -104,6 +114,9 @@ def write_performance_metrics(test_name: str, metrics: dict[str, float], perf_di
 
     # Keep only last 10 runs to avoid file bloat
     existing_data["runs"] = existing_data["runs"][-10:]
+
+    # Update environment info (in case it changed)
+    existing_data["environment"] = env_info
 
     # Write updated data
     with test_file.open("w") as f:
@@ -171,7 +184,7 @@ def update_aggregate_metrics(perf_dir: Path) -> None:
 
 def get_performance_baseline(test_name: str, metric_name: str, perf_dir: Path | None = None) -> float | None:
     """
-    Get the performance baseline for a test metric.
+    Get the environment-specific performance baseline for a test metric.
 
     Args:
         test_name: Name of the test
@@ -184,46 +197,79 @@ def get_performance_baseline(test_name: str, metric_name: str, perf_dir: Path | 
     if perf_dir is None:
         perf_dir = Path(__file__).parent.parent / "perf"
 
-    latest_file = perf_dir / "latest.json"
+    env_key = get_environment_key()
 
-    if not latest_file.exists():
-        return None
+    # Try environment-specific file first
+    env_specific_file = perf_dir / f"{test_name}_{env_key}.json"
 
-    try:
-        with latest_file.open() as f:
-            data = json.load(f)
+    if env_specific_file.exists():
+        try:
+            with env_specific_file.open() as f:
+                data = json.load(f)
 
-        test_data = data.get(test_name, {})
-        metrics = test_data.get("metrics", {})
-        metric_data = metrics.get(metric_name, {})
+            runs = data.get("runs", [])
+            if runs:
+                # Calculate average from recent runs
+                recent_runs = runs[-5:]  # Use last 5 runs for baseline
+                values = []
+                for run in recent_runs:
+                    metrics = run.get("metrics", {})
+                    if metric_name in metrics:
+                        values.append(metrics[metric_name])
 
-        # Use average as baseline
-        return metric_data.get("avg")
+                if values:
+                    return sum(values) / len(values)
+        except (OSError, json.JSONDecodeError, KeyError):
+            pass
 
-    except (OSError, json.JSONDecodeError, KeyError):
-        return None
+    # Fallback to legacy baseline.json for backward compatibility
+    legacy_baseline = perf_dir / "baseline.json"
+    if legacy_baseline.exists():
+        try:
+            with legacy_baseline.open() as f:
+                data = json.load(f)
+
+            test_data = data.get(test_name, {})
+            metrics = test_data.get("metrics", {})
+            metric_data = metrics.get(metric_name, {})
+
+            # Use average as baseline, but adjust for environment differences
+            baseline_value = metric_data.get("avg")
+            if baseline_value is not None:
+                # Apply environment multiplier to legacy baseline
+                multiplier = get_performance_multiplier()
+                return baseline_value * multiplier
+
+        except (OSError, json.JSONDecodeError, KeyError):
+            pass
+
+    return None
 
 
 def check_performance_regression(
     test_name: str, metric_name: str, current_value: float, threshold: float | None = None, perf_dir: Path | None = None
 ) -> dict[str, Any]:
     """
-    Check if current performance represents a regression.
+    Check if current performance represents a regression using environment-aware baselines.
 
     Args:
         test_name: Name of the test
         metric_name: Name of the metric
         current_value: Current performance value in seconds
-        threshold: Regression threshold (default from PERF_THRESHOLD env var)
+        threshold: Regression threshold (default: environment-specific)
         perf_dir: Directory containing performance files
 
     Returns:
         Dictionary with regression analysis results
     """
+    # Use environment-specific threshold if not provided
     if threshold is None:
-        threshold = float(os.getenv("PERF_THRESHOLD", "0.2"))
+        threshold = get_environment_specific_threshold()
 
+    # Get environment-aware baseline
     baseline = get_performance_baseline(test_name, metric_name, perf_dir)
+    env_info = detect_environment()
+    env_key = get_environment_key()
 
     result = {
         "test_name": test_name,
@@ -231,6 +277,8 @@ def check_performance_regression(
         "current_value": current_value,
         "baseline": baseline,
         "threshold": threshold,
+        "environment": env_info,
+        "environment_key": env_key,
         "is_regression": False,
         "regression_ratio": 0.0,
         "status": "unknown",

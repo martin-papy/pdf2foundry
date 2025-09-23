@@ -1,0 +1,22 @@
+# Performance test runtime artifacts - should not be tracked in git
+
+# Latest test results (generated during test runs)
+latest.json
+
+# Individual test run files (generated during test execution)
+*.json
+!baseline*.json
+
+# Demo and temporary directories
+demo/
+temp/
+tmp/
+
+# Environment-specific files that are generated
+*_local_*.json
+*_github_actions_*.json
+*_ci_*.json
+
+# Exception: Keep baseline files for backward compatibility and environment-specific baselines
+!baseline.json
+!baseline_*.json
