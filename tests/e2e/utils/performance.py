@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from tests.e2e.utils.environment_detection import (
+from .environment_detection import (
     detect_environment,
     get_environment_key,
     get_environment_specific_threshold,
