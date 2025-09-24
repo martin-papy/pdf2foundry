@@ -49,6 +49,9 @@ def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int | N
 
     # Prepare environment
     full_env = os.environ.copy()
+    # Prevent interactive prompts in CI
+    full_env["CI"] = "1"
+    full_env["PYTHONUNBUFFERED"] = "1"
     if env:
         full_env.update(env)
 
@@ -179,8 +182,13 @@ class TestDependencyErrorHandling:
                 str(outdir),
                 "--ocr",
                 "on",  # Force OCR on to trigger tesseract requirement
+                "--no-ml",  # Disable ML features to avoid hanging
+                "--tables",
+                "image-only",  # Avoid complex table processing
+                "--no-toc",  # Skip TOC generation for faster failure
             ],
             env=env,
+            timeout=60,  # Shorter timeout for error tests
         )
 
         # Should fail when required dependency is missing
@@ -229,7 +237,14 @@ class TestDependencyErrorHandling:
                 "Test Permission Error",
                 "--out-dir",
                 str(outdir),
-            ]
+                "--no-ml",  # Disable ML features to avoid hanging
+                "--tables",
+                "image-only",  # Avoid complex table processing
+                "--no-toc",  # Skip TOC generation for faster failure
+                "--ocr",
+                "off",  # Disable OCR to avoid tesseract issues
+            ],
+            timeout=60,  # Shorter timeout for error tests
         )
 
         # Check if chmod was effective (might not work on all systems)

@@ -73,6 +73,9 @@ def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int | N
 
     # Prepare environment
     full_env = os.environ.copy()
+    # Prevent interactive prompts in CI
+    full_env["CI"] = "1"
+    full_env["PYTHONUNBUFFERED"] = "1"
     if env:
         full_env.update(env)
 

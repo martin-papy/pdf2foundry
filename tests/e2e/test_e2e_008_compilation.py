@@ -220,6 +220,15 @@ def test_pdf2foundry_pack_compilation(resolve_foundry_cli: FoundryCLIInfo, tmp_p
             f"Stderr: {result.stderr}"
         )
 
+    # Debug: Print conversion output for CI debugging
+    if os.getenv("CI") == "1":
+        print("DEBUG: PDF2Foundry conversion completed successfully")
+        print(f"DEBUG: Command: {' '.join(cmd)}")
+        if result.stdout:
+            print(f"DEBUG: Stdout: {result.stdout}")
+        if result.stderr:
+            print(f"DEBUG: Stderr: {result.stderr}")
+
     # Validate the generated module structure
     module_dir = output_dir / module_id
     assert module_dir.exists(), f"Module directory was not created: {module_dir}"
