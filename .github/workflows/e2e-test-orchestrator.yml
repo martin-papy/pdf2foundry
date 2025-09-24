@@ -51,15 +51,15 @@ jobs:
        inputs.test_scope == 'all-tiers')
     uses: ./.github/workflows/e2e-tier3-ml-tests.yml
     
-  # Analyze performance after Tier 2 completes
+  # Analyze performance after all tiers complete (or are skipped)
   performance:
     name: "Performance Analysis"
-    needs: [tier2]
+    needs: [tier2, tier3]
     if: always() && (needs.tier2.result == 'success' || needs.tier2.result == 'failure')
     uses: ./.github/workflows/e2e-performance-analysis.yml
     with:
       tier2_run_id: ${{ github.run_id }}
-      tier3_run_id: ${{ github.run_id }}
+      tier3_run_id: ${{ needs.tier3.result == 'success' && github.run_id || '' }}
 
   # Generate comprehensive test summary
   summary:

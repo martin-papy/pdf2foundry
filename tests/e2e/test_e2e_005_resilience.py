@@ -99,7 +99,9 @@ def test_vlm_resilience_scenarios(
 
         monkeypatch.setattr(vlm_test_helpers, "check_internet_connectivity", mock_check_internet)
         monkeypatch.setenv("PDF2FOUNDRY_VLM_LOAD_TIMEOUT", "10")
-        monkeypatch.setenv("PDF2FOUNDRY_CONVERSION_TIMEOUT", "60")
+        # Use the same timeout as the workflow to prevent PDF conversion timeout
+        # The test should focus on VLM failure, not PDF conversion timeout
+        monkeypatch.setenv("PDF2FOUNDRY_CONVERSION_TIMEOUT", "900")
 
         # Mock at the module level to avoid importing transformers
         import sys
@@ -127,11 +129,20 @@ def test_vlm_resilience_scenarios(
         ]
 
         print("Running conversion in simulated offline environment with no cache...")
-        result = run_cli(cmd_args, env=vlm_env, timeout=120)
+        # Use longer timeout to allow PDF conversion to complete before VLM failure
+        result = run_cli(cmd_args, env=vlm_env, timeout=960)
         assert result["exit_code"] == 0, "Expected conversion to succeed with graceful VLM degradation"
 
         output = result["stdout"] + result["stderr"]
-        vlm_error_patterns = ["failed to load vlm model", "caption generation failed", "error:", "connection error"]
+        # Updated patterns to match actual VLM error messages from the codebase
+        vlm_error_patterns = [
+            "vlm model loading timed out",
+            "vlm model not available",
+            "caption engine initialization failed",
+            "continuing without captions",
+            "connectionerror",
+            "simulated offline mode",
+        ]
         success_patterns = ["wrote sources to", "assets to"]
 
         has_success = any(pattern in output.lower() for pattern in success_patterns)
