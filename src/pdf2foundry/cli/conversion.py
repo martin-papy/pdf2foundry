@@ -181,7 +181,8 @@ def run_conversion_pipeline(
                 compile_pack(module_dir, pack_name)
                 typer.echo(f"\n✅ Compiled pack to {module_dir / 'packs' / pack_name}")
             except PackCompileError as exc:
-                typer.echo(f"\n⚠️  Pack compilation failed: {exc}")
+                typer.echo(f"\n❌ ERROR: Pack compilation failed: {exc}")
+                raise typer.Exit(1) from exc
         else:
             typer.echo(f"\n✅ Wrote sources to {journals_src_dir} and assets to {assets_dir}")
             typer.echo("   Note: Pack compilation (packs/) is not performed automatically.")

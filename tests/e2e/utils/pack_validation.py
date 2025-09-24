@@ -4,8 +4,6 @@ import json
 import os
 from pathlib import Path
 
-import pytest
-
 
 def validate_pack_artifacts(module_dir: Path, packs_dir: Path) -> None:
     """
@@ -112,15 +110,9 @@ def validate_leveldb_pack(pack_dir: Path, pack_name: str) -> None:
     if not pack_dir.is_dir():
         raise AssertionError(f"Pack path is not a directory: {pack_dir}")
 
-    # If directory exists but is empty, this might be expected in some CI environments
-    # where Foundry CLI is not available or not working properly
+    # If directory exists but is empty, this indicates pack compilation failed
     if not list(pack_dir.iterdir()):
-        import os
-
-        if os.getenv("CI") == "1":
-            pytest.skip(f"Pack directory is empty in CI environment - Foundry CLI may not be available: {pack_dir}")
-        else:
-            raise AssertionError(f"Pack directory is empty: {pack_dir}")
+        raise AssertionError(f"Pack directory is empty - pack compilation failed: {pack_dir}")
 
     assert found_files, f"No LevelDB sentinel files found in pack {pack_name}: {pack_dir}"
 

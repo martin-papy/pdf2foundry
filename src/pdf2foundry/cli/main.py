@@ -324,42 +324,20 @@ def convert(
         typer.echo(f"Error: {exc}")
         raise typer.Exit(1) from exc
 
-    # Early validation: Check OCR availability when explicitly requested
-    if ocr == "on":
-        try:
-            from pdf2foundry.ingest.ocr_engine import TesseractOcrEngine
+    # Early validation: Check dependencies and permissions
+    from pdf2foundry.cli.validation import (
+        validate_foundry_cli_availability,
+        validate_ocr_availability,
+        validate_output_directory_permissions,
+    )
 
-            ocr_engine = TesseractOcrEngine()
-            if not ocr_engine.is_available():
-                typer.echo(
-                    "Error: OCR mode 'on' requires Tesseract but it is not available. "
-                    "Please install Tesseract or use '--ocr auto' to allow graceful degradation."
-                )
-                raise typer.Exit(1)
-        except Exception as exc:
-            typer.echo(f"Error: OCR availability check failed: {exc}")
-            raise typer.Exit(1) from exc
+    validate_ocr_availability(ocr)
+    validate_foundry_cli_availability(compile_pack_now)
 
     # Validation warnings for picture descriptions
     display_validation_warnings(pipeline_options, vlm_repo_id)
 
-    # Early validation: Check output directory permissions
-    try:
-        # Check if we can create the output directory and write to it
-        out_dir.mkdir(parents=True, exist_ok=True)
-
-        # Test write permissions by creating a temporary file
-        test_file = out_dir / ".pdf2foundry_permission_test"
-        try:
-            test_file.write_text("test")
-            test_file.unlink()  # Clean up
-        except (PermissionError, OSError) as exc:
-            typer.echo(f"Error: Cannot write to output directory '{out_dir}': {exc}")
-            raise typer.Exit(1) from exc
-
-    except (PermissionError, OSError) as exc:
-        typer.echo(f"Error: Cannot create output directory '{out_dir}': {exc}")
-        raise typer.Exit(1) from exc
+    validate_output_directory_permissions(out_dir)
 
     # Validate mod_id format (basic check)
     if not mod_id.replace("-", "").replace("_", "").isalnum():
