@@ -50,7 +50,11 @@ def test_compile_pack_invokes_npx(monkeypatch: Any, tmp_path: Path) -> None:
 
         return R()
 
+    def mock_resolve_cli() -> tuple[str, Path | None]:
+        return "@foundryvtt/foundryvtt-cli", None
+
     monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr("pdf2foundry.builder.packaging._resolve_foundry_cli", mock_resolve_cli)
     compile_pack(module_dir, "pack")
 
     # Using a file-based Node script to avoid quoting issues
