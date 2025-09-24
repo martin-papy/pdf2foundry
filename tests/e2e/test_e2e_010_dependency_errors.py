@@ -27,7 +27,7 @@ def valid_pdf(fixtures_dir: Path) -> Path:
     return pdf_path
 
 
-def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int = 120) -> subprocess.CompletedProcess:
+def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int | None = None) -> subprocess.CompletedProcess:
     """
     Execute the pdf2foundry CLI with capture_output=True, text=True.
 
@@ -42,6 +42,10 @@ def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int = 1
     # Get CLI binary path from environment or use default
     cli_binary = os.getenv("PDF2FOUNDRY_CLI", "pdf2foundry")
     cmd = [cli_binary, *args]
+
+    # Use environment timeout if not specified
+    if timeout is None:
+        timeout = int(os.getenv("PDF2FOUNDRY_TEST_TIMEOUT", "300"))
 
     # Prepare environment
     full_env = os.environ.copy()

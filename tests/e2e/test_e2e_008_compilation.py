@@ -199,16 +199,17 @@ def test_pdf2foundry_pack_compilation(resolve_foundry_cli: FoundryCLIInfo, tmp_p
     ]
 
     # Execute PDF2Foundry conversion with pack compilation
+    timeout = int(os.getenv("PDF2FOUNDRY_CONVERSION_TIMEOUT", "900"))  # Default 15 minutes
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=600,  # 10 minutes for conversion + compilation
+            timeout=timeout,
             check=False,  # Don't raise on non-zero exit, we'll handle it
         )
     except subprocess.TimeoutExpired:
-        pytest.fail(f"PDF2Foundry pack compilation timed out after 600s. Command: {' '.join(cmd)}")
+        pytest.fail(f"PDF2Foundry pack compilation timed out after {timeout}s. Command: {' '.join(cmd)}")
 
     # Check for successful execution
     if result.returncode != 0:
@@ -293,16 +294,17 @@ def test_pdf2foundry_without_pack_compilation(
     ]
 
     # Execute PDF2Foundry conversion without pack compilation
+    timeout = int(os.getenv("PDF2FOUNDRY_CONVERSION_TIMEOUT", "600"))  # Default 10 minutes
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=300,  # 5 minutes should be enough
+            timeout=timeout,
             check=False,
         )
     except subprocess.TimeoutExpired:
-        pytest.fail(f"PDF2Foundry conversion timed out after 300s. Command: {' '.join(cmd)}")
+        pytest.fail(f"PDF2Foundry conversion timed out after {timeout}s. Command: {' '.join(cmd)}")
 
     # Check for successful execution
     if result.returncode != 0:

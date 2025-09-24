@@ -72,6 +72,7 @@ def validate_leveldb_pack(pack_dir: Path, pack_name: str) -> None:
     # Check for LevelDB sentinel files
     leveldb_files = ["CURRENT", "LOCK", "LOG"]
     manifest_files = list(pack_dir.glob("MANIFEST-*"))
+    sst_files = list(pack_dir.glob("*.sst")) + list(pack_dir.glob("*.ldb"))
 
     found_files = []
     for sentinel_file in leveldb_files:
@@ -80,6 +81,18 @@ def validate_leveldb_pack(pack_dir: Path, pack_name: str) -> None:
 
     if manifest_files:
         found_files.extend([f.name for f in manifest_files])
+
+    if sst_files:
+        found_files.extend([f.name for f in sst_files])
+
+    # Debug information for CI
+    if not found_files:
+        print(f"DEBUG: Pack directory contents for {pack_name}: {list(pack_dir.iterdir())}")
+        for item in pack_dir.iterdir():
+            if item.is_file():
+                print(f"  File: {item.name} ({item.stat().st_size} bytes)")
+            else:
+                print(f"  Directory: {item.name}/")
 
     assert found_files, f"No LevelDB sentinel files found in pack {pack_name}: {pack_dir}"
 

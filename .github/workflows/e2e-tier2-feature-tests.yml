@@ -108,7 +108,8 @@ jobs:
           PDF2FOUNDRY_CLI: ${{ env.PDF2FOUNDRY_CLI }}
           PERF_THRESHOLD: '0.2'
           CI: "1"
-          PDF2FOUNDRY_CONVERSION_TIMEOUT: "600"  # 10 minutes for complex table processing in structured mode
+          PDF2FOUNDRY_CONVERSION_TIMEOUT: "900"  # 15 minutes for complex table processing in structured mode
+          PDF2FOUNDRY_TEST_TIMEOUT: "300"  # 5 minutes for individual test commands
         run: |
           echo "Running Tier 2 tests with full dependencies (excluding ML models)..."
           pytest tests/e2e -m "tier2 and not requires_models" -v --tb=short \

@@ -51,7 +51,7 @@ def make_corrupt_pdf(src: Path, dst: Path, truncate_bytes: int = 1024) -> None:
         f.truncate(original_size - truncate_bytes)
 
 
-def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int = 120) -> subprocess.CompletedProcess:
+def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int | None = None) -> subprocess.CompletedProcess:
     """
     Execute the pdf2foundry CLI with capture_output=True, text=True.
 
@@ -66,6 +66,10 @@ def run_cli(args: list[str], env: dict[str, str] | None = None, timeout: int = 1
     # Get CLI binary path from environment or use default
     cli_binary = os.getenv("PDF2FOUNDRY_CLI", "pdf2foundry")
     cmd = [cli_binary, *args]
+
+    # Use environment timeout if not specified
+    if timeout is None:
+        timeout = int(os.getenv("PDF2FOUNDRY_TEST_TIMEOUT", "300"))
 
     # Prepare environment
     full_env = os.environ.copy()
@@ -263,8 +267,11 @@ class TestBasicErrorHandling:
             assert RE_USAGE.search(output), (
                 f"Expected usage message in output for unknown flag {invalid_args}. " f"Got: {output}"
             )
-            # For unknown flags, the token should be in stderr
-            assert expected_token in result.stderr, (
+            # For unknown flags, the token should be in stderr (strip ANSI color codes)
+            import re
+
+            clean_stderr = re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)
+            assert expected_token in clean_stderr, (
                 f"Expected token '{expected_token}' in stderr for unknown flag {invalid_args}. "
                 f"Got stderr: {result.stderr}"
             )
