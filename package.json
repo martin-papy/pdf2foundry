@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "devDependencies": {
-    "@foundryvtt/foundryvtt-cli": "^2.0.0"
+    "@foundryvtt/foundryvtt-cli": "^3.0.0"
   },
   "scripts": {
     "compile:pack": "npx @foundryvtt/foundryvtt-cli compilePack --input dist/$npm_config_modid/sources/journals --output dist/$npm_config_modid/packs/$npm_config_packname",
