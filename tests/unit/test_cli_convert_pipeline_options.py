@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -10,6 +11,20 @@ import pytest
 from typer.testing import CliRunner
 
 from pdf2foundry.cli import app
+
+
+@pytest.fixture(autouse=True)
+def skip_validation() -> Generator[None, None, None]:
+    """Skip CLI validation for unit tests."""
+    original_value = os.environ.get("PDF2FOUNDRY_SKIP_VALIDATION")
+    os.environ["PDF2FOUNDRY_SKIP_VALIDATION"] = "1"
+    try:
+        yield
+    finally:
+        if original_value is None:
+            os.environ.pop("PDF2FOUNDRY_SKIP_VALIDATION", None)
+        else:
+            os.environ["PDF2FOUNDRY_SKIP_VALIDATION"] = original_value
 
 
 @pytest.fixture

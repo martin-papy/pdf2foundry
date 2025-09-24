@@ -36,6 +36,12 @@ jobs:
       run: |
         npm install
 
+    - name: Install OS dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tesseract-ocr libtesseract-dev poppler-utils
+        tesseract --version
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:

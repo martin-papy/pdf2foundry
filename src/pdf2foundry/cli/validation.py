@@ -19,6 +19,12 @@ def validate_ocr_availability(ocr_mode: str) -> None:
     if ocr_mode != "on":
         return
 
+    # Skip validation in test environments
+    import os
+
+    if os.getenv("PDF2FOUNDRY_SKIP_VALIDATION") == "1":
+        return
+
     try:
         from pdf2foundry.ingest.ocr_engine import TesseractOcrEngine
 
@@ -44,6 +50,12 @@ def validate_foundry_cli_availability(compile_pack: bool) -> None:
         typer.Exit: If pack compilation is required but CLI is not available
     """
     if not compile_pack:
+        return
+
+    # Skip validation in test environments
+    import os
+
+    if os.getenv("PDF2FOUNDRY_SKIP_VALIDATION") == "1":
         return
 
     try:

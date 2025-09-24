@@ -2,6 +2,9 @@
     "folders": [
         {
             "path": "."
+        },
+        {
+            "path": "../pdf2foundry-gui"
         }
     ]
 }
