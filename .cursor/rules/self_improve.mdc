@@ -4,8 +4,6 @@ globs: **/*
 alwaysApply: true
 ---
 
-# Guidelines for continuously improving Cursor rules based on emerging code patterns and best
-
 - **Rule Improvement Triggers:**
   - New code patterns not covered by existing rules
   - Repeated similar implementations across files
@@ -34,7 +32,6 @@ alwaysApply: true
     - Implementation details have changed
 
 - **Example Pattern Recognition:**
-
   ```typescript
   // If you see repeated patterns like:
   const data = await prisma.user.findMany({

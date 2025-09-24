@@ -80,9 +80,9 @@ dev-debug.log
 .taskmaster/
 
 
-# Task files
-tasks.json
-tasks/ 
-
 # Pre-commit debug logs
 .git/precommit-debug.logs
+
+# Task files
+# tasks.json
+# tasks/ 
