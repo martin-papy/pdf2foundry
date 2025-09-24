@@ -1,6 +1,5 @@
 ---
 description: CLI contract for pdf2foundry (Typer) — single-pass ingestion and caching
-globs: src/pdf2foundry/cli.py
 alwaysApply: false
 ---
 # CLI Contract (Typer)
@@ -8,7 +7,9 @@ alwaysApply: false
 - Console script: `pdf2foundry`
 - Package: `pdf2foundry`
 
-## Command: convert
+## Commands
+
+### convert
 
 Usage:
 
@@ -16,36 +17,68 @@ Usage:
 pdf2foundry convert <pdf> [options]
 ```
 
-### Required
+#### Required
 
 - pdf (argument): Path to source PDF file (readable file)
 - --mod-id <string>: Module ID (lowercase, hyphens, unique)
 - --mod-title <string>: Module Title (display name)
 
-### Optional metadata
+#### Optional metadata
 
-- --author <string>
-- --license <string>
-- --pack-name <string> (default: <mod-id>-journals)
+- --author <string>: Author name for module metadata
+- --license <string>: License string for module metadata  
+- --pack-name <string>: Compendium pack name (default: <mod-id>-journals)
 
-### Behavior flags (defaults)
+#### Core behavior flags
 
-- --toc/--no-toc (default: --toc)
-- --tables <auto|image-only> (default: auto)
-- --deterministic-ids/--no-deterministic-ids (default: --deterministic-ids)
-- --out-dir <path> (default: dist)
-- --compile-pack/--no-compile-pack (default: --no-compile-pack)
+- --toc/--no-toc: Generate Table of Contents Journal Entry (default: --toc)
+- --deterministic-ids/--no-deterministic-ids: Use deterministic SHA1-based IDs for stable UUIDs across runs (default: --deterministic-ids)
+- --out-dir <path>: Output directory for generated module (default: dist)
+- --compile-pack/--no-compile-pack: Compile sources to LevelDB pack using Foundry CLI (default: --no-compile-pack)
 
-### Docling JSON cache (single-pass ingestion)
+#### Content processing
 
-- --docling-json <path>: If the file exists and is valid, load the Docling document from JSON; otherwise convert and save to this path.
-- --write-docling-json/--no-write-docling-json: When enabled without --docling-json, convert and write to the default path dist/<mod-id>/sources/docling.json.
-- --fallback-on-json-failure/--no-fallback-on-json-failure: If loading from JSON fails, fall back to conversion (and overwrite when applicable).
+- --tables <auto|structured|image-only>: Table handling mode (default: auto)
+  - `structured`: Always extract table structure
+  - `auto`: Try structured, fallback to image
+  - `image-only`: Always rasterize tables
+- --ocr <auto|on|off>: OCR mode (default: auto)
+  - `auto`: OCR pages with low text coverage
+  - `on`: Always OCR all pages
+  - `off`: Disable OCR
+- --picture-descriptions <on|off>: Generate image captions using VLM (default: off)
+- --vlm-repo-id <string>: Hugging Face VLM repository ID for picture descriptions (e.g., 'microsoft/Florence-2-base')
+
+#### Performance options
+
+- --pages <spec>: Comma-separated list of 1-based page indices and ranges (e.g., '1,3,5-10'). Default: all pages
+- --workers <int>: Number of worker processes for CPU-bound page-level steps (default: 1)
+- --reflow-columns: Experimental multi-column reflow in layout transform (default: off)
+
+#### Docling JSON cache (single-pass ingestion)
+
+- --docling-json <path>: If the file exists and is valid, load the Docling document from JSON; otherwise convert and save to this path
+- --write-docling-json/--no-write-docling-json: When enabled without --docling-json, convert and write to the default path dist/<mod-id>/sources/docling.json (default: off)
+- --fallback-on-json-failure/--no-fallback-on-json-failure: If loading from JSON fails, fall back to conversion (default: off)
+
+#### Debug and testing
+
+- --no-ml: Disable ML features (VLM, advanced OCR). Primarily for CI testing (default: off)
+- --verbose, -v: Increase verbosity (repeatable: -v for info, -vv for debug)
 
 Notes:
 
-- When both --docling-json and --write-docling-json are provided, PATH semantics apply and the write flag is ignored.
-- Deprecated flags --docling-json-load/--docling-json-save are removed and not supported.
+- When both --docling-json and --write-docling-json are provided, PATH semantics apply and the write flag is ignored
+- Deprecated flags --docling-json-load/--docling-json-save are removed and not supported
+- Interactive prompts are provided when required arguments (mod-id, mod-title) are missing
+
+### version
+
+Show version information.
+
+### doctor
+
+Check environment for Docling and docling-core availability. Performs a lightweight probe without processing any PDFs and reports installed versions and whether a minimal DocumentConverter can be constructed.
 
 ## Behavior
 
@@ -79,11 +112,46 @@ Notes:
 # Basic conversion
 pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" --out-dir dist
 
+# Convert with structured tables and OCR
+pdf2foundry convert manual.pdf --mod-id manual --mod-title "Game Manual" \
+    --tables structured --ocr auto
+
+# Enable picture descriptions with VLM
+pdf2foundry convert bestiary.pdf --mod-id bestiary --mod-title "Monster Manual" \
+    --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+
+# Process specific pages with multiple workers
+pdf2foundry convert manual.pdf --mod-id manual --mod-title "Game Manual" \
+    --pages "1,5-10,15" --workers 4
+
 # Convert and cache Docling JSON (path semantics)
-pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" --docling-json dist/adc-v7/sources/docling.json
+pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" \
+    --docling-json dist/adc-v7/sources/docling.json
 
 # Write JSON to default cache path
 pdf2foundry convert book.pdf --mod-id adc-v7 --mod-title "Adventure" --write-docling-json
+
+# Enable experimental multi-column reflow
+pdf2foundry convert academic.pdf --mod-id paper --mod-title "Research Paper" \
+    --reflow-columns
+
+# Verbose debugging output
+pdf2foundry convert book.pdf --mod-id test --mod-title "Test" -vv
+
+# Check environment
+pdf2foundry doctor
+
+# Show version
+pdf2foundry version
 ```
 
-See: [PRD.md](mdc:docs/PRD.md), [architecture_and_flow.md](mdc:docs/architecture_and_flow.md)
+## Validation
+
+- **mod-id**: Must match pattern `^[a-z0-9]+(?:-[a-z0-9]+)*$` (lowercase, dash-separated)
+- **mod-title**: Required, non-empty string
+- **pages**: Must match pattern `^(\d+(-\d+)?)(,\d+(-\d+)?)*$` when provided
+- **workers**: Must be >= 1, typically capped at CPU core count
+- **vlm-repo-id**: Required when picture-descriptions is 'on'
+- **out-dir**: Parent directory must be writable
+
+See: [GUI PRD](mdc:docs/gui-prd.md), [Control Map](mdc:docs/gui-control-map.md), [Form Specs](mdc:docs/gui-form-specs.md)
