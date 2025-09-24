@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Build tooling for pdf2foundry: FoundryVTT CLI as devDependency",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "devDependencies": {
     "@foundryvtt/foundryvtt-cli": "^2.0.0"

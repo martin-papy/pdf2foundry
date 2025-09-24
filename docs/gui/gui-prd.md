@@ -200,9 +200,10 @@ ______________________________________________________________________
 
 ## 10. Next Steps
 
-1. Build wireframes (low-fidelity sketches).
-1. Define mapping of **all CLI flags → GUI controls**.
-1. Implement minimal MVP (drag-drop PDF + Convert + Progress).
-1. Expand to advanced settings and presets.
-1. Add utility features (update check, logs export, report issue).
-1. Package and test on all platforms.
+- Build wireframes (low-fidelity sketches). See: [Simple Wireframes](gui-wireframes.md)
+- Define mapping of **all CLI flags → GUI controls**. See: [Form Specifications](gui-form-specs.md)
+- Define GUI Control Map. See: [Controls Map](gui-control-map.md)
+- Implement minimal MVP (drag-drop PDF + Convert + Progress).
+- Expand to advanced settings and presets.
+- Add utility features (update check, logs export, report issue).
+- Package and test on all platforms.

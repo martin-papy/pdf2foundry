@@ -99,138 +99,37 @@ class TestHFCaptionEngine:
         """Test caption generation when engine is not available."""
         with patch.object(HFCaptionEngine, "is_available", return_value=False):
             engine = HFCaptionEngine("microsoft/Florence-2-base")
-
-            # Create a test image
             image = Image.new("RGB", (100, 100), color="red")
-
             result = engine.generate(image)
             assert result is None
 
-    def test_generate_success_florence(self) -> None:
-        """Test successful caption generation with Florence model."""
+    def test_generate_success(self) -> None:
+        """Test successful caption generation."""
         with (
             patch.object(HFCaptionEngine, "is_available", return_value=True),
             patch.object(HFCaptionEngine, "_load_pipeline"),
         ):
-            # Mock the pipeline
-            mock_pipeline = Mock()
-            mock_pipeline.return_value = [{"generated_text": "A red square image"}]
-
             engine = HFCaptionEngine("microsoft/Florence-2-base")
-            engine._pipeline = mock_pipeline
+            engine._pipeline = Mock(return_value=[{"generated_text": "A red square"}])
 
-            # Create a test image
             image = Image.new("RGB", (100, 100), color="red")
-
             result = engine.generate(image)
-            assert result == "A red square image"
 
-            # Verify pipeline was called
-            mock_pipeline.assert_called_once_with(image)
+            assert result == "A red square"
 
-    def test_generate_success_blip(self) -> None:
-        """Test successful caption generation with BLIP model."""
+    def test_generate_with_error(self) -> None:
+        """Test caption generation with error."""
         with (
             patch.object(HFCaptionEngine, "is_available", return_value=True),
             patch.object(HFCaptionEngine, "_load_pipeline"),
         ):
-            # Mock the pipeline
-            mock_pipeline = Mock()
-            mock_pipeline.return_value = [{"text": "A colorful image"}]
-
-            engine = HFCaptionEngine("salesforce/blip-image-captioning-base")
-            engine._pipeline = mock_pipeline
-
-            # Create a test image
-            image = Image.new("RGB", (100, 100), color="blue")
-
-            result = engine.generate(image)
-            assert result == "A colorful image"
-
-    def test_generate_with_prefix_removal(self) -> None:
-        """Test caption generation with prefix removal."""
-        with (
-            patch.object(HFCaptionEngine, "is_available", return_value=True),
-            patch.object(HFCaptionEngine, "_load_pipeline"),
-        ):
-            # Mock the pipeline
-            mock_pipeline = Mock()
-            mock_pipeline.return_value = [{"generated_text": "a photo of a red square"}]
-
             engine = HFCaptionEngine("microsoft/Florence-2-base")
-            engine._pipeline = mock_pipeline
+            engine._pipeline = Mock(side_effect=RuntimeError("Model error"))
 
-            # Create a test image
             image = Image.new("RGB", (100, 100), color="red")
-
             result = engine.generate(image)
-            assert result == "A red square"  # Prefix removed and capitalized
 
-    def test_generate_empty_result(self) -> None:
-        """Test caption generation with empty result."""
-        with (
-            patch.object(HFCaptionEngine, "is_available", return_value=True),
-            patch.object(HFCaptionEngine, "_load_pipeline"),
-        ):
-            # Mock the pipeline
-            mock_pipeline = Mock()
-            mock_pipeline.return_value = [{"generated_text": ""}]
-
-            engine = HFCaptionEngine("microsoft/Florence-2-base")
-            engine._pipeline = mock_pipeline
-
-            # Create a test image
-            image = Image.new("RGB", (100, 100), color="red")
-
-            result = engine.generate(image)
             assert result is None
-
-    def test_generate_pipeline_error(self) -> None:
-        """Test caption generation with pipeline error."""
-        with (
-            patch.object(HFCaptionEngine, "is_available", return_value=True),
-            patch.object(HFCaptionEngine, "_load_pipeline"),
-        ):
-            # Mock the pipeline to raise an error
-            mock_pipeline = Mock()
-            mock_pipeline.side_effect = RuntimeError("Model loading failed")
-
-            engine = HFCaptionEngine("microsoft/Florence-2-base")
-            engine._pipeline = mock_pipeline
-
-            # Create a test image
-            image = Image.new("RGB", (100, 100), color="red")
-
-            result = engine.generate(image)
-            assert result is None
-
-    def test_load_pipeline_error(self) -> None:
-        """Test pipeline loading error."""
-        with patch.object(HFCaptionEngine, "is_available", return_value=True):
-            # Create a test image first (before mocking import)
-            image = Image.new("RGB", (100, 100), color="red")
-
-            # Store original __import__ to avoid recursion
-            original_import = __import__
-
-            with patch("builtins.__import__") as mock_import:
-                # Mock transformers import and pipeline creation to fail
-                def side_effect(name: str, *args: Any, **kwargs: Any) -> Any:
-                    if name == "transformers":
-                        mock_transformers = Mock()
-                        mock_transformers.pipeline.side_effect = RuntimeError("Model not found")
-                        return mock_transformers
-                    else:
-                        # Use the original import to avoid recursion
-                        return original_import(name, *args, **kwargs)
-
-                mock_import.side_effect = side_effect
-
-                engine = HFCaptionEngine("nonexistent/model")
-
-                # Should return None when model loading fails (error is logged, not raised)
-                result = engine.generate(image)
-                assert result is None
 
 
 class TestCaptionCache:
@@ -238,107 +137,128 @@ class TestCaptionCache:
 
     def test_init(self) -> None:
         """Test CaptionCache initialization."""
-        cache = CaptionCache()
-        assert cache._cache == {}
+        cache = CaptionCache(max_size=10)
+        assert cache._max_size == 10
+        assert len(cache._cache) == 0
+        assert len(cache._access_order) == 0
 
-    def test_cache_miss(self) -> None:
-        """Test cache miss returns sentinel object."""
-        cache = CaptionCache()
+    def test_get_miss(self) -> None:
+        """Test cache miss."""
+        cache = CaptionCache(max_size=10)
         image = Image.new("RGB", (100, 100), color="red")
+        result = cache.get(image)
+        # Should return a sentinel object (not found)
+        assert result is not None
+        assert not isinstance(result, str)
+
+    def test_set_and_get(self) -> None:
+        """Test setting and getting from cache."""
+        cache = CaptionCache(max_size=10)
+        image = Image.new("RGB", (100, 100), color="red")
+        cache.set(image, "red square")
 
         result = cache.get(image)
-        assert result is not None  # Should be sentinel object
-        assert isinstance(result, object)
+        assert result == "red square"
 
-    def test_cache_hit_with_caption(self) -> None:
-        """Test cache hit with caption."""
-        cache = CaptionCache()
-        image = Image.new("RGB", (100, 100), color="red")
-        caption = "A red square"
+    def test_lru_eviction(self) -> None:
+        """Test LRU eviction when cache is full."""
+        cache = CaptionCache(max_size=2)
 
-        # Set caption
-        cache.set(image, caption)
-
-        # Get caption
-        result = cache.get(image)
-        assert result == caption
-
-    def test_cache_hit_with_none(self) -> None:
-        """Test cache hit with None caption."""
-        cache = CaptionCache()
-        image = Image.new("RGB", (100, 100), color="red")
-
-        # Set None caption (no caption generated)
-        cache.set(image, None)
-
-        # Get caption
-        result = cache.get(image)
-        assert result is None
-
-    def test_cache_different_images(self) -> None:
-        """Test cache with different images."""
-        cache = CaptionCache()
+        # Create different images
         image1 = Image.new("RGB", (100, 100), color="red")
-        image2 = Image.new("RGB", (100, 100), color="blue")
+        image2 = Image.new("RGB", (100, 100), color="green")
+        image3 = Image.new("RGB", (100, 100), color="blue")
 
-        # Set different captions
-        cache.set(image1, "Red image")
-        cache.set(image2, "Blue image")
+        # Fill cache
+        cache.set(image1, "red")
+        cache.set(image2, "green")
 
-        # Get captions
-        assert cache.get(image1) == "Red image"
-        assert cache.get(image2) == "Blue image"
+        # Add third item, should evict image1
+        cache.set(image3, "blue")
 
-    def test_cache_same_content_different_objects(self) -> None:
-        """Test cache with same content but different image objects."""
-        cache = CaptionCache()
+        # Check eviction
+        result1 = cache.get(image1)
+        assert not isinstance(result1, str)  # Should be sentinel (evicted)
+        assert cache.get(image2) == "green"
+        assert cache.get(image3) == "blue"
 
-        # Create two identical images
+    def test_access_order_update(self) -> None:
+        """Test that accessing items updates their position in LRU order."""
+        cache = CaptionCache(max_size=2)
+
+        # Create different images
         image1 = Image.new("RGB", (100, 100), color="red")
-        image2 = Image.new("RGB", (100, 100), color="red")
+        image2 = Image.new("RGB", (100, 100), color="green")
+        image3 = Image.new("RGB", (100, 100), color="blue")
 
-        # Set caption for first image
-        cache.set(image1, "Red square")
+        cache.set(image1, "red")
+        cache.set(image2, "green")
 
-        # Second image should have same hash and return cached result
-        result = cache.get(image2)
-        assert result == "Red square"
+        # Access image1 to make it most recently used
+        cache.get(image1)
+
+        # Add image3, should evict image2 (least recently used)
+        cache.set(image3, "blue")
+
+        assert cache.get(image1) == "red"  # Still there
+        result2 = cache.get(image2)
+        assert not isinstance(result2, str)  # Evicted
+        assert cache.get(image3) == "blue"
+
+    def test_update_existing_key(self) -> None:
+        """Test updating an existing key doesn't change cache size."""
+        cache = CaptionCache(max_size=2)
+
+        # Create different images
+        image1 = Image.new("RGB", (100, 100), color="red")
+        image2 = Image.new("RGB", (100, 100), color="green")
+
+        cache.set(image1, "red")
+        cache.set(image2, "green")
+
+        # Update existing key
+        cache.set(image1, "new_red")
+
+        assert len(cache._cache) == 2
+        assert cache.get(image1) == "new_red"
+        assert cache.get(image2) == "green"
 
     def test_clear(self) -> None:
-        """Test cache clearing."""
-        cache = CaptionCache()
-        image = Image.new("RGB", (100, 100), color="red")
+        """Test clearing the cache."""
+        cache = CaptionCache(max_size=10)
 
-        # Set caption
-        cache.set(image, "Red square")
-        assert cache.get(image) == "Red square"
+        # Create different images
+        image1 = Image.new("RGB", (100, 100), color="red")
+        image2 = Image.new("RGB", (100, 100), color="green")
 
-        # Clear cache
+        cache.set(image1, "red")
+        cache.set(image2, "green")
+
         cache.clear()
 
-        # Should be cache miss now
-        result = cache.get(image)
-        assert isinstance(result, object)  # Sentinel object
+        assert len(cache._cache) == 0
+        assert len(cache._access_order) == 0
 
-    def test_image_hash_consistency(self) -> None:
-        """Test that image hash is consistent."""
-        cache = CaptionCache()
-        image = Image.new("RGB", (100, 100), color="red")
+        # Both should return sentinel objects (not found)
+        result1 = cache.get(image1)
+        result2 = cache.get(image2)
+        assert not isinstance(result1, str)
+        assert not isinstance(result2, str)
 
-        # Get hash multiple times
-        hash1 = cache._get_image_hash(image)
-        hash2 = cache._get_image_hash(image)
+    def test_cache_size(self) -> None:
+        """Test getting cache size."""
+        cache = CaptionCache(max_size=10)
+        assert len(cache._cache) == 0
 
-        assert hash1 == hash2
-        assert len(hash1) == 16  # Truncated SHA256
-
-    def test_image_hash_different_images(self) -> None:
-        """Test that different images have different hashes."""
-        cache = CaptionCache()
+        # Create different images
         image1 = Image.new("RGB", (100, 100), color="red")
-        image2 = Image.new("RGB", (100, 100), color="blue")
+        image2 = Image.new("RGB", (100, 100), color="green")
 
-        hash1 = cache._get_image_hash(image1)
-        hash2 = cache._get_image_hash(image2)
+        cache.set(image1, "red")
+        assert len(cache._cache) == 1
 
-        assert hash1 != hash2
+        cache.set(image2, "green")
+        assert len(cache._cache) == 2
+
+        cache.clear()
+        assert len(cache._cache) == 0

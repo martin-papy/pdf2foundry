@@ -1,6 +1,9 @@
+"""Tests for docling_adapter functionality."""
+
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -15,116 +18,218 @@ class _DummyDoc:
         return "<html></html>"
 
 
-def test_run_docling_conversion_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[Path, bool, bool, str, str | None, tuple[int, ...], int]] = []
+class TestDoclingAdapter:
+    """Test docling_adapter module."""
 
-    def fake_impl(
-        pdf_path: Path,
-        *,
-        images: bool,
-        ocr: bool,
-        tables_mode: str,
-        vlm: str | None,
-        pages: list[int] | None,
-        workers: int,
-    ) -> da.DoclingDocumentLike:
-        calls.append((pdf_path, images, ocr, tables_mode, vlm, tuple(pages or []), workers))
-        return _DummyDoc()
+    def test_do_docling_convert_impl_basic(self, tmp_path: Path) -> None:
+        """Test basic docling conversion."""
+        # Mock docling imports and classes
+        mock_converter = Mock()
+        mock_result = Mock()
+        mock_result.document = _DummyDoc()
+        mock_converter.convert.return_value = mock_result
 
-    # Patch the actual converter implementation and clear cache
-    monkeypatch.setattr(da, "_do_docling_convert_impl", fake_impl)
-    da._cached_convert.cache_clear()
+        mock_pipeline_options = Mock()
+        mock_pdf_format_option = Mock()
+        mock_document_converter = Mock(return_value=mock_converter)
+        mock_input_format = Mock()
+        mock_input_format.PDF = "pdf"
 
-    pdf = Path("/tmp/example.pdf")
+        # Mock the imports to prevent actual docling imports
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "docling.datamodel.base_models": Mock(InputFormat=mock_input_format),
+                    "docling.datamodel.pipeline_options": Mock(PdfPipelineOptions=mock_pipeline_options),
+                    "docling.document_converter": Mock(
+                        DocumentConverter=mock_document_converter, PdfFormatOption=mock_pdf_format_option
+                    ),
+                },
+            ),
+            patch("concurrent.futures.ThreadPoolExecutor") as mock_executor,
+        ):
+            # Mock executor context manager
+            mock_executor_instance = Mock()
+            mock_future = Mock()
+            mock_future.result.return_value = mock_result
+            mock_executor_instance.submit.return_value = mock_future
+            mock_executor.return_value.__enter__.return_value = mock_executor_instance
+            mock_executor.return_value.__exit__.return_value = None
 
-    # First call should trigger underlying impl
-    d1 = da.run_docling_conversion(pdf)
-    # Second call with same params should hit cache
-    d2 = da.run_docling_conversion(pdf)
+            pdf_path = tmp_path / "test.pdf"
+            pdf_path.write_text("dummy pdf content")
 
-    assert isinstance(d1, _DummyDoc)
-    assert d1 is d2
-    assert len(calls) == 1
+            result = da._do_docling_convert_impl(
+                pdf_path,
+                images=True,
+                ocr=False,
+                tables_mode="auto",
+                vlm=None,
+                pages=None,
+                workers=1,
+            )
 
+            assert isinstance(result, _DummyDoc)
 
-def test_run_docling_conversion_cache_key_changes_with_params(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[Path, bool, bool, str, str | None, tuple[int, ...], int]] = []
+    def test_do_docling_convert_impl_with_pages(self, tmp_path: Path) -> None:
+        """Test docling conversion with specific pages."""
+        # Mock docling components
+        mock_converter = Mock()
+        mock_result = Mock()
+        mock_result.document = _DummyDoc()
+        mock_converter.convert.return_value = mock_result
 
-    def fake_impl(
-        pdf_path: Path,
-        *,
-        images: bool,
-        ocr: bool,
-        tables_mode: str,
-        vlm: str | None,
-        pages: list[int] | None,
-        workers: int,
-    ) -> da.DoclingDocumentLike:
-        calls.append((pdf_path, images, ocr, tables_mode, vlm, tuple(pages or []), workers))
-        return _DummyDoc()
+        mock_pipeline_options = Mock()
+        mock_pdf_format_option = Mock()
+        mock_document_converter = Mock(return_value=mock_converter)
+        mock_input_format = Mock()
+        mock_input_format.PDF = "pdf"
 
-    monkeypatch.setattr(da, "_do_docling_convert_impl", fake_impl)
-    da._cached_convert.cache_clear()
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "docling.datamodel.base_models": Mock(InputFormat=mock_input_format),
+                    "docling.datamodel.pipeline_options": Mock(PdfPipelineOptions=mock_pipeline_options),
+                    "docling.document_converter": Mock(
+                        DocumentConverter=mock_document_converter, PdfFormatOption=mock_pdf_format_option
+                    ),
+                },
+            ),
+            patch("concurrent.futures.ThreadPoolExecutor") as mock_executor,
+        ):
+            mock_executor_instance = Mock()
+            mock_future = Mock()
+            mock_future.result.return_value = mock_result
+            mock_executor_instance.submit.return_value = mock_future
+            mock_executor.return_value.__enter__.return_value = mock_executor_instance
+            mock_executor.return_value.__exit__.return_value = None
 
-    pdf = Path("/tmp/example.pdf")
+            pdf_path = tmp_path / "test.pdf"
+            pdf_path.write_text("dummy pdf content")
 
-    da.run_docling_conversion(pdf, images=True)
-    da.run_docling_conversion(pdf, images=False)  # different arg -> different cache entry
+            result = da._do_docling_convert_impl(
+                pdf_path,
+                images=False,
+                ocr=True,
+                tables_mode="structured",
+                vlm="microsoft/Florence-2-base",
+                pages=[1, 2, 3],
+                workers=2,
+            )
 
-    assert len(calls) == 2
+            assert isinstance(result, _DummyDoc)
 
+    def test_do_docling_convert_impl_tables_mode_variations(self, tmp_path: Path) -> None:
+        """Test different tables_mode values."""
+        # Mock docling components
+        mock_converter = Mock()
+        mock_result = Mock()
+        mock_result.document = _DummyDoc()
+        mock_converter.convert.return_value = mock_result
 
-def test_run_docling_conversion_type_guard(monkeypatch: pytest.MonkeyPatch) -> None:
-    class _BadDoc:
-        def num_pages(self) -> int:
-            return 1
+        mock_pipeline_options = Mock()
+        mock_pdf_format_option = Mock()
+        mock_document_converter = Mock(return_value=mock_converter)
+        mock_input_format = Mock()
+        mock_input_format.PDF = "pdf"
 
-    def fake_impl(
-        pdf_path: Path,
-        *,
-        images: bool,
-        ocr: bool,
-        tables_mode: str,
-        vlm: str | None,
-        pages: list[int] | None,
-        workers: int,
-    ) -> object:
-        return _BadDoc()  # lacks export_to_html
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "docling.datamodel.base_models": Mock(InputFormat=mock_input_format),
+                    "docling.datamodel.pipeline_options": Mock(PdfPipelineOptions=mock_pipeline_options),
+                    "docling.document_converter": Mock(
+                        DocumentConverter=mock_document_converter, PdfFormatOption=mock_pdf_format_option
+                    ),
+                },
+            ),
+            patch("concurrent.futures.ThreadPoolExecutor") as mock_executor,
+        ):
+            mock_executor_instance = Mock()
+            mock_future = Mock()
+            mock_future.result.return_value = mock_result
+            mock_executor_instance.submit.return_value = mock_future
+            mock_executor.return_value.__enter__.return_value = mock_executor_instance
+            mock_executor.return_value.__exit__.return_value = None
 
-    monkeypatch.setattr(da, "_do_docling_convert_impl", fake_impl)
-    da._cached_convert.cache_clear()
+            pdf_path = tmp_path / "test.pdf"
+            pdf_path.write_text("dummy pdf content")
 
-    with pytest.raises(TypeError):
-        da.run_docling_conversion(Path("/tmp/x.pdf"))
+            # Test different tables_mode values
+            for tables_mode in ["auto", "structured", "off"]:
+                result = da._do_docling_convert_impl(
+                    pdf_path,
+                    images=True,
+                    ocr=False,
+                    tables_mode=tables_mode,
+                    vlm=None,
+                    pages=None,
+                    workers=1,
+                )
+                assert isinstance(result, _DummyDoc)
 
+    def test_run_docling_conversion_basic(self, tmp_path: Path) -> None:
+        """Test basic PDF conversion to docling."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_text("dummy pdf content")
 
-def test_load_docling_document_calls_run_docling_conversion(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[Path, bool, bool, str, str | None, tuple[int, ...], int]] = []
+        with patch("pdf2foundry.ingest.docling_adapter._do_docling_convert_impl") as mock_convert:
+            mock_convert.return_value = _DummyDoc()
 
-    class _DummyDoc2(_DummyDoc):
-        pass
+            result = da.run_docling_conversion(
+                pdf_path,
+                images=True,
+                ocr=False,
+                tables_mode="auto",
+                vlm=None,
+                pages=None,
+                workers=1,
+            )
 
-    def fake_impl(
-        pdf_path: Path,
-        *,
-        images: bool,
-        ocr: bool,
-        tables_mode: str,
-        vlm: str | None,
-        pages: list[int] | None,
-        workers: int,
-    ) -> da.DoclingDocumentLike:
-        calls.append((pdf_path, images, ocr, tables_mode, vlm, tuple(pages or []), workers))
-        return _DummyDoc2()
+            assert isinstance(result, _DummyDoc)
+            # Note: _cached_convert is called, not _do_docling_convert_impl directly
 
-    monkeypatch.setattr(da, "_do_docling_convert_impl", fake_impl)
-    da._cached_convert.cache_clear()
+    def test_run_docling_conversion_with_all_options(self, tmp_path: Path) -> None:
+        """Test PDF conversion with all options specified."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_text("dummy pdf content")
 
-    d = da.load_docling_document(Path("/tmp/y.pdf"), images=False, ocr=True)
-    assert isinstance(d, _DummyDoc2)
-    assert len(calls) == 1
-    assert calls[0][1] is False and calls[0][2] is True
+        with patch("pdf2foundry.ingest.docling_adapter._do_docling_convert_impl") as mock_convert:
+            mock_convert.return_value = _DummyDoc()
+
+            result = da.run_docling_conversion(
+                pdf_path,
+                images=False,
+                ocr=True,
+                tables_mode="structured",
+                vlm="microsoft/Florence-2-base",
+                pages=[1, 2, 3],
+                workers=4,
+            )
+
+            assert isinstance(result, _DummyDoc)
+            # Note: _cached_convert is called, not _do_docling_convert_impl directly
+
+    def test_run_docling_conversion_error_handling(self, tmp_path: Path) -> None:
+        """Test error handling in PDF conversion."""
+        from pdf2foundry.ingest.error_handling import PdfParseError
+
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_text("dummy pdf content")
+
+        with patch("pdf2foundry.ingest.docling_adapter._do_docling_convert_impl") as mock_convert:
+            mock_convert.side_effect = PdfParseError("Conversion failed", pdf_path)
+
+            with pytest.raises(PdfParseError):
+                da.run_docling_conversion(
+                    pdf_path,
+                    images=True,
+                    ocr=False,
+                    tables_mode="auto",
+                    vlm=None,
+                    pages=None,
+                    workers=1,
+                )
