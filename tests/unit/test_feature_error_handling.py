@@ -70,6 +70,8 @@ class TestOcrErrorHandling:
 
     def test_ocr_missing_dependency_on_mode(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test OCR error handling when Tesseract is missing in ON mode."""
+        from pdf2foundry.core.exceptions import FeatureNotAvailableError
+
         mock_doc = Mock()
         mock_engine = Mock()
         mock_engine.is_available.return_value = False
@@ -77,8 +79,8 @@ class TestOcrErrorHandling:
 
         options = PdfPipelineOptions(ocr_mode=OcrMode.ON, text_coverage_threshold=0.0)
 
-        with caplog.at_level(logging.WARNING):  # Capture both WARNING and ERROR
-            result = apply_ocr_to_page(
+        with caplog.at_level(logging.WARNING), pytest.raises(FeatureNotAvailableError) as exc_info:
+            apply_ocr_to_page(
                 mock_doc,
                 "",
                 1,
@@ -87,8 +89,12 @@ class TestOcrErrorHandling:
                 mock_cache,  # Empty HTML to trigger OCR
             )
 
-        assert result == ""  # Original HTML returned
-        assert "OCR error policy: missing_dependency -> continue" in caplog.text
+        # Verify the exception message
+        assert "OCR mode 'on' requires Tesseract but it is not available" in str(exc_info.value)
+        assert "Please install Tesseract or use '--ocr auto'" in str(exc_info.value)
+
+        # Verify error policy logging
+        assert "OCR error policy: missing_dependency -> fail" in caplog.text
         assert "OCR mode 'on' but Tesseract not available" in caplog.text
 
     def test_ocr_missing_dependency_auto_mode(self, caplog: pytest.LogCaptureFixture) -> None:

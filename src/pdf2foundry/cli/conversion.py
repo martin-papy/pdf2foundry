@@ -50,15 +50,12 @@ def run_conversion_pipeline(
         return
 
     try:  # pragma: no cover - exercised via integration
+        # Define paths but don't create directories yet - wait until after PDF validation
         module_dir = out_dir / mod_id
         journals_src_dir = module_dir / "sources" / "journals"
         assets_dir = module_dir / "assets"
         styles_dir = module_dir / "styles"
         packs_dir = module_dir / "packs" / pack_name
-        journals_src_dir.mkdir(parents=True, exist_ok=True)
-        assets_dir.mkdir(parents=True, exist_ok=True)
-        styles_dir.mkdir(parents=True, exist_ok=True)
-        packs_dir.mkdir(parents=True, exist_ok=True)
 
         # Use rich progress UI for end-user feedback
         with ProgressReporter() as pr:
@@ -78,58 +75,73 @@ def run_conversion_pipeline(
                 ),
             )
 
+            # First, validate the PDF and perform ingestion - this can fail early
             dl_doc = ingest_docling(pdf, json_opts=json_opts, on_progress=_emit)
 
-            # Parse structure from the existing Docling doc
-            parsed_doc = parse_structure_from_doc(dl_doc, on_progress=_emit)
+            # Only create output directories after successful PDF ingestion
+            journals_src_dir.mkdir(parents=True, exist_ok=True)
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            styles_dir.mkdir(parents=True, exist_ok=True)
+            packs_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create pipeline options from CLI arguments
-            pipeline_options = PdfPipelineOptions.from_cli(
-                tables=tables,
-                ocr=ocr,
-                picture_descriptions=picture_descriptions,
-                vlm_repo_id=vlm_repo_id,
-                pages=pages,
-                workers=workers,
-                reflow_columns=reflow_columns,
-            )
+            try:
+                # Parse structure from the existing Docling doc
+                parsed_doc = parse_structure_from_doc(dl_doc, on_progress=_emit)
 
-            # Detect backend capabilities and resolve effective workers
-            from pdf2foundry.backend.caps import (
-                detect_backend_capabilities,
-                log_worker_resolution,
-                resolve_effective_workers,
-            )
+                # Create pipeline options from CLI arguments
+                pipeline_options = PdfPipelineOptions.from_cli(
+                    tables=tables,
+                    ocr=ocr,
+                    picture_descriptions=picture_descriptions,
+                    vlm_repo_id=vlm_repo_id,
+                    pages=pages,
+                    workers=workers,
+                    reflow_columns=reflow_columns,
+                )
 
-            capabilities = detect_backend_capabilities()
-            total_pages = getattr(dl_doc, "page_count", None) if hasattr(dl_doc, "page_count") else None
-            pages_to_process = len(pages) if pages else total_pages
+                # Detect backend capabilities and resolve effective workers
+                from pdf2foundry.backend.caps import (
+                    detect_backend_capabilities,
+                    log_worker_resolution,
+                    resolve_effective_workers,
+                )
 
-            effective_workers, reasons = resolve_effective_workers(
-                requested=pipeline_options.workers,
-                capabilities=capabilities,
-                total_pages=pages_to_process,
-            )
+                capabilities = detect_backend_capabilities()
+                total_pages = getattr(dl_doc, "page_count", None) if hasattr(dl_doc, "page_count") else None
+                pages_to_process = len(pages) if pages else total_pages
 
-            # Update pipeline options with effective workers
-            pipeline_options.workers_effective = effective_workers
+                effective_workers, reasons = resolve_effective_workers(
+                    requested=pipeline_options.workers,
+                    capabilities=capabilities,
+                    total_pages=pages_to_process,
+                )
 
-            # Log worker resolution
-            log_worker_resolution(
-                requested=pipeline_options.workers,
-                effective=effective_workers,
-                reasons=reasons,
-                capabilities=capabilities,
-                pages_to_process=pages_to_process,
-            )
+                # Update pipeline options with effective workers
+                pipeline_options.workers_effective = effective_workers
 
-            # Extract semantic content (HTML + images/tables/links)
-            content = extract_semantic_content(
-                dl_doc,
-                out_assets=assets_dir,
-                options=pipeline_options,
-                on_progress=_emit,
-            )
+                # Log worker resolution
+                log_worker_resolution(
+                    requested=pipeline_options.workers,
+                    effective=effective_workers,
+                    reasons=reasons,
+                    capabilities=capabilities,
+                    pages_to_process=pages_to_process,
+                )
+
+                # Extract semantic content (HTML + images/tables/links)
+                content = extract_semantic_content(
+                    dl_doc,
+                    out_assets=assets_dir,
+                    options=pipeline_options,
+                    on_progress=_emit,
+                )
+            except Exception:
+                # If any processing step fails after directories are created, clean them up
+                import shutil
+
+                if module_dir.exists():
+                    shutil.rmtree(module_dir, ignore_errors=True)
+                raise
 
             # Build IR
             ir = build_document_ir(
@@ -177,8 +189,15 @@ def run_conversion_pipeline(
         typer.echo(f"\n❌ ERROR: DL-PDF001: Docling library not available: {exc}")
         raise typer.Exit(1) from exc
     except Exception as exc:  # pragma: no cover - unexpected runtime errors
-        typer.echo(f"\n❌ ERROR: Conversion failed: {exc}")
-        raise typer.Exit(1) from exc
+        # Check if this is a FeatureNotAvailableError for better error messages
+        from pdf2foundry.core.exceptions import FeatureNotAvailableError
+
+        if isinstance(exc, FeatureNotAvailableError):
+            typer.echo(f"\n❌ ERROR: {exc}")
+            raise typer.Exit(1) from exc
+        else:
+            typer.echo(f"\n❌ ERROR: Conversion failed: {exc}")
+            raise typer.Exit(1) from exc
 
 
 def _slugify(text: str) -> str:

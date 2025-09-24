@@ -26,7 +26,14 @@ def test_compile_pack_invokes_npx(monkeypatch: Any, tmp_path: Path) -> None:
 
     called: dict[str, Any] = {}
 
-    def fake_run(cmd: list[str], capture_output: bool, text: bool, check: bool, cwd: Path | None = None) -> Any:
+    def fake_run(
+        cmd: list[str],
+        capture_output: bool,
+        text: bool,
+        check: bool,
+        cwd: Path | None = None,
+        timeout: int | None = None,
+    ) -> Any:
         called["cmd"] = cmd
         # Read the script the packaging wrote to disk for assertions
         try:
@@ -180,7 +187,14 @@ def test_compile_pack_uses_resolved_cli_path(monkeypatch: Any, tmp_path: Path) -
 
     called: dict[str, Any] = {}
 
-    def fake_run(cmd: list[str], capture_output: bool, text: bool, check: bool, cwd: Path | None = None) -> Any:
+    def fake_run(
+        cmd: list[str],
+        capture_output: bool,
+        text: bool,
+        check: bool,
+        cwd: Path | None = None,
+        timeout: int | None = None,
+    ) -> Any:
         called["cmd"] = cmd
         called["cwd"] = cwd
         # Read the script content

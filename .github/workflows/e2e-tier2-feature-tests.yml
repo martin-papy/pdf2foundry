@@ -42,6 +42,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Foundry CLI
+        run: |
+          npm install -g @foundryvtt/foundryvtt-cli
           
       - name: Install OS dependencies
         run: |
@@ -66,7 +76,11 @@ jobs:
         run: |
           echo "=== Tier 2 Environment ==="
           python --version
+          node --version
+          npm --version
           tesseract --version
+          echo "=== Foundry CLI ==="
+          npx @foundryvtt/foundryvtt-cli --version || echo "Foundry CLI version check failed"
           echo "=== Disk Usage ==="
           df -h
           echo "=== Python Packages (Full) ==="

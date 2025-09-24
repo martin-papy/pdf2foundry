@@ -90,14 +90,24 @@ def apply_ocr_to_page(
     # Check if OCR engine is available
     if not ocr_engine.is_available():
         if options.ocr_mode.value == "on":
+            # When OCR is explicitly requested, fail hard if Tesseract is not available
             error_mgr.error_policy(
                 "OCR",
                 "missing_dependency",
-                "continue",
+                "fail",
                 details="OCR mode 'on' but Tesseract not available",
                 event_code="DL-OCR001",
             )
+            # Import and raise the appropriate exception
+            from pdf2foundry.core.exceptions import FeatureNotAvailableError
+
+            raise FeatureNotAvailableError(
+                "OCR mode 'on' requires Tesseract but it is not available. "
+                "Please install Tesseract or use '--ocr auto' to allow graceful degradation.",
+                feature="OCR",
+            )
         else:
+            # For auto mode, gracefully degrade with a warning
             error_mgr.error_policy(
                 "OCR",
                 "missing_dependency",

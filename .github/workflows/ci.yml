@@ -26,6 +26,16 @@ jobs:
       with:
         python-version: "3.12"
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+        cache: "npm"
+
+    - name: Install Foundry CLI
+      run: |
+        npm install -g @foundryvtt/foundryvtt-cli
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:

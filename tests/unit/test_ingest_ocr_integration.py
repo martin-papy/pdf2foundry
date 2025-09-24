@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 from pdf2foundry.ingest.content_extractor import extract_semantic_content
 from pdf2foundry.ingest.ocr_engine import OcrResult
 from pdf2foundry.ingest.ocr_processor import _merge_ocr_results, _rasterize_page, apply_ocr_to_page
@@ -56,6 +58,8 @@ class TestApplyOcrToPage:
 
     def test_ocr_needed_but_engine_unavailable_on_mode(self) -> None:
         """Test OCR needed but engine unavailable in ON mode."""
+        from pdf2foundry.core.exceptions import FeatureNotAvailableError
+
         doc = Mock()
         html = "<img src='test.png'>"
         options = PdfPipelineOptions(ocr_mode=OcrMode.ON)
@@ -63,14 +67,16 @@ class TestApplyOcrToPage:
         engine.is_available.return_value = False
         cache = Mock()
 
-        # Now we use structured error handling, so we need to check for the structured log messages
-        with patch("pdf2foundry.ingest.error_handling.log_error_policy") as mock_log_policy:
-            result = apply_ocr_to_page(doc, html, 1, options, engine, cache)
+        # In ON mode, should raise FeatureNotAvailableError when engine is unavailable
+        with pytest.raises(FeatureNotAvailableError) as exc_info:
+            apply_ocr_to_page(doc, html, 1, options, engine, cache)
 
-            assert result == html
-            engine.is_available.assert_called_once()
-            # Should log error policy in ON mode
-            mock_log_policy.assert_called()
+        # Verify the exception message
+        assert "OCR mode 'on' requires Tesseract but it is not available" in str(exc_info.value)
+        assert "Please install Tesseract or use '--ocr auto'" in str(exc_info.value)
+
+        # Verify engine availability was checked
+        engine.is_available.assert_called_once()
 
     def test_ocr_needed_but_engine_unavailable_auto_mode(self) -> None:
         """Test OCR needed but engine unavailable in AUTO mode."""

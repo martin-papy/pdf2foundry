@@ -202,11 +202,14 @@ def tmp_out_dir_factory(tmp_path: Path) -> Any:
     return create_out_dir
 
 
+@pytest.mark.e2e
+@pytest.mark.integration
+@pytest.mark.tier2
+@pytest.mark.ci_safe
+@pytest.mark.cache
 class TestE2E007Caching:
     """Test caching functionality and performance improvements."""
 
-    @pytest.mark.tier2
-    @pytest.mark.cache
     def test_comprehensive_caching_workflow(
         self, stable_input_pdf: Path, persistent_cache_dir: Path, tmp_out_dir_factory: Any
     ) -> None:
