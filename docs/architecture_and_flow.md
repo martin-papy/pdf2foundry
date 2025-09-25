@@ -1,208 +1,310 @@
-# High-level system design
+# PDF2Foundry Architecture & Flow
 
-1. **Inputs**
+## System Requirements
 
-   - One PDF (born-digital, selectable text).
-   - Optional CLI flags (see below).
+PDF2Foundry requires the following system dependencies:
 
-1. **Outputs**
+- **Python 3.12+**: Core runtime environment
+- **Node.js 24+**: Required for Foundry CLI pack compilation
+- **Tesseract OCR**: Required for OCR functionality
+- **Internet Connection**: For downloading ML models on first use (~1GB)
 
-   - An **installable module folder** containing:
+## High-level System Design
 
-     - `module.json` (declares a **Journal** compendium pack; no dependency needed for v13 folders).
-     - `assets/` (images extracted from the PDF, unchanged).
-     - `styles/pdf2foundry.css` (scoped, non-conflicting CSS).
-     - `sources/journals/*.json` (source JSON for Journal Entries).
-     - `packs/<pack-name>/` (LevelDB pack produced by compile step).
+### **Inputs**
 
-   - Optional: a “TOC” Journal Entry with clickable `@UUID[...]` links.
+- One PDF (born-digital, selectable text)
+- CLI configuration options
+- Optional cached Docling JSON for faster re-runs
 
-1. **Core Foundry facts used**
+### **Outputs**
 
-   - Journal Page **HTML format** is supported in v13 via `JOURNAL_ENTRY_PAGE_FORMATS.HTML`.
-   - Journals & Pages are proper Documents; we can rely on UUID linking (`@UUID[...]`) and the journal/page document models. ([Foundry Virtual Tabletop][2], [Foundry VTT Wiki][3])
-   - Since v11, compendium packs are **LevelDB directories**; build packs using the **official packaging flow** (Module Maker or CLI). ([Foundry Virtual Tabletop][4])
-   - v13 supports native **folders inside packs**; no external dependency required.
+- **Complete Foundry VTT v13 Module** containing:
+  - `module.json` (v13-compatible module manifest)
+  - `assets/` (extracted images at original quality)
+  - `styles/pdf2foundry.css` (scoped, non-conflicting CSS)
+  - `sources/journals/*.json` (Journal Entry source files)
+  - `sources/docling.json` (optional cached document)
+  - `packs/<pack-name>/` (compiled LevelDB pack)
+- **Optional TOC**: Table of Contents Journal Entry with `@UUID[...]` navigation links
+
+### **Core Foundry VTT Integration**
+
+- **Journal Page HTML Format**: Supported in v13 via `JOURNAL_ENTRY_PAGE_FORMATS.HTML`
+- **Document Model**: Journals & Pages are proper Documents with UUID linking (`@UUID[...]`) support
+- **LevelDB Packs**: Since v11, compendium packs use LevelDB directories with official packaging flow
+- **Native Folders**: v13 supports native folders inside packs (no external dependencies required)
 
 ______________________________________________________________________
 
-## CLI UX (first pass)
+## CLI Interface
+
+The actual CLI follows a subcommand structure with `convert` as the primary command:
 
 ```bash
-pdf2foundry \
-  --pdf "My Book.pdf" \
-  --mod-id "pdf2foundry-my-book" \
+pdf2foundry convert "My Book.pdf" \
+  --mod-id "my-book" \
   --mod-title "My Book (PDF Import)" \
   --author "ACME" \
   --license "OGL" \
   --pack-name "my-book-journals" \
-  --root-folder "My Book" \
-  --toc yes \
-  --tables auto \            # auto | image-only
-  --images-dir assets \
-  --out-dir ./dist \
-  --deterministic-ids yes
+  --toc \
+  --tables auto \
+  --ocr auto \
+  --picture-descriptions off \
+  --vlm-repo-id "Salesforce/blip-image-captioning-base" \
+  --deterministic-ids \
+  --out-dir dist \
+  --compile-pack \
+  --docling-json cache.json \
+  --write-docling-json \
+  --fallback-on-json-failure \
+  --pages "1-50" \
+  --workers 4 \
+  --reflow-columns \
+  --no-ml \
+  --verbose
 ```
 
-Defaults aim for “happy path”; flags keep room for future growth.
+**Key CLI Features:**
+
+- **Subcommand structure**: `pdf2foundry convert <pdf> [options]`
+- **Required arguments**: PDF file path, `--mod-id`, `--mod-title`
+- **Smart defaults**: TOC enabled, auto table processing, deterministic IDs
+- **Advanced features**: OCR, ML-powered image descriptions, multi-worker processing
+- **Caching system**: Single-pass ingestion with JSON caching for faster re-runs
 
 ______________________________________________________________________
 
-## Processing pipeline
+## Processing Pipeline
 
-### Module size and boundaries
+The conversion follows a **single-pass architecture** with these main stages:
 
-- Keep each Python module focused; avoid files larger than ~500 lines.
-- If a file approaches the limit, split into cohesive submodules under the same package (e.g., `parser/outline.py`, `parser/content.py`, `parser/images.py`).
-- Prefer narrow, typed protocols and dataclasses at boundaries to keep modules decoupled.
-- Enforced by pre-commit hook `scripts/check_file_length.py` and CI.
+### 1. **PDF Ingestion & Caching**
 
-1. **Parse PDF → logical tree**
+- **Docling Integration**: Uses Docling's DocumentConverter for unified PDF processing
+- **Caching System**: Optional JSON caching (`--docling-json`) for faster re-runs
+- **Page Selection**: Support for processing specific pages (`--pages "1-50"`)
+- **Multi-worker Processing**: Parallel processing for CPU-intensive operations
 
-   - Library: **Docling** for extracting structured HTML, images, tables, links, and headings/bookmarks (primary driver for chapters).
-   - When bookmarks are absent, rely on Docling's heading detection to derive sections.
-   - Multi-column pages: **flatten** into linear order (your preference).
-   - Output: an in-memory tree: `Book → Chapters → Sections (with flow blocks, images, links, table candidates)`.
+### 2. **Structure Parsing**
 
-1. **Tables**
+- **Bookmark Extraction**: Primary method for chapter/section detection
+- **Heading Heuristics**: Fallback when bookmarks are missing or incomplete
+- **Document Tree**: Build logical hierarchy: `Book → Chapters → Sections`
 
-   - Use Docling's table recognition to produce real `<table>` HTML when available.
-   - If low confidence or absent: rasterize that region to an image and embed.
+### 3. **Content Extraction** (Per Page, Parallelizable)
 
-1. **Images**
+- **HTML Export**: Docling generates semantic HTML with proper structure
+- **Layout Transformation**: Optional multi-column reflow (`--reflow-columns`)
+- **Image Processing**: Extract images to `assets/` directory with original quality
+- **Table Processing**: Three modes:
+  - `structured`: Always extract semantic table structure
+  - `auto`: Try structured, fallback to image if needed
+  - `image-only`: Always rasterize tables as images
+- **OCR Processing**: Tesseract integration with intelligent triggering:
+  - `auto`: OCR pages with low text coverage
+  - `on`: Always apply OCR
+  - `off`: Disable OCR completely
+- **Link Detection**: Extract internal and external link references
 
-   - Extract **as-is** (original resolution/format) into `assets/`.
-   - Track mapping `pdfObjectId → moduleRelativePath`.
+### 4. **AI-Powered Enhancements** (Optional)
 
-1. **HTML page generation**
+- **Image Descriptions**: Vision-Language Model captions (`--picture-descriptions on`)
+- **Default VLM**: `Salesforce/blip-image-captioning-base` (~1GB)
+- **ML Disable**: `--no-ml` flag for CI environments or faster processing
 
-   - Build clean, semantic HTML (h1–h4, p, ul/ol, table, figure/figcaption, img, code/pre where relevant).
-   - Add **anchor ids** for section headings to aid intra-entry linking.
-   - Keep markup within Foundry’s supported **HTML page format**; avoid script; keep CSS minimal & **scoped** under a wrapper like `<div class="pdf2foundry">…</div>`. ([Foundry Virtual Tabletop][1])
+### 5. **Intermediate Representation (IR)**
 
-1. **Internal link resolution**
+- Build unified document model from parsed structure and extracted content
+- Resolve cross-references and internal links
+- Apply deterministic ID generation: `sha1(<mod-id>|<chapter-path>|<section-path>)[:16]`
 
-   - **Real PDF link annotations**: map target page/rect to owning Chapter/Section → build `@UUID[JournalEntry.<E>.JournalEntryPage.<P>]{label}`.
-   - **Plain-text cross-refs** (“see Chapter 3”, “§2.4”): regex pass to resolve to known sections when unambiguous; otherwise leave plain text.
-   - External links: normal `<a href="...">`.
+### 6. **Foundry Mapping**
 
-1. **Deterministic IDs**
+- **Journal Entries**: One per chapter
+- **Journal Pages**: One per section (`type: "text"`, `text.format: 1` for HTML)
+- **UUID Links**: Generate stable `@UUID[JournalEntry.<E>.JournalEntryPage.<P>]` references
+- **Folder Structure**: Native v13 compendium folder support
 
-   - `_id = sha1(<mod-id>|<chapter-key>|<section-key>)[:16]` for JournalEntries and JournalPages.
-   - This ensures **stable UUIDs across re-runs** so links don’t break. (Foundry’s runtime will form document UUIDs that include these IDs.) ([Foundry VTT Wiki][3])
+### 7. **Output Generation**
 
-1. **Foundry source JSON modeling (per Journal Entry)**
+- **Module Manifest**: Generate `module.json` with proper v13 compatibility
+- **Source Files**: Write individual JSON files per Journal Entry
+- **Assets**: Copy extracted images with proper references
+- **Styles**: Generate scoped CSS (`pdf2foundry.css`)
+- **TOC Generation**: Optional Table of Contents with clickable navigation
 
-   - One **Journal Entry = one Chapter**.
+### 8. **Pack Compilation** (Optional)
 
-   - Each **Section = one Journal Page** (`type: "text"`, `text.format: "html"`; page `name`, `sort`, `image?` if needed).
+- **Foundry CLI Integration**: Use official `@foundryvtt/foundryvtt-cli` for LevelDB compilation
+- **Node.js Requirement**: Requires Node.js 24+ for Foundry CLI
+- **Automatic Compilation**: `--compile-pack` flag for immediate pack generation
 
-   - Optional **folders inside pack**: flags may be included for compatibility; v13 reads native folders.
+### **Architecture Principles**
 
-   - Example (trimmed):
-
-     ```json
-     {
-       "_id": "a1b2c3d4e5f6a7b8",
-       "name": "Chapter 1 — Introduction",
-       "pages": [
-         {
-           "_id": "p111222333444555",
-           "name": "Overview",
-           "type": "text",
-           "text": { "format": 1, "content": "<div class='pdf2foundry'><h2>…</h2>…</div>" },
-           "sort": 100
-         }
-       ]
-     }
-     ```
-
-     Where `text.format: 1` corresponds to **HTML** in v13.
-
-1. **TOC generation (optional)**
-
-   - Create a “Table of Contents” Journal Entry with a page of links like:
-     `@UUID[JournalEntry.<ch-id>.JournalEntryPage.<sec-id>]{Chapter 1: Overview}`.
-   - Users can click through directly in Foundry. ([Foundry Virtual Tabletop][7])
-
-1. **Packaging → installable compendium**
-
-   - Create module skeleton:
-
-     ```text
-     module.json
-     packs/<pack-name>/      # LevelDB output (after compile)
-     sources/journals/*.json # our entry sources
-     assets/...
-     styles/pdf2foundry.css
-     ```
-
-   - `module.json` essentials:
-
-     - `id`, `title`, `version`, `compatibility` (v13+), `authors`, `packs` (type: `"JournalEntry"`). ([Foundry Virtual Tabletop][8])
-
-   - **Compile packs** from `sources/` to `packs/` using the **official packaging route** (recommended since v11). You can do this via the **Module Maker UI** or its CLI-equivalent flow; either way, the result is a proper **LevelDB pack**. ([Foundry Virtual Tabletop][9])
+- **Single-Pass Processing**: Each PDF processed exactly once with optional caching
+- **Modular Design**: Clean separation between ingestion, processing, and output
+- **Error Resilience**: Graceful degradation when features fail
+- **Performance Optimization**: Multi-worker support and intelligent feature detection
 
 ______________________________________________________________________
 
-## Directory layout (result)
+## Output Directory Structure
+
+PDF2Foundry generates a complete Foundry VTT module with the following structure:
 
 ```text
-dist/
-  pdf2foundry-my-book/
-    module.json
-    assets/
-      img_0001.png
-      ...
-    styles/
-      pdf2foundry.css
-    sources/
-      journals/
-        ch01.json
-        ch02.json
-        toc.json
-    packs/
-      my-book-journals/   # LevelDB pack after compile
+<out-dir>/<mod-id>/
+├── module.json                 # Module manifest with v13 compatibility
+├── assets/                     # Extracted images and media
+│   ├── image_001.png          # Original quality images
+│   ├── image_002.jpg
+│   └── ...
+├── styles/
+│   └── pdf2foundry.css        # Scoped module styles
+├── sources/
+│   ├── journals/              # Journal Entry source files
+│   │   ├── chapter_001.json   # One file per chapter
+│   │   ├── chapter_002.json
+│   │   ├── toc.json           # Table of Contents (optional)
+│   │   └── ...
+│   └── docling.json          # Cached Docling document (optional)
+└── packs/
+    └── <pack-name>/          # Compiled LevelDB pack (optional)
+        ├── 000001.ldb        # LevelDB files
+        ├── 000002.ldb
+        └── MANIFEST-000001
 ```
 
-______________________________________________________________________
+### **Key Components:**
 
-## Error handling & reporting
+- **`module.json`**: Foundry v13 module manifest with proper compatibility declarations
+- **`assets/`**: Original resolution images extracted from PDF
+- **`sources/journals/`**: Individual JSON files for each Journal Entry (chapter)
+- **`sources/docling.json`**: Optional cached Docling document for faster re-runs
+- **`packs/<pack-name>/`**: Compiled LevelDB compendium (requires Node.js 24+ and Foundry CLI)
+- **`styles/pdf2foundry.css`**: Scoped CSS to avoid conflicts with other modules
 
-- **Missing bookmarks / ambiguous structure** → fall back to heading heuristic; log a summary report (chapters/sections detected, unresolved refs).
-- **Table extraction fails** → image fallback, with a note in the report.
-- **Broken internal reference** → leave as plain text and note in the report.
-- **Images** → if extraction fails for any object, rasterize the region from the page as a last resort.
+### **Module Structure:**
 
-______________________________________________________________________
-
-## Validation checklist (done post-build in a v13 world)
-
-1. Install the module; verify the **Journal pack** appears and imports. ([Foundry Virtual Tabletop][8])
-1. Open a few pages: confirm **HTML rendering** and assets load.
-1. Click TOC links: confirm **UUID navigation** to pages. ([Foundry Virtual Tabletop][7])
-1. v13 native pack folders present as expected.
+- **One Chapter** → **One Journal Entry** (with multiple pages)
+- **One Section** → **One Journal Entry Page** (`type: "text"`, HTML format)
+- **Deterministic IDs**: SHA1-based stable UUIDs for reliable cross-references
+- **Native v13 Folders**: Built-in compendium folder support (no external dependencies)
 
 ______________________________________________________________________
 
-## What’s next (implementation order)
+## Error Handling & Resilience
 
-1. Minimal parser (bookmarks → chapters; sections by heading heuristic) + HTML generator + image export.
-1. JSON emit for Journal Entries/Pages + **deterministic IDs** + TOC.
-1. Packaging step (compile pack) and runtime verification in v13.
-1. Refine table extraction (Docling options) + internal link mapping (annotations + regex).
-1. Optional polish: scoped CSS, edge-case heuristics, CLI ergonomics.
+PDF2Foundry implements comprehensive error handling with graceful degradation:
+
+### **Structure Detection Fallbacks**
+
+- **Missing bookmarks**: Automatically fall back to heading-based heuristics
+- **Ambiguous structure**: Use intelligent section detection with logging
+- **Empty documents**: Handle edge cases with appropriate user feedback
+
+### **Content Processing Resilience**
+
+- **Table extraction failures**: Automatic fallback to image rasterization
+- **Image extraction errors**: Graceful handling with placeholder generation
+- **OCR failures**: Continue processing without OCR when Tesseract unavailable
+- **ML model failures**: Disable AI features gracefully with `--no-ml` fallback
+
+### **System Dependency Handling**
+
+- **Missing Tesseract**: OCR features automatically disabled with warnings
+- **Missing Node.js/Foundry CLI**: Pack compilation skipped with clear messaging
+- **Insufficient memory**: Multi-worker processing scales down automatically
+
+### **Validation & Recovery**
+
+- **JSON cache corruption**: Automatic fallback to fresh conversion
+- **Invalid PDF files**: Early detection with clear error messages
+- **Permission errors**: Directory creation failures handled gracefully
+- **Network issues**: ML model downloads with retry logic and offline fallbacks
+
+### **Logging & Diagnostics**
+
+- **Verbose modes**: `-v` for info, `-vv` for debug output
+- **Progress reporting**: Real-time feedback during long operations
+- **Doctor command**: `pdf2foundry doctor` for environment diagnostics
+- **Feature detection**: Automatic capability detection and reporting
 
 ______________________________________________________________________
 
-If this matches your expectations, I’ll draft the **Journal Entry/Page JSON schema** we’ll emit (field-by-field, v13-safe), plus a **sample `module.json`** and the exact **build command(s)** we’ll run from the CLI.
+## Testing & Validation
 
-<!-- v13 API deep links can be added when stabilized -->
+PDF2Foundry includes comprehensive testing infrastructure:
 
-[1]: https://foundryvtt.com/ "Foundry Virtual Tabletop"
-[2]: https://foundryvtt.com/ "Foundry Virtual Tabletop"
-[3]: https://foundryvtt.wiki/en/development/api/document?utm_source=chatgpt.com "Document | Foundry VTT Community Wiki"
-[4]: https://foundryvtt.com/article/v11-leveldb-packs/?utm_source=chatgpt.com "Version 11 Content Packaging Changes - Foundry Virtual Tabletop"
-[7]: https://foundryvtt.com/article/journal/?utm_source=chatgpt.com "Journal Entries - Foundry Virtual Tabletop"
-[8]: https://foundryvtt.com/article/compendium/?utm_source=chatgpt.com "Compendium Packs - Foundry Virtual Tabletop"
-[9]: https://foundryvtt.com/article/packaging-guide/?utm_source=chatgpt.com "Content Packaging Guide - Foundry Virtual Tabletop"
+### **Automated Testing**
+
+- **Unit Tests**: Core functionality with 90%+ coverage requirement
+- **E2E Tests**: End-to-end conversion testing with real PDFs
+- **Performance Tests**: Regression detection with configurable thresholds
+- **ML Tests**: Conditional testing for AI features when models are cached
+
+### **Quality Gates**
+
+- **Pre-commit Hooks**: Ruff, Black, MyPy (strict mode), pytest
+- **CI/CD Pipeline**: Cross-platform testing (Ubuntu, Windows, macOS)
+- **Tier-based Testing**: Core, feature, and ML test separation
+- **Performance Monitoring**: Automated baseline management
+
+### **Manual Validation Checklist**
+
+1. **Module Installation**: Verify module appears in Foundry and imports correctly
+1. **Content Rendering**: Confirm HTML rendering and asset loading in Journal pages
+1. **Navigation**: Test TOC links and UUID-based page navigation
+1. **Folder Structure**: Verify v13 native compendium folder organization
+1. **Cross-references**: Validate internal links and deterministic ID stability
+
+### **System Requirements Validation**
+
+- **Python 3.12+**: Version compatibility testing
+- **Node.js 24+**: Foundry CLI integration testing
+- **Tesseract OCR**: OCR functionality validation
+- **System Dependencies**: Comprehensive environment checking via `pdf2foundry doctor`
+
+______________________________________________________________________
+
+## Current Implementation Status
+
+**✅ Completed Features:**
+
+- Complete CLI interface with all documented options
+- Single-pass Docling integration with caching
+- Multi-worker parallel processing
+- OCR integration with Tesseract
+- AI-powered image descriptions with VLM support
+- Deterministic ID generation for stable cross-references
+- Foundry v13 module generation with native folder support
+- LevelDB pack compilation via Foundry CLI
+- Comprehensive error handling and graceful degradation
+- Full test suite with E2E validation
+
+**🔧 Architecture Highlights:**
+
+- **Modular Design**: Clean separation between ingestion, processing, and output
+- **Performance Optimized**: Intelligent caching and parallel processing
+- **Production Ready**: Comprehensive testing and CI/CD pipeline
+- **User Friendly**: Rich progress reporting and interactive prompts
+
+______________________________________________________________________
+
+## Additional Resources
+
+For detailed implementation examples and schemas, see:
+
+- **[Product Requirements](docs/PRD.md)**: Complete feature specification
+- **[Development Guidelines](docs/development.md)**: Development setup and workflow
+- **[Performance Guide](docs/performance.md)**: Optimization strategies and benchmarks
+
+## Foundry VTT References
+
+- [Foundry Virtual Tabletop](https://foundryvtt.com/) - Official Foundry VTT website
+- [Foundry VTT Community Wiki](https://foundryvtt.wiki/) - Community documentation
+- [Journal Entries Guide](https://foundryvtt.com/article/journal/) - Official journal documentation
+- [Compendium Packs Guide](https://foundryvtt.com/article/compendium/) - Official compendium documentation
+- [Content Packaging Guide](https://foundryvtt.com/article/packaging-guide/) - Official packaging documentation

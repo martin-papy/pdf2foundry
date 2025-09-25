@@ -7,10 +7,28 @@ name = "pdf2foundry"
 version = "0.1.0"
 description = "Convert born-digital PDFs into Foundry VTT v13 module compendia."
 readme = "README.md"
-requires-python = ">=3.12"
 authors = [
   { name = "Martin Papy", email = "martin.papy@gmail.com" }
 ]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Games/Entertainment :: Role-Playing",
+  "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+  "Topic :: Text Processing :: Markup :: HTML",
+  "Topic :: Utilities",
+  "Environment :: Console",
+  "Typing :: Typed",
+]
+requires-python = ">=3.12"
+
+[project.license]
+file = "LICENSE"
+
 # Full-featured installation (all dependencies included for users)
 dependencies = [
   # Core functionality
@@ -69,6 +87,9 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/martin-papy/pdf2foundry"
+Repository = "https://github.com/martin-papy/pdf2foundry"
+Issues = "https://github.com/martin-papy/pdf2foundry/issues"
+Changelog = "https://github.com/martin-papy/pdf2foundry/blob/main/RELEASE_NOTES.md"
 
 [project.scripts]
 pdf2foundry = "pdf2foundry.cli:app"

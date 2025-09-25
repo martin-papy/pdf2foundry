@@ -1,6 +1,6 @@
 # PDF2Foundry
 
-Convert born-digital PDFs into a Foundry VTT v13 module compendium with rich content extraction, structured tables, optional OCR, and image descriptions.
+Convert born-digital PDFs into a Foundry VTT v13 module compendium with rich content extraction, structured tables, OCR support, and AI-powered image descriptions.
 
 ## Quick Start
 
@@ -12,7 +12,7 @@ pdf2foundry convert "My Book.pdf" --mod-id "my-book" --mod-title "My Book"
 
 ## Developer Setup
 
-For development setup, testing, and contribution guidelines, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+For development setup, testing, and contribution guidelines, see [docs/development.md](docs/development.md).
 
 ## Features
 
@@ -28,16 +28,53 @@ For development setup, testing, and contribution guidelines, see [docs/DEVELOPME
 
 ## Installation
 
-### Production Install
+### System Requirements
+
+PDF2Foundry requires the following system dependencies:
+
+- **Python 3.12+**
+- **Node.js 24+** (for Foundry CLI pack compilation)
+- **Tesseract OCR** (for OCR features)
+
+### System Dependencies
+
+#### Node.js 24+ and Foundry CLI
+
+Required for pack compilation features:
+
+```bash
+# Install Node.js 24+ (visit https://nodejs.org for installers)
+# Then install Foundry CLI in your project directory:
+npm install @foundryvtt/foundryvtt-cli
+```
+
+#### Tesseract OCR
+
+Required for OCR functionality:
+
+```bash
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian
+sudo apt-get install tesseract-ocr
+
+# Windows
+# Download from https://github.com/UB-Mannheim/tesseract/wiki
+```
+
+### Python Installation
+
+#### Production Install
 
 ```bash
 pip install pdf2foundry
 ```
 
-### Development Install
+#### Development Install
 
 ```bash
-git clone https://github.com/your-org/pdf2foundry.git
+git clone https://github.com/martin-papy/pdf2foundry.git
 cd pdf2foundry
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
@@ -51,32 +88,15 @@ Enable pre-commit hooks for development:
 pre-commit install
 ```
 
-### Optional Dependencies
+### Included Features
 
-Some advanced features require additional system dependencies:
+PDF2Foundry includes all advanced features by default:
 
-#### OCR Features (`--ocr on|auto`)
+- **OCR Support**: Tesseract integration for scanned documents
+- **AI Image Descriptions**: Vision-Language Models via transformers
+- **ML Processing**: PyTorch and related libraries
 
-Requires Tesseract OCR:
-
-```bash
-# macOS
-brew install tesseract
-
-# Ubuntu/Debian
-sudo apt-get install tesseract-ocr
-
-# Windows
-# Download from https://github.com/UB-Mannheim/tesseract/wiki
-```
-
-#### Image Descriptions (`--picture-descriptions on`)
-
-Requires transformers library and a Vision-Language Model:
-
-- Models are downloaded automatically from Hugging Face
-- Default model: `Salesforce/blip-image-captioning-base`
-- First run may take time to download models (~1-2GB)
+**Note**: ML models are downloaded automatically from Hugging Face on first use (~1GB for default BLIP model).
 
 ## Development
 
@@ -121,7 +141,7 @@ git commit -m "Update performance baseline"
 
 You can manually trigger the E2E workflow using GitHub's workflow_dispatch feature in the Actions tab.
 
-All checks must pass before merging. The CI runs on Python 3.12 and 3.13.
+All checks must pass before merging. The CI runs on Python 3.12+.
 
 ## CLI Usage
 
@@ -155,7 +175,8 @@ pdf2foundry convert \
   --pages "1,5-10,15" \
   --workers 4 \
   --reflow-columns \
-  --verbose
+  --no-ml \
+  --verbose/-v
 ```
 
 ### Command Options
@@ -189,6 +210,7 @@ pdf2foundry convert \
 - `--pages "<spec>"`: Process specific pages (e.g., `"1,5-10,15"`, default: all pages)
 - `--workers <n>`: Number of worker processes for CPU-bound operations (default: 1)
 - `--reflow-columns`: Experimental multi-column text reflow (default: disabled)
+- `--no-ml`: Disable ML features (VLM, advanced OCR) for faster processing or CI environments
 
 #### Caching Options (Single-Pass Ingestion)
 
@@ -208,7 +230,7 @@ pdf2foundry convert \
 
 - `--out-dir <path>`: Output directory (default: `dist`)
 - `--compile-pack/--no-compile-pack`: Compile to LevelDB using Foundry CLI (default: disabled)
-- `--verbose`, `-v`: Increase verbosity (use `-vv` for debug output)
+- `--verbose`, `-v`: Increase verbosity (use `-v` for info, `-vv` for debug output)
 
 ### Usage Examples
 
@@ -236,7 +258,7 @@ pdf2foundry convert "Scanned Book.pdf" --mod-id "scanned-book" --mod-title "Scan
 
 # AI-powered image descriptions
 pdf2foundry convert "Bestiary.pdf" --mod-id "bestiary" --mod-title "Monster Manual" \
-  --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+  --picture-descriptions on --vlm-repo-id "Salesforce/blip-image-captioning-base"
 
 # Disable TOC generation
 pdf2foundry convert "Simple Guide.pdf" --mod-id "guide" --mod-title "Quick Guide" \
@@ -285,7 +307,7 @@ pdf2foundry convert "Book.pdf" --mod-id "my-book" --mod-title "My Book" \
 # All features enabled for maximum quality
 pdf2foundry convert "Complete Manual.pdf" --mod-id "complete-manual" --mod-title "Complete Manual" \
   --tables structured --ocr auto --picture-descriptions on \
-  --vlm-repo-id "microsoft/Florence-2-base" --workers 2 --verbose
+  --vlm-repo-id "Salesforce/blip-image-captioning-base" --workers 2 --verbose
 
 # Production workflow with pack compilation
 pdf2foundry convert "Module.pdf" --mod-id "my-module" --mod-title "My Module" \
@@ -377,7 +399,7 @@ tesseract --version  # Should show version info
 ```bash
 # Test with a well-known model
 pdf2foundry convert test.pdf --mod-id test --mod-title Test \
-  --picture-descriptions on --vlm-repo-id "microsoft/Florence-2-base"
+  --picture-descriptions on --vlm-repo-id "Salesforce/blip-image-captioning-base"
 ```
 
 **Large files timing out**: Use page selection and multiple workers
@@ -402,11 +424,16 @@ pdf2foundry convert book.pdf --mod-id my-book --mod-title "My Book" --write-docl
 - Use `--tables image-only` for faster processing if table structure isn't needed
 - Enable `--verbose` to monitor progress and identify bottlenecks
 
-### Getting Help
+### System Requirements Check
 
 ```bash
-# Check environment and dependencies
+# Check Python and Docling environment
 pdf2foundry doctor
+
+# Verify system dependencies
+node --version    # Should be 24+
+tesseract --version    # Should show Tesseract info
+npx @foundryvtt/foundryvtt-cli --version    # Should show Foundry CLI
 
 # Get detailed help
 pdf2foundry convert --help
