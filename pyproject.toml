@@ -59,6 +59,12 @@ dev = [
   "reportlab>=4.2.0",
   # Performance analysis
   "psutil>=6.1.0",
+  # Release script dependencies
+  "requests>=2.32.0",
+  "tomli>=2.0.0",
+  "tomli-w>=1.0.0",
+  "click>=8.1.0",
+  "python-dotenv>=1.0.0",
 ]
 
 [project.urls]
