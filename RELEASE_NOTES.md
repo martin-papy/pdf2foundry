@@ -1,6 +1,6 @@
 # Release Notes
 
-## Version 0.1.0 - 2025-09-25
+## Version 0.1.0a1 - 2025-09-25
 
 ### Initial Release
 
