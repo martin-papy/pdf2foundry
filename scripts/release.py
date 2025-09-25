@@ -598,8 +598,8 @@ def update_development_status_classifier(version: str, dry_run: bool = False) ->
 def release(dry_run: bool = False, verbose: bool = False):
     """Create a new release for PDF2Foundry.
 
-    This script handles version bumping, release notes validation,
-    GitHub release creation, and all necessary safety checks.
+    This script releases the CURRENT version, then bumps to the next development version.
+    The process is: 1) Release current version 2) Bump to next version 3) Commit version bump.
     """
     # Setup logging
     logger = setup_logging(verbose)
@@ -607,7 +607,7 @@ def release(dry_run: bool = False, verbose: bool = False):
     if dry_run:
         print("🔍 DRY RUN MODE - No changes will be made\n")
 
-    # Run initial safety checks (without release notes check)
+    # Run initial safety checks
     initial_check_results = {}
     initial_check_results["git_status"] = check_git_status(dry_run)
     initial_check_results["current_branch"] = check_current_branch(dry_run)
@@ -643,14 +643,31 @@ def release(dry_run: bool = False, verbose: bool = False):
 
     current_version = get_current_version()
 
-    # Display current version
-    if not dry_run:
-        print(f"\n📦 CURRENT VERSION: {current_version}")
-        print("─" * 30)
+    # Check if release notes have been updated for the CURRENT version (the one we're releasing)
+    release_notes_check = check_release_notes_updated(current_version, dry_run)
 
-    # Get new version strategy
-    print("\n🔢 VERSION BUMP OPTIONS")
-    print("─" * 30)
+    # Combine all check results
+    all_check_results = initial_check_results.copy()
+    all_check_results["release_notes_updated"] = release_notes_check
+
+    # Display current version that will be released
+    print(f"\n📦 RELEASING VERSION: {current_version}")
+    print("─" * 40)
+
+    # Show release notes check result
+    if dry_run:
+        print("\n📋 RELEASE NOTES CHECK")
+        print("─" * 30)
+        status = "✅" if release_notes_check else "❌"
+        print(f"{status} Release Notes Updated for {current_version}")
+        if not release_notes_check:
+            print(f"   ⚠️  RELEASE_NOTES.md needs to be updated for version {current_version}")
+        print()
+
+    # Get next development version strategy
+    print("\n🔢 NEXT DEVELOPMENT VERSION OPTIONS")
+    print("─" * 45)
+    print("After releasing the current version, what should the next development version be?")
 
     # Calculate and show actual version examples based on current version
     major_version = calculate_new_version(current_version, 1)
@@ -664,16 +681,16 @@ def release(dry_run: bool = False, verbose: bool = False):
     print(f"4. Pre-release ({current_version} → {prerelease_version})")
     print("5. Custom (specify exact version)")
 
-    choice = prompt("Select version bump type", type=int)
+    choice = prompt("Select next development version bump type", type=int)
 
     custom_version = None
     if choice == 5:
         print(f"\nCurrent version: {current_version}")
-        print("Enter the new version (format: X.Y.Z, X.Y.Za<num>, X.Y.Zb<num>, or X.Y.Zrc<num>)")
+        print("Enter the next development version (format: X.Y.Z, X.Y.Za<num>, X.Y.Zb<num>, or X.Y.Zrc<num>)")
         print("Examples: 1.2.3, 0.5.0, 2.1.0a1, 1.0.0b2, 1.0.0rc1")
 
         while True:
-            custom_version = prompt("New version").strip()
+            custom_version = prompt("Next development version").strip()
             if not custom_version:
                 logger.error("Version cannot be empty")
                 continue
@@ -695,85 +712,51 @@ def release(dry_run: bool = False, verbose: bool = False):
         logger.error("Invalid choice")
         sys.exit(1)
 
-    if dry_run:
-        bump_type = (
-            "major"
-            if choice == 1
-            else "minor"
-            if choice == 2
-            else "patch"
-            if choice == 3
-            else "pre-release"
-            if choice == 4
-            else "custom"
-        )
-        print(f"\n🔢 VERSION CHANGE (using {bump_type} bump)")
-        print("─" * 50)
-
-    # Calculate new version
+    # Calculate next development version
     try:
-        new_version = calculate_new_version(current_version, choice, custom_version)
+        next_dev_version = calculate_new_version(current_version, choice, custom_version)
     except ValueError as e:
         logger.error(f"Version calculation failed: {e}")
         sys.exit(1)
 
     # Ask for confirmation before proceeding further
-    print(f"\nSelected new version: {new_version}")
-    if not confirm(f"Proceed with version bump to {new_version}?", default=True):
+    print("\n📋 RELEASE PLAN")
+    print("─" * 20)
+    print(f"1. Release current version: {current_version}")
+    print(f"2. Bump to next development version: {next_dev_version}")
+
+    if not confirm("Proceed with this release plan?", default=True):
         logger.error("Release aborted by user.")
         if dry_run:
             return
         sys.exit(1)
 
-    # Now check if release notes have been updated for the new version
-    release_notes_check = check_release_notes_updated(new_version, dry_run)
-
-    # Combine all check results
-    all_check_results = initial_check_results.copy()
-    all_check_results["release_notes_updated"] = release_notes_check
-
-    # Display planned change
-    print(f"Version change: {current_version} → {new_version}")
-
-    # Show release notes check result
-    if dry_run:
-        print("\n📋 RELEASE NOTES CHECK")
-        print("─" * 30)
-        status = "✅" if release_notes_check else "❌"
-        print(f"{status} Release Notes Updated")
-        if not release_notes_check:
-            print(f"   ⚠️  RELEASE_NOTES.md needs to be updated for version {new_version}")
-        print()
-
     if dry_run:
         print("\n🚀 PLANNED RELEASE ACTIONS")
         print("─" * 50)
 
-        print("\n1️⃣  Update package version and classifier:")
-        print(f"   • Version: {current_version} → {new_version}")
+        print("\n1️⃣  Create GitHub release for CURRENT version:")
+        print(f"   • Release version: {current_version}")
+        tag_name = f"v{current_version}"
+        print(f"   • Create tag: {tag_name}")
+        print("   • Push tag to GitHub")
+        print(f"   • Create GitHub release: PDF2Foundry v{current_version}")
+
+        print("\n2️⃣  Bump to NEXT development version:")
+        print(f"   • Update pyproject.toml version: {current_version} → {next_dev_version}")
 
         # Show classifier updates
         current_classifier = get_development_status_classifier(current_version)
-        new_classifier = get_development_status_classifier(new_version)
-        if current_classifier != new_classifier:
-            print(f"   • Classifier: {current_classifier} → {new_classifier}")
+        next_classifier = get_development_status_classifier(next_dev_version)
+        if current_classifier != next_classifier:
+            print(f"   • Update classifier: {current_classifier} → {next_classifier}")
         else:
-            print(f"   • Classifier: {new_classifier} (no change)")
+            print(f"   • Classifier: {next_classifier} (no change)")
 
-        print("\n2️⃣  Commit changes:")
+        print("\n3️⃣  Commit and push version bump:")
         print("   • Stage updated pyproject.toml")
-        print("   • Create commit: 'chore(release): bump version and update classifier'")
-
-        print("\n3️⃣  Push changes:")
-        print("   • Push new version to remote repository")
-
-        print("\n4️⃣  Create and push tag:")
-        tag_name = f"v{new_version}"
-        print(f"   • {tag_name}")
-        print("   • Push tag to GitHub")
-
-        print("\n5️⃣  Create GitHub release:")
-        print(f"   • PDF2Foundry v{new_version}")
+        print("   • Create commit: 'chore(release): bump to next development version'")
+        print("   • Push to remote repository")
 
         print("\n" + "─" * 50)
 
@@ -801,35 +784,40 @@ def release(dry_run: bool = False, verbose: bool = False):
         logger.error("One or more safety checks failed. Aborting release.")
         sys.exit(1)
 
-    # Update version in pyproject.toml
-    update_version(new_version, dry_run)
+    # STEP 1: Create GitHub release for CURRENT version
+    logger.info(f"Creating GitHub release for current version: {current_version}")
 
-    # Update Development Status classifier
-    update_development_status_classifier(new_version, dry_run)
-
-    # Create commit with version and classifier updates
-    run_command("git add pyproject.toml", dry_run)
-    run_command('git commit -m "chore(release): bump version and update classifier"', dry_run)
-
-    # Push the new version commit to remote
-    run_command("git push origin main", dry_run)
-
-    # Create and push tag with NEW version
-    tag_name = f"v{new_version}"
-    run_command(f'git tag -a {tag_name} -m "Release PDF2Foundry v{new_version}"', dry_run)
-
+    # Create and push tag for CURRENT version
+    tag_name = f"v{current_version}"
+    run_command(f'git tag -a {tag_name} -m "Release PDF2Foundry v{current_version}"', dry_run)
     run_command("git push origin main --tags", dry_run)
 
-    # Create GitHub release with NEW version
+    # Create GitHub release for CURRENT version
     token = get_github_token(dry_run)
-    create_github_release(new_version, token, dry_run)
+    create_github_release(current_version, token, dry_run)
+
+    # STEP 2: Bump to next development version
+    logger.info(f"Bumping to next development version: {next_dev_version}")
+
+    # Update version in pyproject.toml
+    update_version(next_dev_version, dry_run)
+
+    # Update Development Status classifier
+    update_development_status_classifier(next_dev_version, dry_run)
+
+    # Create commit with version bump
+    run_command("git add pyproject.toml", dry_run)
+    run_command('git commit -m "chore(release): bump to next development version"', dry_run)
+
+    # Push the version bump commit to remote
+    run_command("git push origin main", dry_run)
 
     print("\n🎉 RELEASE COMPLETED SUCCESSFULLY!")
     print("─" * 40)
-    print(f"\n📦 Released version: v{new_version}")
-    print(f"\n🔄 Updated from: v{current_version}")
+    print(f"\n📦 Released version: v{current_version}")
+    print(f"🔄 Next development version: {next_dev_version}")
     print("   Development Status classifier updated automatically")
-    print("   New version committed and pushed to remote repository")
+    print("   Version bump committed and pushed to remote repository")
 
 
 if __name__ == "__main__":

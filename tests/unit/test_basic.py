@@ -13,8 +13,9 @@ def test_version() -> None:
     # Version should be defined and follow semantic versioning pattern
     assert __version__ is not None
     assert isinstance(__version__, str)
-    # Check it follows semantic versioning (e.g., "0.1.0", "1.2.3", etc.)
-    version_pattern = r"^\d+\.\d+\.\d+$"
+    # Check it follows semantic versioning (e.g., "0.1.0", "1.2.3", "0.1.0a1", "1.0.0b2", "2.0.0rc1")
+    # Pattern supports: X.Y.Z, X.Y.Za<num>, X.Y.Zb<num>, X.Y.Zrc<num>
+    version_pattern = r"^\d+\.\d+\.\d+(?:[ab]\d+|rc\d+)?$"
     assert re.match(version_pattern, __version__), f"Version '{__version__}' doesn't follow semantic versioning"
 
 
