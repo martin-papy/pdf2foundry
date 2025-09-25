@@ -1,87 +1,80 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = [
+    "setuptools>=68",
+    "wheel",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pdf2foundry"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Convert born-digital PDFs into Foundry VTT v13 module compendia."
 readme = "README.md"
 authors = [
-  { name = "Martin Papy", email = "martin.papy@gmail.com" }
+    { name = "Martin Papy", email = "martin.papy@gmail.com" },
 ]
 classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Intended Audience :: Developers",
-  "Intended Audience :: End Users/Desktop",
-  "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.12",
-  "Topic :: Games/Entertainment :: Role-Playing",
-  "Topic :: Multimedia :: Graphics :: Graphics Conversion",
-  "Topic :: Text Processing :: Markup :: HTML",
-  "Topic :: Utilities",
-  "Environment :: Console",
-  "Typing :: Typed",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment :: Role-Playing",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Utilities",
+    "Environment :: Console",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.12"
-# Full-featured installation (all dependencies included for users)
 dependencies = [
-  # Core functionality
-  "typer>=0.16.0",
-  "jinja2>=3.1.6", 
-  "pillow>=11.3.0",
-  "rich>=14.1.0",
-  "docling>=2.53.0",
-  "docling-core>=2.48.1",
-  # ML features - always available for users
-  "transformers>=4.46.0",
-  "huggingface_hub>=0.24.2", 
-  "torch>=2.8.0",
-  "einops>=0.8.0",
-  "timm>=1.0.0",
-  # OCR features - always available for users
-  "pytesseract>=0.3.13",
+    "typer>=0.16.0",
+    "jinja2>=3.1.6",
+    "pillow>=11.3.0",
+    "rich>=14.1.0",
+    "docling>=2.53.0",
+    "docling-core>=2.48.1",
+    "transformers>=4.46.0",
+    "huggingface_hub>=0.24.2",
+    "torch>=2.8.0",
+    "einops>=0.8.0",
+    "timm>=1.0.0",
+    "pytesseract>=0.3.13",
 ]
 
 [project.license]
 file = "LICENSE"
 
 [project.optional-dependencies]
-# Minimal installation for CI environments only
 ci-minimal = [
-  "typer>=0.16.0",
-  "jinja2>=3.1.6", 
-  "pillow>=11.3.0",
-  "rich>=14.1.0",
-  "docling>=2.53.0",
-  "docling-core>=2.48.1",
+    "typer>=0.16.0",
+    "jinja2>=3.1.6",
+    "pillow>=11.3.0",
+    "rich>=14.1.0",
+    "docling>=2.53.0",
+    "docling-core>=2.48.1",
 ]
-
-# Development dependencies
 dev = [
-  "ruff>=0.13.1",
-  "black>=25.9.0",
-  "mypy>=1.18.2",
-  "pytest>=8.4.2",
-  "pytest-cov>=7.0.0",
-  "pre-commit>=4.3.0",
-  # E2E testing dependencies
-  "pytest-xdist>=3.6.1",
-  "pytest-benchmark>=4.0.0",
-  "jsonschema>=4.23.0",
-  "referencing>=0.35.1",
-  "beautifulsoup4>=4.12.3",
-  "lxml>=5.3.0",
-  "reportlab>=4.2.0",
-  # Performance analysis
-  "psutil>=6.1.0",
-  # Release script dependencies
-  "requests>=2.32.0",
-  "tomli>=2.0.0",
-  "tomli-w>=1.0.0",
-  "click>=8.1.0",
-  "python-dotenv>=1.0.0",
+    "ruff>=0.13.1",
+    "black>=25.9.0",
+    "mypy>=1.18.2",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pre-commit>=4.3.0",
+    "pytest-xdist>=3.6.1",
+    "pytest-benchmark>=4.0.0",
+    "jsonschema>=4.23.0",
+    "referencing>=0.35.1",
+    "beautifulsoup4>=4.12.3",
+    "lxml>=5.3.0",
+    "reportlab>=4.2.0",
+    "psutil>=6.1.0",
+    "requests>=2.32.0",
+    "tomli>=2.0.0",
+    "tomli-w>=1.0.0",
+    "click>=8.1.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.urls]
@@ -95,7 +88,9 @@ pdf2foundry = "pdf2foundry.cli:app"
 
 [tool.black]
 line-length = 125
-target-version = ["py312"]
+target-version = [
+    "py312",
+]
 
 [tool.ruff]
 line-length = 125
@@ -103,12 +98,23 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = [
-  "E","F","I","B","UP","C4","SIM","RUF"
+    "E",
+    "F",
+    "I",
+    "B",
+    "UP",
+    "C4",
+    "SIM",
+    "RUF",
 ]
-ignore = ["ISC001"]
+ignore = [
+    "ISC001",
+]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pdf2foundry"]
+known-first-party = [
+    "pdf2foundry",
+]
 
 [tool.mypy]
 python_version = "3.12"
@@ -116,40 +122,34 @@ strict = true
 warn_unused_configs = true
 pretty = true
 exclude = [
-  "^tests/.*$"
+    "^tests/.*$",
 ]
-# Performance optimizations for local development
-# Note: CI uses --no-incremental and --cache-dir=/dev/null to avoid SQLite locks
 sqlite_cache = true
 cache_fine_grained = true
 incremental = true
-# Skip checking the contents of functions with at least one `Any` parameter
 disallow_any_generics = false
-# Faster imports
 follow_imports = "normal"
-# Reduce memory usage
 local_partial_types = true
-# Skip some expensive checks for better performance
 skip_version_check = true
-# Reduce output verbosity for speed
 show_error_context = false
 
 [[tool.mypy.overrides]]
 module = [
-  "docling.*",
-  "pytesseract",
+    "docling.*",
+    "pytesseract",
 ]
 ignore_missing_imports = true
 
 [tool.coverage.run]
-# Only collect coverage from unit tests, exclude E2E tests
 omit = [
     "tests/e2e/*",
 ]
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"
-testpaths = ["tests"]
+testpaths = [
+    "tests",
+]
 log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
@@ -171,4 +171,3 @@ markers = [
     "integration: marks tests as integration tests",
     "errors: marks tests that test error handling",
 ]
-
