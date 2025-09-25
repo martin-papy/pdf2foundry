@@ -54,13 +54,10 @@ repos:
         exclude: ^scripts/
         stages: [pre-commit]
 
-  - repo: local
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
     hooks:
       - id: mypy
-        name: mypy
-        entry: mypy
-        language: system
-        types: [python]
         args:
           - --config-file=pyproject.toml
           - --no-incremental
@@ -73,6 +70,16 @@ repos:
         # Only check source files, not tests (tests are excluded in pyproject.toml)
         files: ^src/
         stages: [pre-commit]
+        additional_dependencies:
+          # Core dependencies that mypy needs to see
+          - typer>=0.16.0
+          - jinja2>=3.1.6
+          - pillow>=11.3.0
+          - rich>=14.1.0
+          - docling>=2.53.0
+          - docling-core>=2.48.1
+          - transformers>=4.46.0
+          - torch>=2.8.0
 
   - repo: local
     hooks:
